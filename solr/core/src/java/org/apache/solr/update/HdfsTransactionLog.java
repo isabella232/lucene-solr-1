@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.util.DataInputInputStream;
 import org.apache.solr.common.util.FastInputStream;
 import org.apache.solr.common.util.FastOutputStream;
 import org.apache.solr.common.util.JavaBinCodec;
@@ -428,7 +429,7 @@ public class HdfsTransactionLog extends TransactionLog {
     FSDataFastInputStream fis;
     private LogCodec codec = new LogCodec(resolver) {
       @Override
-      public SolrInputDocument readSolrInputDocument(FastInputStream dis) {
+      public SolrInputDocument readSolrInputDocument(DataInputInputStream dis) {
         // Given that the SolrInputDocument is last in an add record, it's OK to just skip
         // reading it completely.
         return null;
