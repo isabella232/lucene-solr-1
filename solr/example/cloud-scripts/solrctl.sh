@@ -174,7 +174,9 @@ while test $# != 0 ; do
         --generate)
             [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
 
-            cp -r /usr/lib/solr/coreconfig-template $3
+            mkdir -p $3 > /dev/null 2>&1
+            [ -d $3 ] || usage "Error: $3 has to be a directory"
+            cp -r /usr/lib/solr/coreconfig-template/* $3
             shift 3
             ;;
         --list)
