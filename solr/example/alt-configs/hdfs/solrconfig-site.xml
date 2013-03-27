@@ -1,1 +1,1 @@
-<dataDir>hdfs://localhost:8020/solr</dataDir>
+<dataDir>hdfs://solr-phunt-1.ent.cloudera.com:8020/solr/collection/${solr.host}</dataDir>
