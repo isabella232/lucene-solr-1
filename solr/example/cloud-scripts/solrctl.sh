@@ -90,17 +90,11 @@ else
   SOLR_PORT=8983
 fi
 
-if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
-  SOLR_ADMIN_ZK_CMD="local_coreconfig"
-else
-  SOLR_ADMIN_ZK_CMD='/usr/lib/solr/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
-fi
-
 SOLR_ADMIN_URI="http://localhost:$SOLR_PORT/solr"
 SOLR_ADMIN_CHAT=echo
 SOLR_ADMIN_API_CMD='curl --retry 5 -s -L -k'
 
-[ $# -gt 0 ] || usage 
+# First eat up all the global options
 
 while test $# != 0 ; do
   case "$1" in 
@@ -121,7 +115,28 @@ while test $# != 0 ; do
       SOLR_ZK_ENSEMBLE="$2"
       shift 2
       ;;
+    *)
+      break
+      ;;
+  esac
+done
 
+if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
+  SOLR_ADMIN_ZK_CMD="local_coreconfig"
+  cat >&2 <<-__EOT__
+	Warning: Non-SolrCloud mode has been completely deprecated
+	Please configure SolrCloud via SOLR_ZK_ENSEMBLE setting in 
+	/etc/default/solr
+	If you running remotely, please use --zk zk_ensemble.
+	__EOT__
+else
+  SOLR_ADMIN_ZK_CMD='/usr/lib/solr/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
+fi
+
+# Now start parsing commands -- there has to be at least one!
+[ $# -gt 0 ] || usage 
+while test $# != 0 ; do
+  case "$1" in 
     init)
       if [ "$2" == "--force" ] ; then
         shift 1
@@ -254,12 +269,7 @@ while test $# != 0 ; do
             [ -n "$COL_CREATE_MAXSHARDS" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&maxShardsPerNode=${COL_CREATE_MAXSHARDS}"
             [ -n "$COL_CREATE_NODESET" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&createNodeSet=${COL_CREATE_NODESET}"
             
-            # FIXME: this is a TOTAL hack
-            if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
-              eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/admin/cores?action=CREATE&name=${COL_CREATE_NAME}&instanceDir=${COL_CREATE_NAME}'"
-            else
-              eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/admin/collections?action=CREATE${COL_CREATE_CALL}'"
-            fi
+            eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/admin/collections?action=CREATE${COL_CREATE_CALL}'"
 
             shift 4
             ;;
