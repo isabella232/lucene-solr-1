@@ -140,8 +140,15 @@ while test $# != 0 ; do
     init)
       if [ "$2" == "--force" ] ; then
         shift 1
-      elif ((eval $SOLR_ADMIN_ZK_CMD -cmd list) | grep -q '^..*$')  ; then
-        die "Warning: Solr appears to be initialized (use --force to override)"
+      else
+        ZK_DUMP=`(eval $SOLR_ADMIN_ZK_CMD -cmd list) | grep -v '^/ '`
+        LIVE_NODES=`echo "$ZK_DUMP" | sed -ne 's#/live_nodes/##p'`
+
+        if [ -n "$LIVE_NODES" ] ; then
+          die "Warning: It appears you have live SolrCloud nodes running: `printf '\n%s\nPlease shut them down.' \"${LIVE_NODES}\"`"
+        elif [ -n "$ZK_DUMP" ] ; then
+          die "Warning: Solr appears to be initialized (use --force to override)"
+        fi
       fi
 
       eval $SOLR_ADMIN_ZK_CMD -cmd makepath / > /dev/null 2>&1 || : 
