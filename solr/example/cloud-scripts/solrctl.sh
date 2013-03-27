@@ -84,6 +84,16 @@ local_coreconfig() {
   esac 
 }
 
+solr_webapi() {
+  local WEB_OUT=`curl -i --retry 5 -s -L -k "$@" | sed -e 's#>#>\n#g'`
+
+  if [ $? -eq 0 ] && (echo "$WEB_OUT" | grep -q 'HTTP/.*200.*OK') ; then
+    echo "$WEB_OUT" | egrep -q '<lst name="(failure|exception|error)">' || return 0
+  fi
+
+  die "Error: A call to SolrCloud WEB APIs failed: $WEB_OUT"
+}
+
 if [ -e /etc/default/solr ] ; then
   . /etc/default/solr
 else
@@ -92,7 +102,7 @@ fi
 
 SOLR_ADMIN_URI="http://localhost:$SOLR_PORT/solr"
 SOLR_ADMIN_CHAT=echo
-SOLR_ADMIN_API_CMD='curl --retry 5 -s -L -k'
+SOLR_ADMIN_API_CMD='solr_webapi'
 
 # First eat up all the global options
 
