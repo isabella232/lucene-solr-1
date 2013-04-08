@@ -110,7 +110,20 @@ local_coreconfig() {
 }
 
 solr_webapi() {
-  local WEB_OUT=`curl -i --retry 5 -s -L -k "$@" | sed -e 's#>#>\n#g'`
+  # If SOLR_ADMIN_URI wasn't given explicitly via --solr we need to guess it
+  if [ -z "$SOLR_ADMIN_URI" ] ; then
+    for node in `get_solr_state | sed -ne 's#/live_nodes/\(.*:[0-9][0-9]*\).*$#\1#p'` localhost:$SOLR_PORT ; do
+      if $SOLR_ADMIN_CURL "http://$node/solr" >/dev/null 2>&1 ; then
+        SOLR_ADMIN_URI="http://$node/solr"
+        break
+      fi
+    done
+    [ -n "$SOLR_ADMIN_URI" ] || die "Error: can't discover Solr URI. Please specify it explicitly via --solr." 
+  fi
+
+  URI="$SOLR_ADMIN_URI/$1"
+  shift
+  local WEB_OUT=`$SOLR_ADMIN_CURL $URI "$@" | sed -e 's#>#>\n#g'`
 
   if [ $? -eq 0 ] && (echo "$WEB_OUT" | grep -q 'HTTP/.*200.*OK') ; then
     echo "$WEB_OUT" | egrep -q '<lst name="(failure|exception|error)">' || return 0
@@ -119,13 +132,21 @@ solr_webapi() {
   die "Error: A call to SolrCloud WEB APIs failed: $WEB_OUT"
 }
 
+get_solr_state() {
+  if [ -z "$SOLR_STATE" ] ; then
+    SOLR_STATE=`eval $SOLR_ADMIN_ZK_CMD -cmd list 2>/dev/null`
+  fi
+
+  echo "$SOLR_STATE" | grep -v '^/ '
+}
+
 if [ -e /etc/default/solr ] ; then
   . /etc/default/solr
 else
   SOLR_PORT=8983
 fi
 
-SOLR_ADMIN_URI="http://localhost:$SOLR_PORT/solr"
+SOLR_ADMIN_CURL='curl -i --retry 5 -s -L -k'
 SOLR_ADMIN_CHAT=echo
 SOLR_ADMIN_API_CMD='solr_webapi'
 
@@ -170,6 +191,7 @@ else
   SOLR_ADMIN_ZK_CMD='${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
 fi
 
+
 # Now start parsing commands -- there has to be at least one!
 [ $# -gt 0 ] || usage 
 while test $# != 0 ; do
@@ -184,12 +206,11 @@ while test $# != 0 ; do
       if [ "$2" == "--force" ] ; then
         shift 1
       else
-        ZK_DUMP=`(eval $SOLR_ADMIN_ZK_CMD -cmd list) | grep -v '^/ '`
-        LIVE_NODES=`echo "$ZK_DUMP" | sed -ne 's#/live_nodes/##p'`
+        LIVE_NODES=`get_solr_state | sed -ne 's#/live_nodes/##p'`
 
         if [ -n "$LIVE_NODES" ] ; then
           die "Warning: It appears you have live SolrCloud nodes running: `printf '\n%s\nPlease shut them down.' \"${LIVE_NODES}\"`"
-        elif [ -n "$ZK_DUMP" ] ; then
+        elif [ -n "`get_solr_state`" ] ; then
           die "Warning: Solr appears to be initialized (use --force to override)"
         fi
       fi
@@ -270,7 +291,7 @@ while test $# != 0 ; do
             shift 3
             ;;
         --list)
-            eval $SOLR_ADMIN_ZK_CMD -cmd list 2>/dev/null | sed -n -e '/\/configs\//s#^.*/configs/\([^/]*\)/.*$#\1#p' | sort -u
+            get_solr_state | sed -n -e '/\/configs\//s#^.*/configs/\([^/]*\)/.*$#\1#p' | sort -u
             shift 2
             ;;
         *)  
@@ -330,13 +351,13 @@ while test $# != 0 ; do
             [ -n "$COL_CREATE_MAXSHARDS" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&maxShardsPerNode=${COL_CREATE_MAXSHARDS}"
             [ -n "$COL_CREATE_NODESET" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&createNodeSet=${COL_CREATE_NODESET}"
             
-            eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/admin/collections?action=CREATE${COL_CREATE_CALL}'"
+            eval $SOLR_ADMIN_API_CMD "'/admin/collections?action=CREATE${COL_CREATE_CALL}'"
 
             shift 4
             ;;
         --delete|--reload)
             COL_ACTION=`echo $2 | tr '[a-z]-' '[A-Z] '`
-            eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/admin/collections?action=`echo $COL_ACTION`&name=$3'"
+            eval $SOLR_ADMIN_API_CMD "'/admin/collections?action=`echo $COL_ACTION`&name=$3'"
             shift 3
             ;;
         --deletedocs)
@@ -377,11 +398,11 @@ while test $# != 0 ; do
           done
           [ -n "$CORE_KV_PAIRS" ] || CORE_KV_PAIRS="&instanceDir=${CORE_CREATE_NAME}"
  
-          eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/admin/cores?action=CREATE&name=${CORE_CREATE_NAME}${CORE_KV_PAIRS}'"
+          eval $SOLR_ADMIN_API_CMD "'/admin/cores?action=CREATE&name=${CORE_CREATE_NAME}${CORE_KV_PAIRS}'"
           ;;
         --reload|--unload|--status)
           CORE_ACTION=`echo $2 | tr '[a-z]-' '[A-Z] '`
-          eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/admin/cores?action=`echo $CORE_ACTION`&core=$3'"
+          eval $SOLR_ADMIN_API_CMD "'/admin/cores?action=`echo $CORE_ACTION`&core=$3'"
           shift 3
           ;;
         *)  
