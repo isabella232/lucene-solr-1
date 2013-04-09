@@ -207,8 +207,10 @@ while test $# != 0 ; do
         --get)
             [ $# -gt 3 ] || usage "Error: incorrect specification of arguments for $1 $2"
 
+            [ -e "$4" ] && die "Error: subdirectory $4 already exists"
+
             $SOLR_ADMIN_CHAT "Downloading configs from $SOLR_ZK_ENSEMBLE to $4. This may take up to a minute."
-            eval $SOLR_ADMIN_ZK_CMD -cmd downconfig -confdir $4 -confname $3 2>/dev/null || die "Error: can't download configuration"
+            eval $SOLR_ADMIN_ZK_CMD -cmd downconfig -confdir "$4" -confname "$3" 2>/dev/null || die "Error: can't download configuration"
             shift 4
             ;;
         --delete)
@@ -220,9 +222,11 @@ while test $# != 0 ; do
         --generate)
             [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
 
-            mkdir -p $3 > /dev/null 2>&1
-            [ -d $3 ] || usage "Error: $3 has to be a directory"
-            cp -r /usr/lib/solr/coreconfig-template/* $3
+            [ -e "$3" ] && die "Error: subdirectory $3 already exists"
+
+            mkdir -p "$3" > /dev/null 2>&1
+            [ -d "$3" ] || usage "Error: $3 has to be a directory"
+            cp -r /usr/lib/solr/coreconfig-template/* "$3"
             shift 3
             ;;
         --list)
