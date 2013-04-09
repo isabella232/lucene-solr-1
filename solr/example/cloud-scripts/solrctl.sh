@@ -42,6 +42,7 @@ Commands:
                               [-n <createNodeSet>]]
                 [--delete name]
                 [--reload name]
+                [--deletedocs name]
 
     core        [--create name [-p name=value]...]
                 [--reload name]
@@ -293,6 +294,10 @@ while test $# != 0 ; do
         --delete|--reload)
             COL_ACTION=`echo $2 | tr '[a-z]-' '[A-Z] '`
             eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/admin/collections?action=`echo $COL_ACTION`&name=$3'"
+            shift 3
+            ;;
+        --deletedocs)
+            eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/$3/update?commit=true'" -H "'Content-Type: text/xml'" "--data-binary '<delete><query>*:*</query></delete>'"
             shift 3
             ;;
         *)  
