@@ -243,9 +243,8 @@ while test $# != 0 ; do
       [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
       case "$2" in
         --create) 
-            [ $# -gt 3 ] || usage "Error: incorrect specification of arguments for $1 $2"
             COL_CREATE_NAME=$3
-            COL_CREATE_NUMSHARDS=0
+            COL_CREATE_NUMSHARDS=1
             shift 3
             while test $# -gt 0 ; do
               case "$1" in
