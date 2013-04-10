@@ -378,3 +378,6 @@ while test $# != 0 ; do
       ;;
   esac
 done
+
+# If none of the above commands ended up calling die -- we're OK
+exit 0
