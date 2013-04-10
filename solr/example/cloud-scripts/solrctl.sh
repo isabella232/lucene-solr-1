@@ -42,7 +42,9 @@ Commands:
                               [-n <createNodeSet>]]
                 [--delete name]
                 [--reload name]
+                [--stat name]
                 [--deletedocs name]
+                [--list]
 
     core        [--create name [-p name=value]...]
                 [--reload name]
@@ -240,7 +242,7 @@ while test $# != 0 ; do
       ;;
 
     collection)
-      [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
+      [ "$2" = "--list" ] || [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
       case "$2" in
         --create) 
             COL_CREATE_NAME=$3
@@ -302,6 +304,14 @@ while test $# != 0 ; do
         --deletedocs)
             eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/$3/update?commit=true'" -H "'Content-Type: text/xml'" "--data-binary '<delete><query>*:*</query></delete>'"
             shift 3
+            ;;
+        --stat)
+            get_solr_state | sed -ne '/\/collections\//s#^.*/collections/##p' | sed -ne '/election\//s###p' | grep "$3/"
+            shift 3
+            ;;
+        --list)
+            get_solr_state | sed -ne '/\/collections\/[^\/]*$/s#^.*/collections/##p'
+            shift 2
             ;;
         *)  
             shift 1
