@@ -21,12 +21,6 @@
      this file, see http://wiki.apache.org/solr/SolrConfigXml. 
 -->
 <config>
-  <!-- Provide a hook for users-defined set of config options
-    -->
-  <xi:include href="solrconfig-site.xml" xmlns:xi="http://www.w3.org/2001/XInclude">
-     <xi:fallback/>
-  </xi:include>
-
   <!-- In all configuration below, a prefix of "solr." for class names
        is an alias that causes solr to search appropriate packages,
        including org.apache.solr.(search|update|request|core|analysis)
