@@ -188,7 +188,7 @@ while test $# != 0 ; do
       cat > /var/lib/solr/solr.xml <<-__EOT__
 	<?xml version="1.0" encoding="UTF-8" ?>
 	<solr persistent="true">
-	  <cores genericNodeNames="\${genericNodeNames:true}" defaultCoreName="default" host="\${solr.host:}" adminPath="/admin/cores" zkClientTimeout="\${zkClientTimeout:15000}" hostPort="\${solr.port:}" hostContext="solr">
+	  <cores genericCoreNodeNames="\${genericCoreNodeNames:true}" defaultCoreName="default" host="\${solr.host:}" adminPath="/admin/cores" zkClientTimeout="\${zkClientTimeout:15000}" hostPort="\${solr.port:}" hostContext="solr">
 	  $CORES
 	  </cores>
 	</solr>
