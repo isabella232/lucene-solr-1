@@ -110,6 +110,8 @@ SOLR_ADMIN_URI="http://localhost:$SOLR_PORT/solr"
 SOLR_ADMIN_CHAT=echo
 SOLR_ADMIN_API_CMD='solr_webapi'
 
+SOLR_HOME=${SOLR_HOME:-/usr/lib/solr/}
+
 # First eat up all the global options
 
 while test $# != 0 ; do
@@ -146,7 +148,7 @@ if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
 	If you running remotely, please use --zk zk_ensemble.
 	__EOT__
 else
-  SOLR_ADMIN_ZK_CMD='/usr/lib/solr/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
+  SOLR_ADMIN_ZK_CMD='${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
 fi
 
 # Now start parsing commands -- there has to be at least one!
@@ -242,7 +244,7 @@ while test $# != 0 ; do
 
             mkdir -p "$3" > /dev/null 2>&1
             [ -d "$3" ] || usage "Error: $3 has to be a directory"
-            cp -r /usr/lib/solr/coreconfig-template/* "$3"
+            cp -r ${SOLR_HOME}/coreconfig-template/* "$3"
             shift 3
             ;;
         --list)
