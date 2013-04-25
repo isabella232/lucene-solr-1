@@ -29,7 +29,7 @@ Options:
 Commands:
     init        [--force]
 
-    coreconfig  [--generate path]
+    instancedir [--generate path]
                 [--create name path]
                 [--update name path]
                 [--get name path]
@@ -200,26 +200,45 @@ while test $# != 0 ; do
       ;;
 
     coreconfig)
+      $SOLR_ADMIN_CHAT  "Warning: coreconfig is deprecated, please use instancedir instead (consult documentation on differences in behaviour)."
+      shift 1
+      set instancedir "$@"
+      ;;
+    instancedir)
       [ $# -gt 1 ] || usage "Error: incorrect specification of arguments for $1"
       case "$2" in
         --create) 
             [ $# -gt 3 ] || usage "Error: incorrect specification of arguments for $1 $2" 
-            [ -e $4/solrconfig.xml -a -e $4/schema.xml ] || die "Error: $4 must be a directory with at least solrconfig.xml and schema.xml"
+
+            if [ -d $4/conf ] ; then
+              INSTANCE_DIR="$4/conf"
+            else
+              INSTANCE_DIR="$4"
+            fi
+
+            [ -e ${INSTANCE_DIR}/solrconfig.xml -a -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at least solrconfig.xml and schema.xml"
 
             get_solr_state | grep -q '^ */configs/'"$3/" && die "Error: \"$3\" configuration already exists. Aborting. Try --update if you want to override"
 
-            $SOLR_ADMIN_CHAT "Uploading configs from $4 to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
-            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir $4 -confname $3 2>/dev/null || die "Error: can't upload configuration"
+            $SOLR_ADMIN_CHAT "Uploading configs from ${INSTANCE_DIR} to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
+            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${INSTANCE_DIR} -confname $3 2>/dev/null || die "Error: can't upload configuration"
             shift 4
             ;;
         --update)
             [ $# -gt 3 ] || usage "Error: incorrect specification of arguments for $1 $2"
-            [ -e $4/solrconfig.xml -a -e $4/schema.xml ] || die "Error: $4 must be a directory with at least solrconfig.xml and schema.xml"
+
+            if [ -d $4/conf ] ; then
+              INSTANCE_DIR="$4/conf"
+            else
+              INSTANCE_DIR="$4"
+            fi
+
+            [ -e ${INSTANCE_DIR}/solrconfig.xml -a -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at least solrconfig.xml and schema.xml"
 
             eval $SOLR_ADMIN_ZK_CMD -cmd clear /configs/$3 2>/dev/null || die "Error: can't delete configuration"
 
-            $SOLR_ADMIN_CHAT "Uploading configs from $4 to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
-            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir $4 -confname $3 2>/dev/null || die "Error: can't upload configuration"
+            $SOLR_ADMIN_CHAT "Uploading configs from ${INSTANCE_DIR} to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
+            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${INSTANCE_DIR} -confname $3 2>/dev/null || die "Error: can't upload configuration"
             shift 4
             ;;
         --get)
@@ -228,7 +247,7 @@ while test $# != 0 ; do
             [ -e "$4" ] && die "Error: subdirectory $4 already exists"
 
             $SOLR_ADMIN_CHAT "Downloading configs from $SOLR_ZK_ENSEMBLE to $4. This may take up to a minute."
-            eval $SOLR_ADMIN_ZK_CMD -cmd downconfig -confdir "$4" -confname "$3" 2>/dev/null || die "Error: can't download configuration"
+            eval $SOLR_ADMIN_ZK_CMD -cmd downconfig -confdir "$4/conf" -confname "$3" 2>/dev/null || die "Error: can't download configuration"
             shift 4
             ;;
         --delete)
@@ -244,7 +263,7 @@ while test $# != 0 ; do
 
             mkdir -p "$3" > /dev/null 2>&1
             [ -d "$3" ] || usage "Error: $3 has to be a directory"
-            cp -r ${SOLR_HOME}/coreconfig-template/* "$3"
+            cp -r ${SOLR_HOME}/coreconfig-template "$3/conf"
             shift 3
             ;;
         --list)
