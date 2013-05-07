@@ -1,3 +1,5 @@
+#CLOUDERA
+cdh.build.properties
 
 *.jar
 

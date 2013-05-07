@@ -20,7 +20,7 @@
     <info organisation="org.apache.solr" module="solrj"/>
 
     <dependencies>
-      <dependency org="org.apache.zookeeper" name="zookeeper" rev="3.4.5" transitive="false"/>
+      <dependency org="org.apache.zookeeper" name="zookeeper" rev="${zookeeper.version}" transitive="false"/>
       <dependency org="org.apache.httpcomponents" name="httpclient" rev="4.2.3" transitive="false"/>
       <!--
         The httpmime rev should be kept in sync with the httpclient rev, since both the

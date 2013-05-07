@@ -27,10 +27,40 @@
   </description>
 
   <dirname file="${ant.file.common}" property="common.dir"/>
+
   <property name="dev-tools.dir" location="${common.dir}/../dev-tools"/>
   <property name="prettify.dir" location="${common.dir}/tools/prettify"/>
   <property name="maven.build.dir" location="${build.dir}/maven"/>
   <property name="license.dir" location="${common.dir}/licenses"/>
+
+  <!-- load ant-contrib tasks to get the "if" task. -->
+  <taskdef resource="net/sf/antcontrib/antcontrib.properties">
+    <classpath>
+      <pathelement location="${common.dir}/../cloudera/ant-contrib-1.0b3.jar"/>
+    </classpath>
+  </taskdef>
+
+  <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
+  <if>
+    <and>
+      <not>
+        <isset property="cdh.maven" />
+      </not>
+      <not>
+        <available file="${common.dir}/../cdh.build.properties" />
+      </not>
+    </and>
+    <then>
+      <exec  executable="mvn" dir="${common.dir}/.." failonerror="true">
+        <arg value="-f" />
+        <arg value="cloudera-pom.xml" />
+        <arg value="process-resources"/>
+      </exec>
+    </then>
+  </if>
+
+  <property file="${common.dir}/../cdh.build.properties" />
+
 
   <!-- Give user a chance to override without editing this file
       (and without typing -D each time it compiles it -->
@@ -49,7 +79,7 @@
 
   <property name="name" value="${ant.project.name}"/>
   <property name="Name" value="Lucene"/>
-  <property name="dev.version" value="4.3-SNAPSHOT"/>
+  <property name="dev.version" value="${cdh.solr.version}"/>
   <property name="tests.luceneMatchVersion" value="4.3"/>
   <property name="version" value="${dev.version}"/>
   <property name="spec.version" value="${version}"/>	
@@ -512,9 +542,6 @@
       </artifact:install>
       <artifact:deploy file="@{jar.file}">
         <artifact-attachments/>
-        <remoteRepository id="${m2.repository.id}" url="${m2.repository.url}">
-          <credentials/>
-        </remoteRepository>
         <pom refid="maven.project"/>
       </artifact:deploy>
     </sequential>
@@ -1453,15 +1480,29 @@ ${tests-output}/junit4-*.suites     - per-JVM executed suites
     <property name="filtered.pom.templates.uptodate" value="true"/>
   </target>
 
-  <target name="m2-deploy-lucene-parent-pom" depends="filter-pom-templates,m2-deploy-grandparent-pom"
+  <target name="check-deployed-lucene-parent-pom">
+    <condition property="deployed.lucene.parent.pom.uptodate">
+      <available file="${common.dir}/build/poms/lucene-parent-deployed" />
+    </condition>
+  </target>
+
+  <target name="check-deployed-grandparent-pom">
+    <condition property="deployed.grandparent.pom.uptodate">
+      <available file="${common.dir}/build/poms/grandparent-deployed" />
+    </condition>
+  </target>
+  
+  <target name="m2-deploy-lucene-parent-pom" depends="check-deployed-lucene-parent-pom,filter-pom-templates,m2-deploy-grandparent-pom"
           unless="deployed.lucene.parent.pom.uptodate">
     <m2-deploy pom.xml="${filtered.pom.templates.dir}/lucene/pom.xml"/>    <!-- Lucene parent POM -->
+    <touch file="${common.dir}/build/poms/lucene-parent-deployed" />
     <property name="deployed.lucene.parent.pom.uptodate" value="true"/>
   </target>
 
-  <target name="m2-deploy-grandparent-pom" depends="filter-pom-templates"
+  <target name="m2-deploy-grandparent-pom" depends="check-deployed-grandparent-pom,filter-pom-templates"
           unless="deployed.grandparent.pom.uptodate">
     <m2-deploy pom.xml="${filtered.pom.templates.dir}/pom.xml"/>    <!-- Lucene/Solr grandparent POM -->
+    <touch file="${common.dir}/build/poms/grandparent-deployed" />
     <property name="deployed.grandparent.pom.uptodate" value="true"/>
   </target>
 

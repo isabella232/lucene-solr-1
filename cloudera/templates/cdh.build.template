@@ -1,0 +1,3 @@
+cdh.solr.version=com.cloudera.cdh:solr-props.version
+reactor.repo=https://repository.cloudera.com/content/repositories/snapshots
+zookeeper.version=org.apache.zookeeper:zookeeper.version
