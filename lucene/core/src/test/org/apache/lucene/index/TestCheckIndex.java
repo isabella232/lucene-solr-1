@@ -33,6 +33,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.util.Constants;
+import org.junit.Ignore;
 
 public class TestCheckIndex extends LuceneTestCase {
 
@@ -115,6 +116,7 @@ public class TestCheckIndex extends LuceneTestCase {
     dir.close(); // checkindex
   }
 
+  @Ignore("CDH-8177: Attempt to change upstream - it's a good check for release, but I don't think it belongs here.")
   public void testLuceneConstantVersion() throws IOException {
     // common-build.xml sets lucene.version
     final String version = System.getProperty("lucene.version");
