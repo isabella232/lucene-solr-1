@@ -18,13 +18,16 @@ package org.apache.solr.cloud;
  */
 
 import java.io.File;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.util.ExternalPaths;
+import org.apache.zookeeper.CreateMode;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -75,7 +78,10 @@ public class ZkCLITest extends SolrTestCaseJ4 {
     
     this.zkClient = new SolrZkClient(zkServer.getZkAddress(),
         AbstractZkTestCase.TIMEOUT);
-    
+    this.zkClient.makePath(ZkStateReader.LIVE_NODES_ZKNODE, true);
+    this.zkClient.create(ZkStateReader.CLUSTER_STATE,
+        ZkStateReader.toJSON(new ClusterState(Collections.EMPTY_SET,
+            Collections.EMPTY_MAP)), CreateMode.PERSISTENT, true);
     log.info("####SETUP_END " + getTestName());
   }
   
@@ -98,16 +104,18 @@ public class ZkCLITest extends SolrTestCaseJ4 {
   
   @Test
   public void testBootstrapWithChroot() throws Exception {
+    SolrZkClient zkClient = new SolrZkClient(zkServer.getZkHost(), AbstractZkTestCase.TIMEOUT);
     String chroot = "/foo/bar";
     assertFalse(zkClient.exists(chroot, true));
     
-    String[] args = new String[] {"-zkhost", zkServer.getZkAddress() + chroot,
+    String[] args = new String[] {"-zkhost", zkServer.getZkHost() + chroot,
         "-cmd", "bootstrap", "-solrhome", ExternalPaths.EXAMPLE_HOME};
     
     ZkCLI.main(args);
     
     assertTrue(zkClient.exists(chroot + ZkController.CONFIGS_ZKNODE
         + "/collection1", true));
+    zkClient.close();
   }
 
   @Test

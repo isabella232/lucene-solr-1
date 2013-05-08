@@ -19,7 +19,10 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.common.cloud.OnReconnect;
+import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.SolrZkClient;
+import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.core.ConfigSolr;
 import org.apache.solr.core.ConfigSolrXml;
 import org.apache.solr.core.SolrResourceLoader;
@@ -63,6 +66,8 @@ public class ZkCLI {
   private static final String CLEAR = "clear";
   private static final String LIST = "list";
   private static final String CMD = "cmd";
+  private static final String GETCOLLECTIONS = "getcollections";
+  private static final String HOSTNAME = "hostname";
   
   /**
    * Allows you to perform a variety of zookeeper related tasks, such as:
@@ -89,7 +94,7 @@ public class ZkCLI {
         .hasArg(true)
         .withDescription(
             "cmd to run: " + BOOTSTRAP + ", " + UPCONFIG + ", " + DOWNCONFIG
-                + ", " + LINKCONFIG + ", " + MAKEPATH + ", "+ LIST + ", " +CLEAR).create(CMD));
+                + ", " + LINKCONFIG + ", " + MAKEPATH + ", "+ LIST + ", " + GETCOLLECTIONS + ", " +CLEAR).create(CMD));
 
     Option zkHostOption = new Option("z", ZKHOST, true,
         "ZooKeeper host address");
@@ -107,6 +112,9 @@ public class ZkCLI {
     
     options.addOption("c", COLLECTION, true,
         "for " + LINKCONFIG + ": name of the collection");
+
+    options.addOption("H", HOSTNAME, true,
+              "for " + GETCOLLECTIONS + ": hostname of the node holding the shards");
     
     options
         .addOption(
@@ -133,6 +141,7 @@ public class ZkCLI {
         System.out.println("zkcli.sh -zkhost localhost:9983 -cmd " + LINKCONFIG + " -" + COLLECTION + " collection1" + " -" + CONFNAME + " myconf");
         System.out.println("zkcli.sh -zkhost localhost:9983 -cmd " + MAKEPATH + " /apache/solr");
         System.out.println("zkcli.sh -zkhost localhost:9983 -cmd " + CLEAR + " /solr");
+        System.out.println("zkcli.sh -zkhost localhost:9983 -cmd " + GETCOLLECTIONS + " -" + HOSTNAME + " hostname");
         System.out.println("zkcli.sh -zkhost localhost:9983 -cmd " + LIST);
         return;
       }
@@ -158,13 +167,11 @@ public class ZkCLI {
         zkServer.parseConfig();
         zkServer.start();
       }
+      ZkStateReader stateReader = null;
       SolrZkClient zkClient = null;
       try {
-        zkClient = new SolrZkClient(zkServerAddress, 30000, 30000,
-            new OnReconnect() {
-              @Override
-              public void command() {}
-            });
+        stateReader = new ZkStateReader(zkServerAddress, 30000, 30000);
+        zkClient = stateReader.getZkClient();
         
         if (line.getOptionValue(CMD).equals(BOOTSTRAP)) {
           if (!line.hasOption(SOLRHOME)) {
@@ -231,6 +238,26 @@ public class ZkCLI {
           ZkController.linkConfSet(zkClient, collection, confName);
         } else if (line.getOptionValue(CMD).equals(LIST)) {
           zkClient.printLayoutToStdOut();
+        } else if (line.getOptionValue(CMD).equals(GETCOLLECTIONS)) {
+           stateReader.updateClusterState(true);
+           String hostname = line.hasOption(HOSTNAME) ? line.getOptionValue(HOSTNAME) : null;
+           for (String collection : stateReader.getClusterState().getCollections()) {
+             for (Slice slice : stateReader.getClusterState().getActiveSlicesMap(collection).values()) {
+               for (Replica replica : slice.getReplicas()) {
+                 String nodeName = replica.getNodeName().split(":")[0];
+                 if (hostname == null) {
+                   System.out.printf(nodeName + "\t");
+                 } else if (!hostname.equals(nodeName)) {
+                   continue;
+                 }
+                 System.out.printf("    <core schema=\"schema.xml\" loadOnStartup=\"true\" shard=\"%s\" instanceDir=\"%s/\" transient=\"false\" name=\"%s\" config=\"solrconfig.xml\" collection=\"%s\"/>\n",
+                                   replica.getStr("shard"),
+                                   replica.getStr("core"),
+                                   replica.getStr("core"),
+                                   replica.getStr("collection"));
+               }
+             }
+           }
         } else if (line.getOptionValue(CMD).equals(CLEAR)) {
           List arglist = line.getArgList();
           if (arglist.size() != 1) {
