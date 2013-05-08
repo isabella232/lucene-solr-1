@@ -25,6 +25,7 @@ import java.net.URLEncoder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NRTCachingDirectory;
 import org.apache.solr.cloud.ZkController;
@@ -60,7 +61,11 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
   public static final String NRTCACHINGDIRECTORY_MAXMERGESIZEMB = "solr.hdfs.nrtcachingdirectory.maxmergesizemb";
   public static final String NRTCACHINGDIRECTORY_MAXCACHEMB = "solr.hdfs.nrtcachingdirectory.maxcachedmb";
   public static final String NUMBEROFBLOCKSPERBANK = "solr.hdfs.blockcache.blocksperbank";
-  
+
+  public static final String KERBEROS_ENABLED = "solr.hdfs.security.kerberos.enabled";
+  public static final String KERBEROS_KEYTAB ="solr.hdfs.security.kerberos.keytabfile";
+  public static final String KERBEROS_PRINCIPAL = "solr.hdfs.security.kerberos.principal";
+
   public static final String HDFS_HOME = "solr.hdfs.home";
   
   public static final String CONFIG_DIRECTORY = "solr.hdfs.confdir";
@@ -72,6 +77,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
   private String confDir;
 
   public static Metrics metrics;
+  private static Boolean kerberosInit;
   
   @Override
   public void init(NamedList args) {
@@ -79,6 +85,11 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
     this.hdfsDataDir = params.get(HDFS_HOME);
     if (this.hdfsDataDir != null && this.hdfsDataDir.length() == 0) {
       this.hdfsDataDir = null;
+    }
+    boolean kerberosEnabled = params.getBool(KERBEROS_ENABLED, false);
+    LOG.info("Solr Kerberos Authentication " + (kerberosEnabled?"enabled":"disabled") );
+    if (kerberosEnabled) {
+      initKerberos();
     }
   }
   
@@ -232,5 +243,33 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
   public String getConfDir() {
     return confDir;
   }
-  
+
+  private void initKerberos() {
+    String keytabFile = params.get(KERBEROS_KEYTAB, "").trim();
+    if (keytabFile.length() == 0) {
+      throw new IllegalArgumentException(
+        KERBEROS_KEYTAB + " required because " + KERBEROS_ENABLED + " set to true");
+    }
+    String principal = params.get(KERBEROS_PRINCIPAL, "");
+    if (principal.length() == 0) {
+      throw new IllegalArgumentException(
+        KERBEROS_PRINCIPAL + " required because " + KERBEROS_ENABLED + " set to true");
+    }
+    synchronized (HdfsDirectoryFactory.class) {
+      if (kerberosInit == null) {
+        kerberosInit = new Boolean(true);
+        Configuration conf = new Configuration();
+        conf.set("hadoop.security.authentication", "kerberos");
+        UserGroupInformation.setConfiguration(conf);
+        LOG.info("Attempting to acquire kerberos ticket with keytab: {}, principal: {} ",
+          keytabFile, principal);
+        try {
+          UserGroupInformation.loginUserFromKeytab(principal, keytabFile);
+        } catch (IOException ioe) {
+          throw new RuntimeException(ioe);
+        }
+        LOG.info("Got Kerberos ticket");
+      }
+    }
+  }
 }
