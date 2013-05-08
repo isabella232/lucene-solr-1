@@ -1225,7 +1225,7 @@ public final class ZkController {
   }
 
   private void waitForCoreNodeName(CoreDescriptor descriptor) {
-    int retryCount = 32; //320; nocommit
+    int retryCount = 320;
     log.info("look for our core node name");
     while (retryCount-- > 0) {
       Map<String,Slice> slicesMap = zkStateReader.getClusterState()
@@ -1242,7 +1242,6 @@ public final class ZkController {
             String msgBaseUrl = getBaseUrl();
             String msgCore = descriptor.getName();
 
-            System.out.println("cmp: " + baseUrl + ":" + msgBaseUrl + " core:" + core + ":" + msgCore);//nocommit
             if (baseUrl.equals(msgBaseUrl) && core.equals(msgCore)) {
               descriptor.getCloudDescriptor()
                   .setCoreNodeName(replica.getName());
@@ -1334,8 +1333,7 @@ public final class ZkController {
   public void preRegister(CoreDescriptor cd ) {
     
     String coreNodeName = getCoreNodeName(cd);
-    // nocommit
-    System.out.println("found core node name of:" + coreNodeName);
+
     // make sure the node name is set on the descriptor
     if (cd.getCloudDescriptor().getCoreNodeName() == null) {
       cd.getCloudDescriptor().setCoreNodeName(coreNodeName);
@@ -1393,8 +1391,7 @@ public final class ZkController {
         }
       }
     }
-    // nocommit
-    System.out.println("found leader:" + leaderProps);
+
     String leaderBaseUrl = leaderProps.getBaseUrl();
     String leaderCoreName = leaderProps.getCoreName();
     

@@ -580,8 +580,7 @@ public class OverseerCollectionProcessor implements Runnable, ClosableThread {
             
             String baseUrl = replica.getStr(ZkStateReader.BASE_URL_PROP);
             String core = replica.getStr(ZkStateReader.CORE_NAME_PROP);
-            // nocommit
-            System.out.println(baseUrl + ":" + msgBaseUrl + " " + core + ":" + msgCore);
+            
             if (baseUrl.equals(msgBaseUrl) && core.equals(msgCore)) {
               return replica.getName();
             }

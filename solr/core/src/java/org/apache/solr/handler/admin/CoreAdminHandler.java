@@ -507,12 +507,9 @@ public class CoreAdminHandler extends RequestHandlerBase {
       }
       dcore.setCoreProperties(coreProperties);
       if (coreContainer.isZooKeeperAware()) {
-        // nocommit
-        System.out.println("PREREGISTER");
         coreContainer.getZkController().preRegister(dcore);
       }
-      // nocommit
-      System.out.println("CREATE");
+
       SolrCore core = coreContainer.create(dcore);
 
       String sameDirCore = coreContainer.checkUniqueDataDir(core.getDataDir());

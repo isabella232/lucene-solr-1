@@ -964,8 +964,7 @@ public class CoreContainer
     }
     
     final String name = dcore.getName();
-    // nocommit
-    System.out.println("CREATE:" + name);
+
     try {
       // Make the instanceDir relative to the cores instanceDir if not absolute
       File idir = new File(dcore.getInstanceDir());
