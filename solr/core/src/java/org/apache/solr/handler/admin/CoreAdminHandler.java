@@ -506,7 +506,13 @@ public class CoreAdminHandler extends RequestHandlerBase {
           }
       }
       dcore.setCoreProperties(coreProperties);
-      
+      if (coreContainer.isZooKeeperAware()) {
+        // nocommit
+        System.out.println("PREREGISTER");
+        coreContainer.getZkController().preRegister(dcore);
+      }
+      // nocommit
+      System.out.println("CREATE");
       SolrCore core = coreContainer.create(dcore);
 
       String sameDirCore = coreContainer.checkUniqueDataDir(core.getDataDir());
@@ -876,7 +882,7 @@ public class CoreAdminHandler extends RequestHandlerBase {
     Boolean checkLive = params.getBool("checkLive");
     Boolean onlyIfLeader = params.getBool("onlyIfLeader");
 
-    log.info("Going to wait for coreNodeName: " + coreNodeName + ", state: " + waitForState
+    log.info("Going to wait for codeName: " + coreNodeName + ", state: " + waitForState
         + ", checkLive: " + checkLive + ", onlyIfLeader: " + onlyIfLeader);
 
     String state = null;

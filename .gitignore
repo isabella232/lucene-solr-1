@@ -1,6 +1,6 @@
 #CLOUDERA
 cdh.build.properties
-
+/solr/example/hdfs
 *.jar
 
 # .

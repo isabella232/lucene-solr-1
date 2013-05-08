@@ -191,6 +191,7 @@ public class ConfigSolrXml extends Config implements ConfigSolr {
       propMap.put(CfgProp.SOLR_HOSTCONTEXT, doSub("solr/solrcloud/str[@name='hostContext']"));
       propMap.put(CfgProp.SOLR_HOSTPORT, doSub("solr/solrcloud/int[@name='hostPort']"));
       propMap.put(CfgProp.SOLR_LEADERVOTEWAIT, doSub("solr/solrcloud/int[@name='leaderVoteWait']"));
+      propMap.put(CfgProp.SOLR_GENERICCORENODENAMES, doSub("solr/bool[@name='genericCoreNodeNames']"));
       propMap.put(CfgProp.SOLR_MANAGEMENTPATH, doSub("solr/str[@name='managementPath']"));
       propMap.put(CfgProp.SOLR_SHAREDLIB, doSub("solr/str[@name='sharedLib']"));
       propMap.put(CfgProp.SOLR_SHARESCHEMA, doSub("solr/str[@name='shareSchema']"));
@@ -224,6 +225,7 @@ public class ConfigSolrXml extends Config implements ConfigSolr {
       propMap.put(CfgProp.SOLR_HOSTCONTEXT, getVal("solr/cores/@hostContext", false));
       propMap.put(CfgProp.SOLR_HOSTPORT, getVal("solr/cores/@hostPort", false));
       propMap.put(CfgProp.SOLR_LEADERVOTEWAIT, getVal("solr/cores/@leaderVoteWait", false));
+      propMap.put(CfgProp.SOLR_GENERICCORENODENAMES, getVal("solr/cores/@genericCoreNodeNames", false));
       propMap.put(CfgProp.SOLR_MANAGEMENTPATH, getVal("solr/cores/@managementPath", false));
       propMap.put(CfgProp.SOLR_SHARESCHEMA, getVal("solr/cores/@shareSchema", false));
       propMap.put(CfgProp.SOLR_TRANSIENTCACHESIZE, getVal("solr/cores/@transientCacheSize", false));

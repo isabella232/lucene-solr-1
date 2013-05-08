@@ -20,11 +20,16 @@
     <info organisation="org.apache.solr" module="core"/>
 
     <dependencies>
+      <dependency org="log4j" name="log4j" rev="1.2.16" transitive="false" />
+      <dependency org="org.slf4j" name="slf4j-api" rev="1.6.6" transitive="false" />
+      <dependency org="org.slf4j" name="jcl-over-slf4j" rev="1.6.6" transitive="false"/>
+      <dependency org="org.slf4j" name="jul-to-slf4j" rev="1.6.6" transitive="false"/> 
+      <dependency org="org.slf4j" name="slf4j-log4j12" rev="1.6.6" transitive="false"/> 
       <dependency org="commons-codec" name="commons-codec" rev="1.7" transitive="false"/>
       <dependency org="commons-fileupload" name="commons-fileupload" rev="1.2.1" transitive="false"/>
       <dependency org="commons-cli" name="commons-cli" rev="1.2" transitive="false"/>
       <dependency org="commons-lang" name="commons-lang" rev="2.6" transitive="false"/>
-      <dependency org="com.google.guava" name="guava" rev="13.0.1" transitive="false"/>
+      <dependency org="com.google.guava" name="guava" rev="11.0.2" transitive="false"/>
       <dependency org="org.easymock" name="easymock" rev="3.0" transitive="false"/>
       <dependency org="cglib" name="cglib-nodep" rev="2.2" transitive="false"/>
       <dependency org="org.objenesis" name="objenesis" rev="1.2" transitive="false"/>
@@ -32,6 +37,14 @@
       <dependency org="javax.servlet" name="javax.servlet-api" rev="3.0.1" transitive="false"/>
       <dependency org="org.restlet.jee" name="org.restlet" rev="2.1.1" transitive="false"/>
       <dependency org="org.restlet.jee" name="org.restlet.ext.servlet" rev="2.1.1" transitive="false"/>
-      <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
+      
+      <dependency org="org.apache.hadoop" name="hadoop-common" rev="${hadoop.version}" transitive="false"/>
+      <dependency org="org.apache.hadoop" name="hadoop-hdfs" rev="${hadoop.version}" transitive="false"/>
+      <dependency org="org.apache.hadoop" name="hadoop-annotations" rev="${hadoop.version}" transitive="false"/>
+      <dependency org="org.apache.hadoop" name="hadoop-auth" rev="${hadoop.version}" transitive="false"/>
+      <dependency org="commons-configuration" name="commons-configuration" rev="1.6" transitive="false"/>
+      <dependency org="com.google.protobuf" name="protobuf-java" rev="2.4.0a" transitive="false"/>
+      <dependency org="com.googlecode.concurrentlinkedhashmap" name="concurrentlinkedhashmap-lru" rev="1.2" transitive="false"/>
+      <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/> 
     </dependencies>
 </ivy-module>

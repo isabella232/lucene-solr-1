@@ -18,7 +18,7 @@ servlet container in the directory named "example".
 See the tutorial at http://lucene.apache.org/solr/tutorial.html
 
 
-$Id$
+$Id: CHANGES.txt 1476498 2013-04-27 05:46:25Z sarowe $
 
 ==================  4.3.0 ==================
 

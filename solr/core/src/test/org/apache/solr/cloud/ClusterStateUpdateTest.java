@@ -71,11 +71,13 @@ public class ClusterStateUpdateTest extends SolrTestCaseJ4  {
   @BeforeClass
   public static void beforeClass() {
     System.setProperty("solrcloud.skip.autorecovery", "true");
+    System.setProperty("genericCoreNodeNames", "false");
   }
   
   @AfterClass
   public static void afterClass() throws InterruptedException {
     System.clearProperty("solrcloud.skip.autorecovery");
+    System.clearProperty("genericCoreNodeNames");
   }
 
   @Override
@@ -157,6 +159,7 @@ public class ClusterStateUpdateTest extends SolrTestCaseJ4  {
     
     dcore.setDataDir(dataDir4.getAbsolutePath());
 
+    container1.getZkController().preRegister(dcore);
     SolrCore core = container1.create(dcore);
     
     container1.register(core, false);

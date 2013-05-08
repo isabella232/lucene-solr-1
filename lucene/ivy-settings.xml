@@ -74,12 +74,15 @@
       <resolver ref="reactor-repo" />
       <resolver ref="cloudera-releases" />
       <resolver ref="cloudera-snapshots" />
+      <resolver ref="maven2" />
     </chain>
   </resolvers>
   <modules>
     <module organisation="com.cloudera.*" name=".*" resolver="cloudera" />
     <module organisation="org.apache.zookeeper" name=".*" resolver="cloudera" />
     <module organisation="org.apache.hadoop" name=".*" resolver="cloudera" />
+    <module organisation="org.apache.avro" name=".*" resolver="cloudera" />
+    <module organisation="org.mortbay.jetty" name=".*" resolver="cloudera" />
   </modules>
 
 </ivysettings>

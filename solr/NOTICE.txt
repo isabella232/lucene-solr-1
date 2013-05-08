@@ -77,6 +77,9 @@ which is Apache-licensed.
 The class org.apache.lucene.util.WeakIdentityMap was derived from
 the Apache CXF project and is Apache License 2.0.
 
+The HdfsDirectory and BlockDirectory were derived from
+the Apache Blur incubating project and are Apache License 2.0.
+
 The Google Code Prettify is Apache License 2.0.
 See http://code.google.com/p/google-code-prettify/
 

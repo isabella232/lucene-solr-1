@@ -68,7 +68,7 @@
   <!-- ========================================================================= -->
  
   <target name="example" description="Creates a runnable example configuration."
-          depends="dist-contrib,dist-war">
+          depends="dist-contrib,dist-war,setup-alt-examples">
     <copy file="${dist}/${fullnamever}.war"
           tofile="${example}/webapps/${ant.project.name}.war"/>
     <jar destfile="${example}/exampledocs/post.jar"
@@ -84,6 +84,15 @@
     <echo>See ${example}/README.txt for how to run the Solr example configuration.</echo>
   </target>
 
+  <target name="setup-alt-examples">
+    <copy todir="${example}/hdfs" overwrite="true">
+      <fileset dir="${example}/solr"/>
+    </copy>
+    <copy todir="${example}/hdfs/collection1/conf" overwrite="true">
+      <fileset dir="${example}/alt-configs/hdfs"/>
+    </copy>
+  </target>
+  
   <target name="run-example" depends="example"
           description="Run Solr interactively, via Jetty.  -Dexample.debug=true to enable JVM debugger">
     <property name="example.solr.home" location="example/solr"/>
@@ -264,9 +273,11 @@
         <exclude name="example/exampledocs/post.jar" />
         <exclude name="example/solr-webapp/**" />
         <exclude name="package/**"/>
-        <!-- Cloudera: exclude zookeeper because the snapshot jar changes often and breaks
-             the checksum check on the jar -->
-        <exclude name="solrj/lib/zookeeper-*-SNAPSHOT.jar" />
+        <!-- Cloudera: exclude zookeeper + hadoop because the snapshot jars change often and break
+             the checksum check on the jars -->
+        <exclude name="solrj/lib/zookeeper*.jar" />
+        <exclude name="core/lib/hadoop*.jar" />
+        <exclude name="test-framework/lib/*.jar" />
       </additional-excludes>
       <additional-filters>
         <replaceregex pattern="jetty([^/]+)$" replace="jetty" flags="gi" />

@@ -18,10 +18,11 @@
 package org.apache.solr.update;
 
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Vector;
 
+import org.apache.solr.core.DirectoryFactory;
+import org.apache.solr.core.HdfsDirectoryFactory;
 import org.apache.solr.core.PluginInfo;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrEventListener;
@@ -74,30 +75,37 @@ public abstract class UpdateHandler implements SolrInfoMBean {
   }
 
 
-  private void initLog(PluginInfo ulogPluginInfo) {
+  private void initLog(SolrCore core, PluginInfo ulogPluginInfo) {
     if (ulogPluginInfo != null && ulogPluginInfo.isEnabled()) {
-      ulog = new UpdateLog();
+      String dataDir = (String)ulogPluginInfo.initArgs.get("dir");
+      
+      String ulogDir = core.getCoreDescriptor().getUlogDir();
+      if (ulogDir != null) {
+        dataDir = ulogDir;
+      }
+      if (dataDir == null || dataDir.length()==0) {
+        dataDir = core.getDataDir();
+      }
+      
+      if (dataDir != null && dataDir.startsWith("hdfs:/")) {
+        DirectoryFactory dirFactory = core.getDirectoryFactory();
+        if (dirFactory instanceof HdfsDirectoryFactory) {
+          ulog = new HdfsUpdateLog(((HdfsDirectoryFactory)dirFactory).getConfDir());
+        } else {
+          ulog = new HdfsUpdateLog();
+        }
+        
+      } else {
+        ulog = new UpdateLog();
+      }
+      
+      if (!core.isReloaded() && !core.getDirectoryFactory().isPersistent()) {
+        ulog.clearLogs(core, ulogPluginInfo);
+      }
+      
       ulog.init(ulogPluginInfo);
       // ulog = core.createInitInstance(ulogPluginInfo, UpdateLog.class, "update log", "solr.NullUpdateLog");
       ulog.init(this, core);
-    }
-  }
-
-  // not thread safe - for startup
-  private void clearLog(PluginInfo ulogPluginInfo) {
-    if (ulogPluginInfo == null) return;
-    File tlogDir = UpdateLog.getTlogDir(core, ulogPluginInfo);
-    log.info("Clearing tlog files, tlogDir=" + tlogDir);
-    if (tlogDir.exists()) {
-      String[] files = UpdateLog.getLogList(tlogDir);
-      for (String file : files) {
-        File f = new File(tlogDir, file);
-        boolean s = f.delete();
-        if (!s) {
-          log.error("Could not remove tlog file:" + f.getAbsolutePath());
-          //throw new SolrException(ErrorCode.SERVER_ERROR, "Could not remove tlog file:" + f.getAbsolutePath());
-        }
-      }
     }
   }
 
@@ -130,11 +138,9 @@ public abstract class UpdateHandler implements SolrInfoMBean {
     idFieldType = idField!=null ? idField.getType() : null;
     parseEventListeners();
     PluginInfo ulogPluginInfo = core.getSolrConfig().getPluginInfo(UpdateLog.class.getName());
-    if (!core.isReloaded() && !core.getDirectoryFactory().isPersistent()) {
-      clearLog(ulogPluginInfo);
-    }
+
     if (updateLog == null) {
-      initLog(ulogPluginInfo);
+      initLog(core, ulogPluginInfo);
     } else {
       this.ulog = updateLog;
     }

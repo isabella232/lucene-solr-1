@@ -25,6 +25,8 @@
   <directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:solr.RAMDirectoryFactory}">
     <!-- used to keep RAM reqs down for HdfsDirectoryFactory -->
     <int name="solr.hdfs.blockcache.blocksperbank">${solr.hdfs.blockcache.blocksperbank:1024}</int>
+    <str name="solr.hdfs.home">${solr.hdfs.home:}</str>
+    <str name="solr.hdfs.confdir">${solr.hdfs.confdir:}</str>
   </directoryFactory>
   
   <dataDir>${solr.data.dir:}</dataDir>

@@ -221,9 +221,9 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
         // Replica leader = slice.getLeader();
         Replica leaderReplica = zkController.getZkStateReader().getLeaderRetry(
             collection, shardId);
-        ZkCoreNodeProps leaderProps = new ZkCoreNodeProps(leaderReplica);
-        String coreNodeName = zkController.getCoreNodeName(req.getCore().getCoreDescriptor());
-        isLeader = coreNodeName.equals(leaderReplica.getName());
+        isLeader = leaderReplica.getName().equals(
+            req.getCore().getCoreDescriptor().getCloudDescriptor()
+                .getCoreNodeName());
 
         DistribPhase phase =
             DistribPhase.parseParam(req.getParams().get(DISTRIB_UPDATE_PARAM));
@@ -239,7 +239,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
           // so get the replicas...
           forwardToLeader = false;
           List<ZkCoreNodeProps> replicaProps = zkController.getZkStateReader()
-              .getReplicaProps(collection, shardId, coreNodeName,
+              .getReplicaProps(collection, shardId, leaderReplica.getName(),
                   coreName, null, ZkStateReader.DOWN);
 
           nodes = addSubShardLeaders(coll, shardId, id, doc, nodes);
@@ -272,7 +272,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
         } else {
           // I need to forward onto the leader...
           nodes = new ArrayList<Node>(1);
-          nodes.add(new RetryNode(leaderProps, zkController.getZkStateReader(), collection, shardId));
+          nodes.add(new RetryNode(new ZkCoreNodeProps(leaderReplica), zkController.getZkStateReader(), collection, shardId));
           forwardToLeader = true;
         }
 
@@ -338,7 +338,9 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
     
     if (isLeader && !localIsLeader) {
       log.error("ClusterState says we are the leader, but locally we don't think so");
-      throw new SolrException(ErrorCode.SERVICE_UNAVAILABLE, "ClusterState says we are the leader, but locally we don't think so");
+      throw new SolrException(ErrorCode.SERVICE_UNAVAILABLE,
+          "ClusterState says we are the leader (" + zkController.getBaseUrl()
+              + "/" + req.getCore().getName() + "), but locally we don't think so. Request came from " + from);
     }
   }
 
@@ -351,16 +353,15 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
     try {
       Replica leaderReplica = zkController.getZkStateReader().getLeaderRetry(
           collection, shardId);
-      String leaderCoreNodeName = leaderReplica.getName();
-
-      String coreNodeName = zkController.getCoreNodeName(req.getCore().getCoreDescriptor());
-      isLeader = coreNodeName.equals(leaderCoreNodeName);
+      isLeader = leaderReplica.getName().equals(
+          req.getCore().getCoreDescriptor().getCloudDescriptor()
+              .getCoreNodeName());
 
       // TODO: what if we are no longer the leader?
 
       forwardToLeader = false;
       List<ZkCoreNodeProps> replicaProps = zkController.getZkStateReader()
-          .getReplicaProps(collection, shardId, coreNodeName,
+          .getReplicaProps(collection, shardId, leaderReplica.getName(),
               req.getCore().getName());
       if (replicaProps != null) {
         nodes = new ArrayList<Node>(replicaProps.size());
@@ -863,7 +864,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
         // Am I the leader for this slice?
         ZkCoreNodeProps coreLeaderProps = new ZkCoreNodeProps(leader);
         String leaderCoreNodeName = leader.getName();
-        String coreNodeName = zkController.getCoreNodeName(req.getCore().getCoreDescriptor());
+        String coreNodeName = req.getCore().getCoreDescriptor().getCloudDescriptor().getCoreNodeName();
         isLeader = coreNodeName.equals(leaderCoreNodeName);
 
         if (isLeader) {
@@ -1123,7 +1124,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
       if (!req.getParams().getBool(COMMIT_END_POINT, false)) {
         params.set(COMMIT_END_POINT, true);
 
-        String coreNodeName = zkController.getCoreNodeName(req.getCore().getCoreDescriptor());
+        String coreNodeName = req.getCore().getCoreDescriptor().getCloudDescriptor().getCoreNodeName();
         List<Node> nodes = getCollectionUrls(req, req.getCore().getCoreDescriptor()
             .getCloudDescriptor().getCollectionName(), coreNodeName);
 

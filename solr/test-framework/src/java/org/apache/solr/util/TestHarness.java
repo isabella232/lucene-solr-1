@@ -18,6 +18,7 @@
 package org.apache.solr.util;
 
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.SolrConfig;
@@ -185,9 +186,18 @@ public class TestHarness extends BaseTestHarness {
       container.setLogging(logging);
       
       CoreDescriptor dcore = new CoreDescriptor(container, coreName, solrConfig.getResourceLoader().getInstanceDir());
+      if (container.isZooKeeperAware()) {
+        container.getZkController().preRegister(dcore);
+      }
       dcore.setConfigName(solrConfig.getResourceName());
       dcore.setSchemaName(indexSchema.getResourceName());
       SolrCore core = new SolrCore(coreName, dataDirectory, solrConfig, indexSchema, dcore);
+      
+      if (container.isZooKeeperAware() && Slice.CONSTRUCTION.equals(dcore.getCloudDescriptor().getShardState())) {
+        // set update log to buffer before publishing the core
+        core.getUpdateHandler().getUpdateLog().bufferUpdates();
+      }
+      
       container.register(coreName, core, false);
 
       // TODO: we should be exercising the *same* core container initialization code, not equivalent code!

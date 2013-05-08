@@ -58,10 +58,10 @@ import org.apache.solr.cloud.ZkController;
 import org.apache.solr.cloud.ZkSolrResourceLoader;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.cloud.ZooKeeperException;
 import org.apache.solr.common.util.ExecutorUtil;
-
 import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.component.HttpShardHandlerFactory;
@@ -133,6 +133,7 @@ public class CoreContainer
   private int transientCacheSize = Integer.MAX_VALUE;
 
   private String leaderVoteWait = LEADER_VOTE_WAIT;
+  private boolean genericCoreNodeNames;
   private int distribUpdateConnTimeout = 0;
   private int distribUpdateSoTimeout = 0;
   private int coreLoadThreads;
@@ -241,7 +242,7 @@ public class CoreContainer
         }
         zkController = new ZkController(this, zookeeperHost, zkClientTimeout,
             zkClientConnectTimeout, host, hostPort, hostContext,
-            leaderVoteWait, distribUpdateConnTimeout, distribUpdateSoTimeout,
+            leaderVoteWait, genericCoreNodeNames, distribUpdateConnTimeout, distribUpdateSoTimeout,
             new CurrentCoreDescriptorProvider() {
 
               @Override
@@ -486,6 +487,8 @@ public class CoreContainer
 
     transientCacheSize = cfg.getInt(ConfigSolr.CfgProp.SOLR_TRANSIENTCACHESIZE, Integer.MAX_VALUE);
 
+    genericCoreNodeNames = cfg.getBool(ConfigSolr.CfgProp.SOLR_GENERICCORENODENAMES, false);
+
     if (shareSchema) {
       indexSchemaCache = new ConcurrentHashMap<String,IndexSchema>();
     }
@@ -594,7 +597,9 @@ public class CoreContainer
               public SolrCore call() {
                 SolrCore c = null;
                 try {
+                  preRegisterCoreInZk(p);
                   c = create(p);
+                  
                   registerCore(p.isTransient(), name, c, false);
                 } catch (Throwable t) {
                   SolrException.log(log, null, t);
@@ -769,22 +774,6 @@ public class CoreContainer
         name.indexOf( '\\' ) >= 0 ){
       throw new RuntimeException( "Invalid core name: "+name );
     }
-
-    if (zkController != null) {
-      // this happens before we can receive requests
-      try {
-        zkController.preRegister(core);
-      } catch (KeeperException e) {
-        log.error("", e);
-        throw new ZooKeeperException(SolrException.ErrorCode.SERVER_ERROR,
-            "", e);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        log.error("", e);
-        throw new ZooKeeperException(SolrException.ErrorCode.SERVER_ERROR,
-            "", e);
-      }
-    }
     
     SolrCore old = null;
 
@@ -821,6 +810,13 @@ public class CoreContainer
       }
       registerInZk(core);
       return old;
+    }
+  }
+
+  private void preRegisterCoreInZk(CoreDescriptor cd) {
+    if (zkController != null) {
+      // this happens before we can receive requests
+      zkController.preRegister(cd);
     }
   }
 
@@ -968,7 +964,8 @@ public class CoreContainer
     }
     
     final String name = dcore.getName();
-
+    // nocommit
+    System.out.println("CREATE:" + name);
     try {
       // Make the instanceDir relative to the cores instanceDir if not absolute
       File idir = new File(dcore.getInstanceDir());
@@ -1122,6 +1119,10 @@ public class CoreContainer
         SolrCore newCore = core.reload(solrLoader, core);
         // keep core to orig name link
         coreMaps.removeCoreToOrigName(newCore, core);
+        // TODO: We also have, but should we do this again on reload?
+        if (isZooKeeperAware()) {
+          getZkController().preRegister(cd);
+        }
         registerCore(false, name, newCore, false);
       } finally {
         coreMaps.removeFromPendingOps(name);
@@ -1377,6 +1378,7 @@ public class CoreContainer
         this.hostContext, DEFAULT_HOST_CONTEXT);
     addCoresAttrib(coresAttribs, ConfigSolr.CfgProp.SOLR_LEADERVOTEWAIT, "leaderVoteWait",
         this.leaderVoteWait, LEADER_VOTE_WAIT);
+    addCoresAttrib(coresAttribs, ConfigSolr.CfgProp.SOLR_GENERICCORENODENAMES, "genericCoreNodeNames", Boolean.toString(this.genericCoreNodeNames), "true");
     addCoresAttrib(coresAttribs, ConfigSolr.CfgProp.SOLR_CORELOADTHREADS, "coreLoadThreads",
         Integer.toString(this.coreLoadThreads), Integer.toString(CORE_LOAD_THREADS));
     if (transientCacheSize != Integer.MAX_VALUE) { // This test
