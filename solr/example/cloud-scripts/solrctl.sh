@@ -31,6 +31,7 @@ Commands:
 
     coreconfig  [--generate path]
                 [--create name path]
+                [--update name path]
                 [--get name path]
                 [--delete name]
                 [--list]
@@ -68,7 +69,9 @@ local_coreconfig() {
       ls -d /var/lib/solr/*/conf 2>/dev/null | sed -e 's#var/lib/solr#configs#'
       ;;
     clear)
-      sudo -u solr rm -rf /var/lib/solr/`basename $3`/* 2>/dev/null
+      if [ "$3" != "/" ] ; then
+        sudo -u solr rm -rf /var/lib/solr/`basename $3`/* 2>/dev/null
+      fi
       ;;
     upconfig)
       # the following trick gets us around permission issues
@@ -200,7 +203,18 @@ while test $# != 0 ; do
         --create) 
             [ $# -gt 3 ] || usage "Error: incorrect specification of arguments for $1 $2" 
             [ -e $4/solrconfig.xml -a -e $4/schema.xml ] || die "Error: $4 must be a directory with at least solrconfig.xml and schema.xml"
-            # FIXME: perhaps we have to warn user if configs already exist in ZK
+
+            get_solr_state | grep -q '^ */configs/'"$3/" && die "Error: \"$3\" configuration already exists. Aborting. Try --update if you want to override"
+
+            $SOLR_ADMIN_CHAT "Uploading configs from $4 to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
+            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir $4 -confname $3 2>/dev/null || die "Error: can't upload configuration"
+            shift 4
+            ;;
+        --update)
+            [ $# -gt 3 ] || usage "Error: incorrect specification of arguments for $1 $2"
+            [ -e $4/solrconfig.xml -a -e $4/schema.xml ] || die "Error: $4 must be a directory with at least solrconfig.xml and schema.xml"
+
+            eval $SOLR_ADMIN_ZK_CMD -cmd clear /configs/$3 2>/dev/null || die "Error: can't delete configuration"
 
             $SOLR_ADMIN_CHAT "Uploading configs from $4 to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
             eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir $4 -confname $3 2>/dev/null || die "Error: can't upload configuration"
