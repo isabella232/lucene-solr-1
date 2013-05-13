@@ -59,6 +59,7 @@ import org.apache.solr.cloud.ZkSolrResourceLoader;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.cloud.ZooKeeperException;
 import org.apache.solr.common.util.ExecutorUtil;
@@ -321,6 +322,35 @@ public class CoreContainer
       log.info("looking for solr config file: " + fconf.getAbsolutePath());
       cores = new CoreContainer(solrHome);
 
+      // first we find zkhost, then we check for solr.xml in zk
+      // 1. look for zkhost from sys prop 
+      
+      // TODO: 2. look for zkhost in {solr.home}/solr.properties
+      
+      // nocommit: we must fail if solr.xml is old style (<cores>)
+      boolean solrXmlInZk = false;
+      String zkHost = System.getProperty("zkHost");
+      if (zkHost != null) {
+        SolrZkClient zkClient = new SolrZkClient(zkHost, 30000);
+        try {
+          // at the root we look for solr.xml
+          solrXmlInZk = zkClient.exists("/solr.xml", true);
+          if (solrXmlInZk) {
+            log.info("Loading solr.xml from ZooKeeper");
+            byte[] solrXmlBytes = zkClient.getData("/solr.xml", null, null, true);
+            cores.load(solrHome, new ByteArrayInputStream(solrXmlBytes), null);
+            return cores;
+          }
+        } catch (KeeperException e) {
+          throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+        } finally {
+          zkClient.close();
+        }
+      }
+
       // Either we have a config file or not.
       
       if (fconf.exists()) {
@@ -328,10 +358,13 @@ public class CoreContainer
       } else {
         log.info("no solr.xml found. using default old-style solr.xml");
         try {
-          cores.load(solrHome, new ByteArrayInputStream(ConfigSolrXml.DEF_SOLR_XML.getBytes("UTF-8")), null);
+          cores.load(solrHome, new ByteArrayInputStream(
+              ConfigSolrXml.DEF_SOLR_XML.getBytes("UTF-8")), null);
         } catch (Exception e) {
-          throw new SolrException(ErrorCode.SERVER_ERROR,
-              "CoreContainer.Initialize failed when trying to load default solr.xml file", e);
+          throw new SolrException(
+              ErrorCode.SERVER_ERROR,
+              "CoreContainer.Initialize failed when trying to load default solr.xml file",
+              e);
         }
         cores.configFile = fconf;
       }
