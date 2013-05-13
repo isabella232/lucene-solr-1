@@ -101,24 +101,6 @@ public class TestCoreDiscovery extends SolrTestCaseJ4 {
     addCoreWithProps(stockProps, propFile);
   }
 
-  // For testing error condition of having multiple cores with the same name.
-  private void addCoreWithPropsDir(String coreDir, Properties stockProps) throws Exception {
-
-    File propFile = new File(solrHomeDirectory, coreDir + File.separator + ConfigSolr.CORE_PROP_FILE);
-    File parent = propFile.getParentFile();
-    assertTrue("Failed to mkdirs for " + parent.getAbsolutePath(), parent.mkdirs());
-
-    FileOutputStream out = new FileOutputStream(propFile);
-    try {
-      stockProps.store(out, null);
-    } finally {
-      out.close();
-    }
-
-    addConfFiles(new File(parent, "conf"));
-  }
-
-
   private void addConfFiles(File confDir) throws Exception {
     String top = SolrTestCaseJ4.TEST_HOME() + "/collection1/conf";
     assertTrue("Failed to mkdirs for " + confDir.getAbsolutePath(), confDir.mkdirs());
@@ -218,79 +200,6 @@ public class TestCoreDiscovery extends SolrTestCaseJ4 {
     } finally {
       cc.shutdown();
       if (alt.exists()) FileUtils.deleteDirectory(alt);
-    }
-  }
-
-  @Test
-  public void testCoresWithSameNameError() throws Exception {
-    setMeUp();
-    addCoreWithPropsDir("core1_1", makeCorePropFile("core1", false, true));
-    addCoreWithPropsDir("core1_2", makeCorePropFile("core1", false, true));
-    CoreContainer cc = null;
-    try {
-      cc = init();
-      String msg = cc.getBadCoreMessage("core1");
-      assertTrue("Should have found multiple cores with same name", msg.contains("More than one core defined for core named 'core1'"));
-      try {
-        cc.getCore("core1");
-      } catch (SolrException se) {
-        assertEquals("Should be returning proper error code of 500", 500, se.code());
-        msg = se.getMessage();
-        assertTrue("Should have found multiple cores with same name", msg.contains("More than one core defined for core named 'core1'"));
-      }
-    } finally {
-      if (cc != null) {
-        cc.shutdown();
-      }
-    }
-  }
-
-  @Test
-  public void testCoresWithSameNameErrorTransient() throws Exception {
-    setMeUp();
-    addCoreWithPropsDir("core1_1", makeCorePropFile("core1", true, false));
-    addCoreWithPropsDir("core1_2", makeCorePropFile("core1", true, false));
-    CoreContainer cc = null;
-    try {
-      cc = init();
-      String msg = cc.getBadCoreMessage("core1");
-      assertTrue("Should have found multiple cores with same name", msg.contains("More than one core defined for core named 'core1'"));
-      try {
-        cc.getCore("core1");
-      } catch (SolrException se) {
-        assertEquals("Should be returning proper error code of 500", 500, se.code());
-        msg = se.getMessage();
-        assertTrue("Should have found multiple cores with same name", msg.contains("More than one core defined for core named 'core1'"));
-      }
-    } finally {
-      if (cc != null) {
-        cc.shutdown();
-      }
-    }
-  }
-
-  @Test
-  public void testCoresWithSameNameErrorBoth() throws Exception {
-    setMeUp();
-    addCoreWithPropsDir("core1_1", makeCorePropFile("core1", true, false));
-    addCoreWithPropsDir("core1_2", makeCorePropFile("core1", false, false));
-    // Should just blow up here.
-    CoreContainer cc = null;
-    try {
-      cc = init();
-      String msg = cc.getBadCoreMessage("core1");
-      assertTrue("Should have found multiple cores with same name", msg.contains("More than one core defined for core named 'core1'"));
-      try {
-        cc.getCore("core1");
-      } catch (SolrException se) {
-        assertEquals("Should be returning proper error code of 500", 500, se.code());
-        msg = se.getMessage();
-        assertTrue("Should have found multiple cores with same name", msg.contains("More than one core defined for core named 'core1'"));
-      }
-    } finally {
-      if (cc != null) {
-        cc.shutdown();
-      }
     }
   }
 

@@ -80,8 +80,6 @@ public class ConfigSolrXml extends Config implements ConfigSolr {
 
   private final Map<String, CoreDescriptorPlus> coreDescriptorPlusMap = new HashMap<String, CoreDescriptorPlus>();
   private NodeList coreNodes = null;
-  private final Map<String, String> badConfigCores = new HashMap<String, String>();
-    // List of cores that we should _never_ load. Ones with dup names or duplicate datadirs or...
 
 
   private Map<CfgProp, String> propMap = new HashMap<CfgProp, String>();
@@ -191,7 +189,7 @@ public class ConfigSolrXml extends Config implements ConfigSolr {
       propMap.put(CfgProp.SOLR_HOSTCONTEXT, doSub("solr/solrcloud/str[@name='hostContext']"));
       propMap.put(CfgProp.SOLR_HOSTPORT, doSub("solr/solrcloud/int[@name='hostPort']"));
       propMap.put(CfgProp.SOLR_LEADERVOTEWAIT, doSub("solr/solrcloud/int[@name='leaderVoteWait']"));
-      propMap.put(CfgProp.SOLR_GENERICCORENODENAMES, doSub("solr/bool[@name='genericCoreNodeNames']"));
+      propMap.put(CfgProp.SOLR_GENERICCORENODENAMES, doSub("solr/solrcloud/bool[@name='genericCoreNodeNames']"));
       propMap.put(CfgProp.SOLR_MANAGEMENTPATH, doSub("solr/str[@name='managementPath']"));
       propMap.put(CfgProp.SOLR_SHAREDLIB, doSub("solr/str[@name='sharedLib']"));
       propMap.put(CfgProp.SOLR_SHARESCHEMA, doSub("solr/str[@name='shareSchema']"));
@@ -286,7 +284,8 @@ public class ConfigSolrXml extends Config implements ConfigSolr {
 
   @Override
   public String getBadConfigCoreMessage(String name) {
-    return badConfigCores.get(name);
+    // these checks have bugs, disabled, removed upstream already
+    return null;
   }
   
   public static Document copyDoc(Document doc) throws TransformerException {
@@ -458,32 +457,12 @@ public class ConfigSolrXml extends Config implements ConfigSolr {
     CoreDescriptor desc = new CoreDescriptor(container, props);
     CoreDescriptorPlus plus = new CoreDescriptorPlus(propFile.getAbsolutePath(), desc, propsOrig);
 
-    // It's bad to have two cores with the same name or same data dir.
-    if (! seenCores.containsKey(desc.getName()) && ! seenDirs.containsKey(desc.getAbsoluteDataDir())) {
+
       coreDescriptorPlusMap.put(desc.getName(), plus);
       // Use the full path to the prop file so we can unambiguously report the place the error is.
       seenCores.put(desc.getName(), propFile.getAbsolutePath());
       seenDirs.put(desc.getAbsoluteDataDir(), propFile.getAbsolutePath());
-      return;
-    }
 
-    // record the appropriate error
-    if (seenCores.containsKey(desc.getName())) {
-      String msg = String.format(Locale.ROOT, "More than one core defined for core named '%s', paths are '%s' and '%s'  Removing both cores.",
-          desc.getName(), propFile.getAbsolutePath(), seenCores.get(desc.getName()));
-      log.error(msg);
-      // Load up as many errors as there are.
-      if (badConfigCores.containsKey(desc.getName())) msg += " " + badConfigCores.get(desc.getName());
-      badConfigCores.put(desc.getName(), msg);
-    }
-    // There's no reason both errors may not have occurred.
-    if (seenDirs.containsKey(desc.getAbsoluteDataDir())) {
-      String msg = String.format(Locale.ROOT, "More than one core points to data dir '%s'. They are in '%s' and '%s'. Removing all offending cores.",
-          desc.getAbsoluteDataDir(), propFile.getAbsolutePath(), seenDirs.get(desc.getAbsoluteDataDir()));
-      if (badConfigCores.containsKey(desc.getName())) msg += " " + badConfigCores.get(desc.getName());
-      log.warn(msg);
-    }
-    coreDescriptorPlusMap.remove(desc.getName());
   }
 
   public IndexSchema getSchemaFromZk(ZkController zkController, String zkConfigName, String schemaName,
