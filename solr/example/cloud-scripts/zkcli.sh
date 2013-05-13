@@ -10,5 +10,4 @@ JVM="java"
 sdir="`dirname \"$0\"`"
 
 
-$JVM  -classpath "$sdir/../solr-webapp/webapp/WEB-INF/lib/*:$sdir/../lib/ext/*" org.apache.solr.cloud.ZkCLI ${1+"$@"}
-
+PATH=$JAVA_HOME/bin:$PATH $JVM  -classpath "$sdir/../solr-webapp/webapp/WEB-INF/lib/*:$sdir/../lib/ext/*" org.apache.solr.cloud.ZkCLI ${1+"$@"}
