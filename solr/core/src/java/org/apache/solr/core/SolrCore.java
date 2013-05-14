@@ -843,7 +843,6 @@ public final class SolrCore implements SolrInfoMBean {
       if (cc.cfg != null && cc.cfg.is50OrLater()) {
         File propFile = new File(cd.getInstanceDir(), "core.properties");
         if (!propFile.exists()) {
-          System.out.println("writing core file:" + propFile.getAbsolutePath());
           Properties props = new Properties();
           props.put("name", cd.getName());
           if (cc.isZooKeeperAware()) {
@@ -875,8 +874,6 @@ public final class SolrCore implements SolrInfoMBean {
               IOUtils.closeQuietly(out);
             }
           }
-        } else {
-          System.out.println("found core file:" + propFile.getAbsolutePath());
         }
         
       }
