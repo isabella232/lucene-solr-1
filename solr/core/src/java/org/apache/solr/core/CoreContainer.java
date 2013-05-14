@@ -635,6 +635,16 @@ public class CoreContainer
                   
                   registerCore(p.isTransient(), name, c, false);
                 } catch (Throwable t) {
+                  if (zkController != null) {
+                    try {
+                      zkController.unregister(name, p);
+                    } catch (InterruptedException e) {
+                      Thread.currentThread().interrupt();
+                      SolrException.log(log, null, e);
+                    } catch (KeeperException e) {
+                      SolrException.log(log, null, e);
+                    }
+                  }
                   SolrException.log(log, null, t);
                   if (c != null) {
                     c.close();
