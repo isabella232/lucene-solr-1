@@ -18,6 +18,7 @@ package org.apache.solr.cloud;
  */
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -127,6 +128,19 @@ public class ZkCLITest extends SolrTestCaseJ4 {
 
 
     assertTrue(zkClient.exists("/path/mynewpath", true));
+  }
+
+  @Test
+  public void testPut() throws Exception {
+    // test bootstrap_conf
+    String data = "my data";
+    String[] args = new String[] {"-zkhost", zkServer.getZkAddress(), "-cmd",
+        "put", "/data.txt", data};
+    ZkCLI.main(args);
+
+    zkClient.getData("/data.txt", null, null, true);
+
+    assertArrayEquals(zkClient.getData("/data.txt", null, null, true), data.getBytes());
   }
   
   @Test
