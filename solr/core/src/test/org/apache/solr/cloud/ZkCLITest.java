@@ -140,7 +140,7 @@ public class ZkCLITest extends SolrTestCaseJ4 {
 
     zkClient.getData("/data.txt", null, null, true);
 
-    assertArrayEquals(zkClient.getData("/data.txt", null, null, true), data.getBytes());
+    assertArrayEquals(zkClient.getData("/data.txt", null, null, true), data.getBytes("UTF-8"));
   }
   
   @Test

@@ -284,7 +284,7 @@ public class ZkCLI {
             System.out.println("-" + PUT + " requires two args - the path to create and the data string");
             System.exit(1);
           }
-          zkClient.create(arglist.get(0).toString(), arglist.get(1).toString().getBytes(),
+          zkClient.create(arglist.get(0).toString(), arglist.get(1).toString().getBytes("UTF-8"),
                           acl, CreateMode.PERSISTENT, true);
         }
       } finally {
