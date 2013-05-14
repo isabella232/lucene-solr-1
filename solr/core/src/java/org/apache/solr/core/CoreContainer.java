@@ -327,7 +327,7 @@ public class CoreContainer
       
       // TODO: 2. look for zkhost in {solr.home}/solr.properties
       
-      // nocommit: we must fail if solr.xml is old style (<cores>)
+      // TODO: we must fail if solr.xml is old style (<cores>)
       boolean solrXmlInZk = false;
       String zkHost = System.getProperty("zkHost");
       if (zkHost != null) {
