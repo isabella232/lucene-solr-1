@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -47,20 +48,22 @@ public class HdfsDirectory extends Directory {
   protected static final String SEGMENTS_GEN = "segments.gen";
   protected static final IndexOutput NULL_WRITER = new NullIndexOutput();
   protected Path _hdfsDirPath;
-  protected AtomicReference<FileSystem> _fileSystemRef = new AtomicReference<FileSystem>();
   protected Configuration _configuration;
+
+  private final FileSystem fileSystem;
 
   public HdfsDirectory(Path hdfsDirPath, Configuration configuration) throws IOException {
     assert hdfsDirPath.toString().startsWith("hdfs:/") : hdfsDirPath.toString();
     setLockFactory(NoLockFactory.getNoLockFactory());
     _hdfsDirPath = hdfsDirPath;
     _configuration = configuration;
-    reopenFileSystem();
+    fileSystem = FileSystem.get(_hdfsDirPath.toUri(), _configuration);
     try {
-      if (!getFileSystem().exists(hdfsDirPath)) {
-        getFileSystem().mkdirs(hdfsDirPath);
+      if (!fileSystem.exists(hdfsDirPath)) {
+        fileSystem.mkdirs(hdfsDirPath);
       }
     } catch (Exception e) {
+      IOUtils.closeQuietly(fileSystem);
       throw new RuntimeException("Problem creating directory: " + hdfsDirPath, e);
     }
   }
@@ -68,6 +71,7 @@ public class HdfsDirectory extends Directory {
   @Override
   public void close() throws IOException {
     LOG.info("Closing hdfs directory {}", _hdfsDirPath);
+    fileSystem.close();
   }
 
   @Override
@@ -151,20 +155,11 @@ public class HdfsDirectory extends Directory {
   }
 
   public FileSystem getFileSystem() {
-    return _fileSystemRef.get();
+    return fileSystem;
   }
   
   public Configuration getConfiguration() {
     return _configuration;
-  }
-
-  protected void reopenFileSystem() throws IOException {
-    FileSystem fileSystem = FileSystem.get(_hdfsDirPath.toUri(), _configuration);
-    FileSystem oldFs = _fileSystemRef.get();
-    _fileSystemRef.set(fileSystem);
-    if (oldFs != null) {
-      oldFs.close();
-    }
   }
 
 //  static class HdfsLayeredIndexInput extends CustomBufferedIndexInput {

@@ -26,9 +26,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockFactory;
 import org.apache.lucene.store.LockReleaseFailedException;
-import org.apache.solr.util.HdfsUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.solr.util.IOUtils;
 
 public class HdfsLockFactory extends LockFactory {
   
@@ -44,38 +42,31 @@ public class HdfsLockFactory extends LockFactory {
   @Override
   public Lock makeLock(String lockName) {
     
-    FileSystem fs;
-    try {
-      fs = FileSystem.get(lockPath.toUri(), configuration);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    
     if (lockPrefix != null) {
       lockName = lockPrefix + "-" + lockName;
     }
     
-    HdfsLock lock = new HdfsLock(fs, lockPath, lockName);
+    HdfsLock lock = new HdfsLock(lockPath, lockName, configuration);
     
     return lock;
   }
 
   @Override
   public void clearLock(String lockName) throws IOException {
-    FileSystem fs;
+    FileSystem fs = null;
     try {
       fs = FileSystem.get(lockPath.toUri(), configuration);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    
-    if (fs.exists(lockPath)) {
-      if (lockPrefix != null) {
-        lockName = lockPrefix + "-" + lockName;
-      }
       
-      Path lockFile = new Path(lockPath, lockName);
-      if (fs.exists(lockFile) && !fs.delete(lockFile, false));
+      if (fs.exists(lockPath)) {
+        if (lockPrefix != null) {
+          lockName = lockPrefix + "-" + lockName;
+        }
+        
+        Path lockFile = new Path(lockPath, lockName);
+        if (fs.exists(lockFile) && !fs.delete(lockFile, false));
+      }
+    } finally {
+      IOUtils.closeQuietly(fs);
     }
   }
   
@@ -89,40 +80,55 @@ public class HdfsLockFactory extends LockFactory {
   
   static class HdfsLock extends Lock {
 
-    private FileSystem fs;
     private Path lockPath;
     private String lockName;
+    private Configuration conf;
 
-    public HdfsLock(FileSystem fs, Path lockPath, String lockName) {
-      this.fs = fs;
+    public HdfsLock(Path lockPath, String lockName, Configuration conf) {
       this.lockPath = lockPath;
       this.lockName = lockName;
+      this.conf = conf;
     }
     
     @Override
     public boolean obtain() throws IOException {
       FSDataOutputStream file = null;
+      FileSystem fs = null;
       try {
+        fs = FileSystem.get(lockPath.toUri(), conf);
+
         file = fs.create(new Path(lockPath, lockName), false);
       } catch (IOException e) {
         return false;
       } finally {
-        if (file != null) {
-          file.close();
-        }
+        IOUtils.closeQuietly(file);
+        IOUtils.closeQuietly(fs);
       }
       return true;
     }
 
     @Override
     public void release() throws IOException {
-      if (fs.exists(new Path(lockPath, lockName)) && !fs.delete(new Path(lockPath, lockName), false))
-        throw new LockReleaseFailedException("failed to delete " + new Path(lockPath, lockName));
+      FileSystem fs = FileSystem.get(lockPath.toUri(), conf);
+      try {
+        if (fs.exists(new Path(lockPath, lockName))
+            && !fs.delete(new Path(lockPath, lockName), false)) throw new LockReleaseFailedException(
+            "failed to delete " + new Path(lockPath, lockName));
+      } finally {
+        IOUtils.closeQuietly(fs);
+      }
     }
 
     @Override
     public boolean isLocked() throws IOException {
-      return fs.exists(new Path(lockPath, lockName));
+      boolean isLocked = false;
+      FileSystem fs = FileSystem.get(lockPath.toUri(), conf);
+      try {
+        isLocked = fs.exists(new Path(lockPath, lockName));
+      } finally {
+        IOUtils.closeQuietly(fs);
+      }
+      return isLocked;
     }
     
   }

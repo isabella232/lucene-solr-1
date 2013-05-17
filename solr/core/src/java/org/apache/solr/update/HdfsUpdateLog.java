@@ -17,11 +17,8 @@
 
 package org.apache.solr.update;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,10 +34,10 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
-import org.apache.solr.core.HdfsDirectoryFactory;
 import org.apache.solr.core.PluginInfo;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.util.HdfsUtil;
+import org.apache.solr.util.IOUtils;
 
 /** @lucene.experimental */
 public class HdfsUpdateLog extends UpdateLog {
@@ -96,7 +93,8 @@ public class HdfsUpdateLog extends UpdateLog {
       HdfsUtil.addHdfsResources(conf, confDir);
     }
     
-    // TODO: why are we doing this again?
+    // Solr manually manages fs instances to ensure
+    // their life cycle matches Solr objects
     conf.setBoolean("fs.hdfs.impl.disable.cache", true);
     return conf;
   }
@@ -264,11 +262,7 @@ public class HdfsUpdateLog extends UpdateLog {
   public void close(boolean committed) {
     synchronized (this) {
       super.close(committed);
-      try {
-        fs.close();
-      } catch (IOException e) {
-        throw new RuntimeException();
-      }
+      IOUtils.closeQuietly(fs);
     }
   }
   

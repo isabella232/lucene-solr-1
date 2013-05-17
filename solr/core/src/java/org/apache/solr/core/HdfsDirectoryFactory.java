@@ -33,7 +33,6 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
-import org.apache.solr.core.CachingDirectoryFactory.CacheValue;
 import org.apache.solr.store.blockcache.BlockCache;
 import org.apache.solr.store.blockcache.BlockDirectory;
 import org.apache.solr.store.blockcache.BlockDirectoryCache;
@@ -42,6 +41,7 @@ import org.apache.solr.store.blockcache.Cache;
 import org.apache.solr.store.blockcache.Metrics;
 import org.apache.solr.store.hdfs.HdfsDirectory;
 import org.apache.solr.util.HdfsUtil;
+import org.apache.solr.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -170,13 +170,16 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
   public boolean exists(String path) {
     Path hdfsDirPath = new Path(path);
     Configuration conf = getConf();
+    FileSystem fileSystem = null;
     try {
-      FileSystem fileSystem = FileSystem.get(hdfsDirPath.toUri(),
+      fileSystem = FileSystem.get(hdfsDirPath.toUri(),
           conf);
       return fileSystem.exists(hdfsDirPath);
     } catch (IOException e) {
       LOG.error("Error checking if hdfs path exists", e);
       throw new RuntimeException("Error checking if hdfs path exists", e);
+    } finally {
+      IOUtils.closeQuietly(fileSystem);
     }
   }
 
@@ -184,13 +187,17 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
     Configuration conf = new Configuration();
     confDir = params.get(CONFIG_DIRECTORY, null);
     HdfsUtil.addHdfsResources(conf, confDir);
+    // Solr manually manages fs instances to ensure
+    // their life cycle matches Solr objects
+    conf.setBoolean("fs.hdfs.impl.disable.cache", true);
     return conf;
   }
   
   protected synchronized void removeDirectory(CacheValue cacheValue) throws IOException {
     Configuration conf = getConf();
+    FileSystem fileSystem = null;
     try {
-      FileSystem fileSystem = FileSystem.get(new URI(cacheValue.path), conf);
+      fileSystem = FileSystem.get(new URI(cacheValue.path), conf);
       boolean success = fileSystem.delete(new Path(cacheValue.path), true);
       if (!success) {
         throw new RuntimeException("Could not remove directory");
@@ -198,7 +205,10 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
     } catch (Exception e) {
       LOG.error("Could not remove directory", e);
       throw new SolrException(ErrorCode.SERVER_ERROR, "Could not remove directory", e);
-    }}
+    } finally {
+      IOUtils.closeQuietly(fileSystem);
+    }
+  }
   
   @Override
   public boolean isAbsolute(String path) {
