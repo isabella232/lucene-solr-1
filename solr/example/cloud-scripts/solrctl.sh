@@ -69,8 +69,6 @@ Commands:
                 [--reload name]
                 [--unload name]
                 [--status name]
-
-    nodeconfig  [--recover]
   "
   exit 1
 }
@@ -194,30 +192,6 @@ while test $# != 0 ; do
       eval $SOLR_ADMIN_ZK_CMD -cmd clear /    || die "Error: failed to initialize Solr"
 
       eval $SOLR_ADMIN_ZK_CMD -cmd put /solr.xml "'$SOLR_XML'"
-
-      shift 1
-      ;;
-
-    nodeconfig)
-      if [ "$2" == "--recover" ] ; then
-        CORES=`eval $SOLR_ADMIN_ZK_CMD -cmd getcollections -hostname $HOSTNAME`
-        shift 1
-      fi
-
-      # FIXME: this is slightly clunky -- we basically peg the configuration to 
-      #        SolCloud/non SolrCloud in order to avoid confusion later on
-      if [ -n "$SOLR_ZK_ENSEMBLE" ] ; then
-        touch /var/lib/solr/solr.cloud.ini
-      fi
-      [ -e /var/lib/solr/solr.xml ] && mv /var/lib/solr/solr.xml `mktemp -u /var/lib/solr/solr.xml.XXXXXXXXXX`
-      cat > /var/lib/solr/solr.xml <<-__EOT__
-	<?xml version="1.0" encoding="UTF-8" ?>
-	<solr persistent="true">
-	  <cores genericCoreNodeNames="\${genericCoreNodeNames:true}" defaultCoreName="default" host="\${solr.host:}" adminPath="/admin/cores" zkClientTimeout="\${zkClientTimeout:15000}" hostPort="\${solr.port:}" hostContext="solr">
-	  $CORES
-	  </cores>
-	</solr>
-	__EOT__
 
       shift 1
       ;;
