@@ -69,7 +69,7 @@
        The examples below can be used to load some solr-contribs along 
        with their external dependencies.
     -->
-  <lib dir="../../../contrib/extraction/lib" regex=".*\.jar" />
+  <lib dir="/usr/lib/solr/contrib/extraction/lib" regex=".*\.jar" />
   <lib dir="../../../dist/" regex="solr-cell-\d.*\.jar" />
 
   <lib dir="../../../contrib/clustering/lib/" regex=".*\.jar" />
