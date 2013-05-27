@@ -1161,10 +1161,6 @@ public class CoreContainer
         SolrCore newCore = core.reload(solrLoader, core);
         // keep core to orig name link
         coreMaps.removeCoreToOrigName(newCore, core);
-        // TODO: We also have, but should we do this again on reload?
-        if (isZooKeeperAware()) {
-          getZkController().preRegister(cd);
-        }
         registerCore(false, name, newCore, false);
       } finally {
         coreMaps.removeFromPendingOps(name);
