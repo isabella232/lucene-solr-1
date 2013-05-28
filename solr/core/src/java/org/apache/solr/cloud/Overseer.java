@@ -612,6 +612,13 @@ public class Overseer {
           } catch (KeeperException e) {
             SolrException.log(log, "Problem cleaning up collection in zk:" + collection, e);
           }
+          try {
+            assert !zkClient.exists("/collections/" + collection, true);
+          } catch (KeeperException e) {
+            throw new RuntimeException(e);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
 
 
         } else {

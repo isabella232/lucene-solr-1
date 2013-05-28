@@ -1270,6 +1270,19 @@ public class CoreContainer
         core.open();
       }
     } catch(Exception ex){
+      // remains to be seen how transient cores and such
+      // will work in SolrCloud mode, but just to be future 
+      // proof...
+      if (zkController != null) {
+        try {
+          zkController.unregister(name, desc);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          SolrException.log(log, null, e);
+        } catch (KeeperException e) {
+          SolrException.log(log, null, e);
+        }
+      }
       throw recordAndThrow(name, "Unable to create core: " + name, ex);
     } finally {
       coreMaps.removeFromPendingOps(name);
