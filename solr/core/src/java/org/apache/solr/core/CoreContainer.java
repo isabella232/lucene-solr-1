@@ -328,29 +328,41 @@ public class CoreContainer
       // TODO: 2. look for zkhost in {solr.home}/solr.properties
       
       // TODO: we must fail if solr.xml is old style (<cores>)
-      boolean solrXmlInZk = false;
+      
+      String solrXmlLocation = System.getProperty("solr.solrxml.location");
+      
       String zkHost = System.getProperty("zkHost");
-      if (zkHost != null) {
-        SolrZkClient zkClient = new SolrZkClient(zkHost, 30000);
-        try {
-          // at the root we look for solr.xml
-          solrXmlInZk = zkClient.exists("/solr.xml", true);
-          if (solrXmlInZk) {
-            log.info("Loading solr.xml from ZooKeeper");
-            byte[] solrXmlBytes = zkClient.getData("/solr.xml", null, null, true);
-            cores.load(solrHome, new ByteArrayInputStream(solrXmlBytes), null);
-            return cores;
+      
+      if (solrXmlLocation != null && solrXmlLocation.equals("zookeeper")) {
+        if (zkHost != null) {
+          SolrZkClient zkClient = new SolrZkClient(zkHost, 30000);
+          try {
+            // at the root we look for solr.xml
+            if (zkClient.exists("/solr.xml", true)) {
+              log.info("Loading solr.xml from ZooKeeper");
+              byte[] solrXmlBytes = zkClient.getData("/solr.xml", null, null, true);
+              cores.load(solrHome, new ByteArrayInputStream(solrXmlBytes), null);
+              return cores;
+            } else {
+              throw new SolrException(ErrorCode.SERVER_ERROR, "solr.xml not found in ZooKeeper");
+            }
+          } catch (KeeperException e) {
+            throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+          } finally {
+            zkClient.close();
           }
-        } catch (KeeperException e) {
-          throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
-        } finally {
-          zkClient.close();
+        } else {
+          throw new SolrException(ErrorCode.SERVER_ERROR, "Could not load solr.xml from ZooKeeper because zkHost was not specified");
         }
       }
-
+      
+      if (solrXmlLocation != null && !solrXmlLocation.equals("solrhome")) {
+        throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown solr.xml location specified: " + solrXmlLocation);
+      }
+      
       // Either we have a config file or not.
       
       if (fconf.exists()) {
@@ -1270,19 +1282,6 @@ public class CoreContainer
         core.open();
       }
     } catch(Exception ex){
-      // remains to be seen how transient cores and such
-      // will work in SolrCloud mode, but just to be future 
-      // proof...
-      if (zkController != null) {
-        try {
-          zkController.unregister(name, desc);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          SolrException.log(log, null, e);
-        } catch (KeeperException e) {
-          SolrException.log(log, null, e);
-        }
-      }
       throw recordAndThrow(name, "Unable to create core: " + name, ex);
     } finally {
       coreMaps.removeFromPendingOps(name);
