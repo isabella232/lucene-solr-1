@@ -174,6 +174,12 @@ fi
 [ $# -gt 0 ] || usage 
 while test $# != 0 ; do
   case "$1" in 
+    debug-dump)
+      get_solr_state
+
+      shift 1
+      ;;
+
     init)
       if [ "$2" == "--force" ] ; then
         shift 1
