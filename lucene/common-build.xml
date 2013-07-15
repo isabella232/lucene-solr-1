@@ -932,6 +932,7 @@
             <jvmarg line="${args}"/>
             <jvmarg line="${tests.heapdump.args}"/>
             <jvmarg line="${tests.clover.args}"/>
+            <jvmarg line="-XX:MaxPermSize=128m"/>
 
             <!-- set the number of times tests should run -->
             <sysproperty key="tests.iters" value="${tests.iters}"/>
