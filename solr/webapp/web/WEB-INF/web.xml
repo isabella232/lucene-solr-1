@@ -44,7 +44,13 @@
        <env-entry-type>java.lang.String</env-entry-type>
     </env-entry>
    -->
-   
+
+  <!-- Requires Authentication for any path, based on Hadoop's AuthenticationFilter -->
+  <filter>
+    <filter-name>SolrHadoopAuthenticationFilter</filter-name>
+    <filter-class>org.apache.solr.servlet.SolrHadoopAuthenticationFilter</filter-class>
+  </filter>
+
   <!-- Any path (name) registered in solrconfig.xml will be sent to that filter -->
   <filter>
     <filter-name>SolrRequestFilter</filter-name>
@@ -71,6 +77,11 @@
     </init-param>
     -->
   </filter>
+
+  <filter-mapping>
+    <filter-name>SolrHadoopAuthenticationFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
 
   <filter-mapping>
     <!--
