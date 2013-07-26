@@ -37,7 +37,7 @@ public class TeeHttpServletRequestWrapperTest extends SolrTestCaseJ4 {
   @Test
   public void testTeeInputStream() throws Exception {
     HttpServletRequest request = createMock(HttpServletRequest.class);
-    byte [] foobar = "foobar".getBytes();
+    byte [] foobar = "foobar".getBytes("UTF-8");
     final InputStream inputStream = new ByteArrayInputStream(foobar);
     final ServletInputStream sis = new ServletInputStream() {
       public int read() throws IOException {
