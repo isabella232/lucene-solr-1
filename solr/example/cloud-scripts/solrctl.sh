@@ -146,7 +146,7 @@ else
   SOLR_PORT=8983
 fi
 
-SOLR_ADMIN_CURL='curl -i --retry 5 -s -L -k'
+SOLR_ADMIN_CURL='curl -i --retry 5 -s -L -k --negotiate -u :'
 SOLR_ADMIN_CHAT=echo
 SOLR_ADMIN_API_CMD='solr_webapi'
 
