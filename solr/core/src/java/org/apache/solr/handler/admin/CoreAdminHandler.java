@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.index.DirectoryReader;
