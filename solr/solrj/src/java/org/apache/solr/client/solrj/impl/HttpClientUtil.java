@@ -18,6 +18,7 @@ package org.apache.solr.client.solrj.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.Principal;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -30,14 +31,17 @@ import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpResponseInterceptor;
 import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.params.AuthPolicy;
 import org.apache.http.client.params.ClientParamBean;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.entity.HttpEntityWrapper;
+import org.apache.http.impl.auth.SPNegoSchemeFactory;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.SystemDefaultHttpClient;
@@ -176,6 +180,54 @@ public class HttpClientUtil {
     } else {
       httpClient.getCredentialsProvider().clear();
     }
+  }
+
+  /**
+   * Set the http SPNego auth information.  If the java System prop
+   * "java.security.auth.login.config" is null the auth information
+   * is cleared.
+   *
+   * @returns true if the SPNego credentials were set, false otherwise.
+   */
+  public static boolean setSPNegoAuth(DefaultHttpClient httpClient) {
+    final String configProp = "java.security.auth.login.config";
+    String configValue = System.getProperty(configProp);
+    if (configValue != null) {
+      logger.info("Setting up SPNego auth with config: " + configValue);
+      final String useSubjectCredsProp = "javax.security.auth.useSubjectCredsOnly";
+      String useSubjectCredsVal = System.getProperty(useSubjectCredsProp);
+
+      // "javax.security.auth.useSubjectCredsOnly" should be false so that the underlying
+      // authentication mechanism can load the credentials from the JAAS configuration.
+      if (useSubjectCredsVal == null) {
+        System.setProperty(useSubjectCredsProp, "false");
+      }
+      else if (!useSubjectCredsVal.toLowerCase().equals("false")) {
+        // Don't overwrite the prop value if it's already been written to something else,
+        // but log because it is likely the Credentials won't be loaded correctly.
+        logger.warn("System Property: " + useSubjectCredsProp + " set to: " + useSubjectCredsVal
+          + " not false.  SPNego authentication may not be successful.");
+      }
+
+      httpClient.getAuthSchemes().register(AuthPolicy.SPNEGO, new SPNegoSchemeFactory(true));
+      // Get the credentials from the JAAS configuration rather than here
+      Credentials use_jaas_creds = new Credentials() {
+        public String getPassword() {
+          return null;
+        }
+
+        public Principal getUserPrincipal() {
+          return null;
+        }
+      };
+
+      httpClient.getCredentialsProvider().setCredentials(
+        AuthScope.ANY, use_jaas_creds);
+      return true;
+    } else {
+      httpClient.getCredentialsProvider().clear();
+    }
+    return false;
   }
 
   /**

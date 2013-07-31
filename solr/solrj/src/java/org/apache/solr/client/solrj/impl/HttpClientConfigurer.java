@@ -21,6 +21,8 @@ package org.apache.solr.client.solrj.impl;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.solr.common.params.SolrParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The default http client configurer. If the behaviour needs to be customized a
@@ -28,7 +30,10 @@ import org.apache.solr.common.params.SolrParams;
  * {@link HttpClientUtil#setConfigurer(HttpClientConfigurer)}
  */
 public class HttpClientConfigurer {
-  
+
+  private static final Logger logger = LoggerFactory
+      .getLogger(HttpClientConfigurer.class);
+
   protected void configure(DefaultHttpClient httpClient, SolrParams config) {
     
     if (config.get(HttpClientUtil.PROP_MAX_CONNECTIONS) != null) {
@@ -61,11 +66,22 @@ public class HttpClientConfigurer {
           config.getBool(HttpClientUtil.PROP_FOLLOW_REDIRECTS));
     }
     
+
+
+    // Setting both SPNego and basic auth not currently supported.  Prefer
+    // SPNego; don't try to set basic auth if SPNego is successfully set.
+    boolean spnegoSet = HttpClientUtil.setSPNegoAuth(httpClient);
+
     final String basicAuthUser = config
         .get(HttpClientUtil.PROP_BASIC_AUTH_USER);
     final String basicAuthPass = config
         .get(HttpClientUtil.PROP_BASIC_AUTH_PASS);
-    HttpClientUtil.setBasicAuth(httpClient, basicAuthUser, basicAuthPass);
+    if (!spnegoSet) {
+      HttpClientUtil.setBasicAuth(httpClient, basicAuthUser, basicAuthPass);
+    } else if (basicAuthUser != null && basicAuthPass != null) {
+      logger.warn("Setting both SPNego auth and basic auth not supported.  "
+        + "Preferring SPNego auth, ignoring basic auth.");
+    }
     
     if (config.get(HttpClientUtil.PROP_ALLOW_COMPRESSION) != null) {
       HttpClientUtil.setAllowCompression(httpClient,
