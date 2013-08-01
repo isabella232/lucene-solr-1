@@ -19,6 +19,7 @@ package org.apache.solr.client.solrj.impl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.Principal;
+import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -202,7 +203,7 @@ public class HttpClientUtil {
       if (useSubjectCredsVal == null) {
         System.setProperty(useSubjectCredsProp, "false");
       }
-      else if (!useSubjectCredsVal.toLowerCase().equals("false")) {
+      else if (!useSubjectCredsVal.toLowerCase(Locale.ROOT).equals("false")) {
         // Don't overwrite the prop value if it's already been written to something else,
         // but log because it is likely the Credentials won't be loaded correctly.
         logger.warn("System Property: " + useSubjectCredsProp + " set to: " + useSubjectCredsVal
