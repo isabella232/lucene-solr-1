@@ -188,7 +188,7 @@ public class HttpClientUtil {
    * "java.security.auth.login.config" is null the auth information
    * is cleared.
    *
-   * @returns true if the SPNego credentials were set, false otherwise.
+   * @return true if the SPNego credentials were set, false otherwise.
    */
   public static boolean setSPNegoAuth(DefaultHttpClient httpClient) {
     final String configProp = "java.security.auth.login.config";
