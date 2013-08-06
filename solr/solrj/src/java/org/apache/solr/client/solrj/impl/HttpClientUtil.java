@@ -19,9 +19,13 @@ package org.apache.solr.client.solrj.impl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.Principal;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
+import javax.security.auth.login.AppConfigurationEntry;
 
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
@@ -52,6 +56,7 @@ import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.protocol.HttpContext;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.zookeeper.client.ZooKeeperSaslClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -210,6 +215,8 @@ public class HttpClientUtil {
           + " not false.  SPNego authentication may not be successful.");
       }
 
+      ZKJaasConfiguration jaasConf = new ZKJaasConfiguration();
+      javax.security.auth.login.Configuration.setConfiguration(jaasConf);
       httpClient.getAuthSchemes().register(AuthPolicy.SPNEGO, new SPNegoSchemeFactory(true));
       // Get the credentials from the JAAS configuration rather than here
       Credentials use_jaas_creds = new Credentials() {
@@ -388,5 +395,44 @@ public class HttpClientUtil {
       return new InflaterInputStream(wrappedEntity.getContent());
     }
   }
-  
+
+  /**
+   * Use the ZK JAAS Client appName rather than the default com.sun.security.jgss appName.
+   * This simplifies client configuration; rather than requiring an appName in the JAAS conf
+   * for ZooKeeper's client (default "Client") and one for the default com.sun.security.jgss
+   * appName, only a single unified appName is needed.
+   */
+  private static class ZKJaasConfiguration extends javax.security.auth.login.Configuration {
+
+    private javax.security.auth.login.Configuration baseConfig;
+    private String zkClientLoginContext;
+
+    // the com.sun.security.jgss appNames
+    private Set<String> initiateAppNames = new HashSet<String>(
+      Arrays.asList("com.sun.security.jgss.krb5.initiate", "com.sun.security.jgss.initiate"));
+
+    public ZKJaasConfiguration() {
+      try {
+        this.baseConfig = javax.security.auth.login.Configuration.getConfiguration();
+      } catch (SecurityException e) {
+        this.baseConfig = null;
+      }
+
+      // Get the app name for the ZooKeeperClient
+      zkClientLoginContext = System.getProperty(ZooKeeperSaslClient.LOGIN_CONTEXT_NAME_KEY, "Client");
+      logger.debug("ZK client login context is: " + zkClientLoginContext);
+    }
+
+    @Override
+    public AppConfigurationEntry[] getAppConfigurationEntry(String appName) {
+      if (baseConfig == null) return null;
+
+      if (initiateAppNames.contains(appName)) {
+        logger.debug("Using AppConfigurationEntry for appName: " + zkClientLoginContext
+          + " instead of: " + appName);
+        return baseConfig.getAppConfigurationEntry(zkClientLoginContext);
+      }
+      return baseConfig.getAppConfigurationEntry(appName);
+    }
+  }
 }
