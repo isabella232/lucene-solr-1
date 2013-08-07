@@ -47,6 +47,8 @@ Commands:
                 [--reload name]
                 [--unload name]
                 [--status name]
+
+    nodeconfig  [--recover]
   "
   exit 1
 }
@@ -60,7 +62,7 @@ die() {
 local_coreconfig() {
   case "$2" in
     list)
-      ls -d /var/lib/solr/*/conf | sed -e 's#var/lib/solr#configs#'
+      ls -d /var/lib/solr/*/conf 2>/dev/null | sed -e 's#var/lib/solr#configs#'
       ;;
     clear)
       sudo -u solr rm -rf /var/lib/solr/`basename $3`/* 2>/dev/null
@@ -123,22 +125,33 @@ while test $# != 0 ; do
     init)
       if [ "$2" == "--force" ] ; then
         shift 1
-      elif [ -e /var/lib/solr/solr.xml ] ; then
+      elif ((eval $SOLR_ADMIN_ZK_CMD -cmd list) | grep -q '^..*$')  ; then
         die "Warning: Solr appears to be initialized (use --force to override)"
       fi
 
       eval $SOLR_ADMIN_ZK_CMD -cmd makepath / > /dev/null 2>&1 || : 
       eval $SOLR_ADMIN_ZK_CMD -cmd clear /    || die "Error: failed to initialize Solr"
 
+      shift 1
+      ;;
+
+    nodeconfig)
+      if [ "$2" == "--recover" ] ; then
+        CORES=`eval $SOLR_ADMIN_ZK_CMD -cmd getcollections -hostname $HOSTNAME`
+        shift 1
+      fi
+
       # FIXME: this is slightly clunky -- we basically peg the configuration to 
       #        SolCloud/non SolrCloud in order to avoid confusion later on
       if [ -n "$SOLR_ZK_ENSEMBLE" ] ; then
         touch /var/lib/solr/solr.cloud.ini
       fi
-      cat > /var/lib/solr/solr.xml <<-'__EOT__'
+      [ -e /var/lib/solr/solr.xml ] && mv /var/lib/solr/solr.xml `mktemp -u /var/lib/solr/solr.xml.XXXXXXXXXX`
+      cat > /var/lib/solr/solr.xml <<-__EOT__
 	<?xml version="1.0" encoding="UTF-8" ?>
 	<solr persistent="true">
-	  <cores defaultCoreName="default" host="${solr.host:}" adminPath="/admin/cores" zkClientTimeout="${zkClientTimeout:15000}" hostPort="${solr.port:}" hostContext="solr">
+	  <cores defaultCoreName="default" host="\${solr.host:}" adminPath="/admin/cores" zkClientTimeout="\${zkClientTimeout:15000}" hostPort="\${solr.port:}" hostContext="solr">
+	  $CORES
 	  </cores>
 	</solr>
 	__EOT__
