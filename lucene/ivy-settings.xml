@@ -20,7 +20,13 @@
   <settings defaultResolver="default"/>
 
   <property name="local-maven2-dir" value="${user.home}/.m2/repository/" />
-  
+  <property name="reactor.repo" value="https://repository.cloudera.com/artifactory/libs-snapshot-local/" override="false"/>
+  <property name="snapshots.cloudera.com" value="https://repository.cloudera.com/artifactory/libs-snapshot-local/" override="false"/>
+  <property name="releases.cloudera.com" value="https://repository.cloudera.com/artifactory/cdh-releases-rcs/" override="false"/>
+  <property name="repo.maven.org" value="http://repo1.maven.org/maven2/" override="false"/>
+  <property name="maven2.pattern" value="[organisation]/[module]/[revision]/[module]-[revision](-[classifier])"/>
+  <property name="maven2.pattern.ext"  value="${maven2.pattern}.[ext]"/>
+
   <properties file="${ivy.settings.dir}/ivy-versions.properties" override="false"/>
   
   <include url="${ivy.default.settings.dir}/ivysettings-public.xml"/>
@@ -32,6 +38,17 @@
 
   <resolvers>
     <ibiblio name="sonatype-releases" root="https://oss.sonatype.org/content/repositories/releases" m2compatible="true" />
+    
+    <!-- CDH build repo, the pattern attribute handles SNAPSHOT artifacts -->
+    <ibiblio name="reactor-repo" root="${reactor.repo}"
+             m2compatible="true"
+             checkmodified="true"/>
+    <ibiblio name="cloudera-releases" m2compatible="true"
+             root="${releases.cloudera.com}" checkmodified="true"/>
+    <ibiblio name="cloudera-snapshots" m2compatible="true"
+             root="${snapshots.cloudera.com}" checkmodified="true"/>
+    <ibiblio name="maven2" root="${repo.maven.org}" pattern="${maven2.pattern.ext}" m2compatible="true"/>
+
     <ibiblio name="maven.restlet.org" root="http://maven.restlet.org" m2compatible="true" />
     <ibiblio name="cloudera" root="http://repository.cloudera.com/artifactory/repo" m2compatible="true" />
     <ibiblio name="releases.cloudera.com" root="http://repository.cloudera.com/content/repositories/releases" m2compatible="true" />
@@ -62,6 +79,18 @@
       <!-- <resolver ref="svnkit-releases" /> -->
       <resolver ref="working-chinese-mirror" />
     </chain>
+    <chain name="cloudera" returnFirst="true" checkmodified="true" changingPattern=".*SNAPSHOT">
+      <resolver ref="local"/>
+      <!-- <resolver ref="local-maven-2" /> -->
+      <resolver ref="reactor-repo" />
+      <resolver ref="cloudera-releases" />
+      <resolver ref="cloudera-snapshots" />
+    </chain>
   </resolvers>
+  <modules>
+    <module organisation="com.cloudera.*" name=".*" resolver="cloudera" />
+    <module organisation="org.apache.zookeeper" name=".*" resolver="cloudera" />
+    <module organisation="org.apache.hadoop" name=".*" resolver="cloudera" />
+  </modules>
 
 </ivysettings>

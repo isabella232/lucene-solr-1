@@ -25,7 +25,7 @@
     <!-- artifacts in the "test" configuration will go into solr/solrj/test-lib/ -->
     <conf name="test" transitive="false"/>
   </configurations>
-
+  
   <dependencies>
     <dependency org="org.apache.zookeeper" name="zookeeper" rev="${/org.apache.zookeeper/zookeeper}" conf="compile"/>
     <dependency org="org.apache.httpcomponents" name="httpclient" rev="${/org.apache.httpcomponents/httpclient}" conf="compile"/>

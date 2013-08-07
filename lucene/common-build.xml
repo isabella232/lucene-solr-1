@@ -34,10 +34,40 @@
   <!-- !!! RELEASE MANAGER: Don't change anything after this line! !!! -->
 
   <dirname file="${ant.file.common}" property="common.dir"/>
+
   <property name="dev-tools.dir" location="${common.dir}/../dev-tools"/>
   <property name="prettify.dir" location="${common.dir}/tools/prettify"/>
   <property name="maven.build.dir" location="${build.dir}/maven"/>
   <property name="license.dir" location="${common.dir}/licenses"/>
+
+  <!-- load ant-contrib tasks to get the "if" task. -->
+  <taskdef resource="net/sf/antcontrib/antcontrib.properties">
+    <classpath>
+      <pathelement location="${common.dir}/../cloudera/ant-contrib-1.0b3.jar"/>
+    </classpath>
+  </taskdef>
+
+  <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
+  <if>
+    <and>
+      <not>
+        <isset property="cdh.maven" />
+      </not>
+      <not>
+        <available file="${common.dir}/../cdh.build.properties" />
+      </not>
+    </and>
+    <then>
+      <exec  executable="mvn" dir="${common.dir}/.." failonerror="true">
+        <arg value="-f" />
+        <arg value="cloudera-pom.xml" />
+        <arg value="process-resources"/>
+      </exec>
+    </then>
+  </if>
+
+  <property file="${common.dir}/../cdh.build.properties" />
+
 
   <!-- Give user a chance to override without editing this file
       (and without typing -D each time it compiles it -->
@@ -57,7 +87,8 @@
   <property name="Name" value="Lucene"/>
   <property name="name" value="${ant.project.name}"/>
 
-  <!--TODO: remove once Jenkins jobs are updated:--><property name="dev.version.suffix" value="SNAPSHOT"/>
+  <!--TODO: remove once Jenkins jobs are updated:-->
+  <property name="dev.version.suffix" value=""/>
 
   <!-- Suffix of the version, by default SNAPSHOT: -->
   <property name="version.suffix" value="${dev.version.suffix}"/>
@@ -66,7 +97,7 @@
   <!-- must be in format x.y with only digits, so we use version.base: -->
   <property name="spec.version" value="${version.base}"/>
 
-  
+
   <fail message="If you pass -Dversion=... to set a release version, it must match &quot;${version.base}&quot;, optionally followed by a suffix (e.g., &quot;-SNAPSHOT&quot;).">
     <condition>
       <not><matches pattern="^\Q${version.base}\E(|\-.*)$" casesensitive="true" string="${version}"/></not>
@@ -108,7 +139,7 @@
   </path>
 
   <!-- default arguments to pass to JVM executing tests -->
-  <property name="args" value=""/>
+  <property name="args" value="-XX:MaxPermSize=128m"/>
 
   <property name="tests.seed" value="" />
 
@@ -592,9 +623,6 @@
       </artifact:install>
       <artifact:deploy file="@{jar.file}">
         <artifact-attachments/>
-        <remoteRepository id="${m2.repository.id}" url="${m2.repository.url}">
-          <credentials/>
-        </remoteRepository>
         <pom refid="maven.project"/>
       </artifact:deploy>
     </sequential>

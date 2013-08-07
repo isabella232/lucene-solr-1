@@ -34,6 +34,8 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.util.Constants;
+import org.junit.Ignore;
 
 public class TestCheckIndex extends LuceneTestCase {
 
@@ -115,5 +117,27 @@ public class TestCheckIndex extends LuceneTestCase {
     iw.addDocument(doc);
     iw.close();
     dir.close(); // checkindex
+  }
+
+  @Ignore("CDH-8177: Attempt to change upstream - it's a good check for release, but I don't think it belongs here.")
+  public void testLuceneConstantVersion() throws IOException {
+    // common-build.xml sets lucene.version
+    final String version = System.getProperty("lucene.version");
+    assertNotNull( "null version", version);
+    final String constantVersion;
+    String parts[] = Constants.LUCENE_MAIN_VERSION.split("\\.");
+    if (parts.length == 4) {
+      // alpha/beta version: pull the real portion
+      assert parts[2].equals("0");
+      constantVersion = parts[0] + "." + parts[1];
+    } else {
+      // normal version
+      constantVersion = Constants.LUCENE_MAIN_VERSION;
+    }
+    assertTrue("Invalid version: "+version,
+               version.equals(constantVersion+"-SNAPSHOT") ||
+               version.equals(constantVersion));
+    assertTrue(Constants.LUCENE_VERSION + " should start with: "+version,
+               Constants.LUCENE_VERSION.startsWith(version));
   }
 }
