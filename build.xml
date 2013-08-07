@@ -18,6 +18,33 @@
  -->
 
 <project name="lucene-solr" default="-projecthelp" basedir=".">
+  <!-- load ant-contrib tasks to get the "if" task. -->
+  <taskdef resource="net/sf/antcontrib/antcontrib.properties">
+    <classpath>
+      <pathelement location="${basedir}/cloudera/ant-contrib-1.0b3.jar"/>
+    </classpath>
+  </taskdef>
+
+  <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
+  <if>
+    <and>
+      <not>
+        <isset property="cdh.maven" />
+      </not>
+      <not>
+        <available file="${basedir}/cdh.build.properties" />
+      </not>
+    </and>
+    <then>
+      <exec  executable="mvn" dir="${basedir}" failonerror="true">
+        <arg value="-f" />
+        <arg value="cloudera-pom.xml" />
+        <arg value="process-resources"/>
+      </exec>
+    </then>
+  </if>
+  <property file="${basedir}/../cdh.build.properties" />
+
   <target name="-projecthelp">
     <java fork="false" classname="org.apache.tools.ant.Main" taskname="-">
       <arg value="-projecthelp"/>
@@ -125,7 +152,7 @@
     </subant>
   </target>
 
-  <property name="version" value="4.4-SNAPSHOT"/>
+  <property name="version" value="${cdh.solr.version}"/>
   <property name="maven-build-dir" value="maven-build"/>
   <property name="maven-version" value="2.2.1"/>
   

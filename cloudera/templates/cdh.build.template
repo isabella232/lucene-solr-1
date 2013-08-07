@@ -1,0 +1,5 @@
+cdh.solr.version=com.cloudera.cdh:solr-props.version
+reactor.repo=https://repository.cloudera.com/content/repositories/snapshots
+zookeeper.version=org.apache.zookeeper:zookeeper.version
+hadoop.version=org.apache.hadoop:hadoop-common.version
+avro.version=org.apache.avro:avro.version
