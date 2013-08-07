@@ -17,20 +17,6 @@ package org.apache.solr.core;
  * limitations under the License.
  */
 
-import com.google.common.base.Charsets;
-import org.apache.commons.io.IOUtils;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.util.DOMUtil;
-import org.apache.solr.util.PropertiesUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-
-import javax.xml.xpath.XPath;
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -39,6 +25,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.cloud.SolrZkClient;
+import org.apache.solr.util.DOMUtil;
+import org.apache.solr.util.PropertiesUtil;
+import org.apache.zookeeper.KeeperException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+
+import com.google.common.base.Charsets;
 
 
 public abstract class ConfigSolr {
@@ -86,6 +91,30 @@ public abstract class ConfigSolr {
   }
 
   public static ConfigSolr fromSolrHome(SolrResourceLoader loader, String solrHome) {
+    // first we find zkhost, then we check for solr.xml in zk
+    
+    boolean solrXmlInZk = false;
+    String zkHost = System.getProperty("zkHost");
+    if (zkHost != null) {
+      SolrZkClient zkClient = new SolrZkClient(zkHost, 30000);
+      try {
+        // at the root we look for solr.xml
+        solrXmlInZk = zkClient.exists("/solr.xml", true);
+        if (solrXmlInZk) {
+          log.info("Loading solr.xml from ZooKeeper");
+          byte[] solrXmlBytes = zkClient.getData("/solr.xml", null, null, true);
+          return fromInputStream(loader, new ByteArrayInputStream(solrXmlBytes));
+        }
+      } catch (KeeperException e) {
+        throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+      } finally {
+        zkClient.close();
+      }
+    }
+    
     return fromFile(loader, new File(solrHome, SOLR_XML_FILE));
   }
 
