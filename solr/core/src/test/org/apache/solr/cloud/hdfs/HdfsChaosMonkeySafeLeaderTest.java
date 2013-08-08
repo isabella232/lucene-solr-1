@@ -27,12 +27,10 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
-import com.carrotsearch.randomizedtesting.annotations.Nightly;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 
 @Slow
-@Nightly
 @ThreadLeakScope(Scope.NONE) // hdfs client currently leaks thread(s)
 public class HdfsChaosMonkeySafeLeaderTest extends ChaosMonkeySafeLeaderTest {
   private static MiniDFSCluster dfsCluster;
@@ -51,7 +49,6 @@ public class HdfsChaosMonkeySafeLeaderTest extends ChaosMonkeySafeLeaderTest {
   }
   
   @Before
-  @Override
   public void setUp() throws Exception {
     super.setUp();
     
