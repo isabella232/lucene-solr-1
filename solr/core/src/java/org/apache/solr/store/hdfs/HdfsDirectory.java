@@ -183,21 +183,27 @@ public class HdfsDirectory extends Directory {
     }
     
     @Override
-    protected void readInternal(byte[] b, int offset, int length)
-        throws IOException {
-      inputStream.read(getFilePointer(), b, offset, length);
+    protected void readInternal(byte[] b, int offset, int length) throws IOException {
+      synchronized(inputStream) {
+        inputStream.seek(getFilePointer());
+        inputStream.readFully(b, offset, length);
+      }
     }
     
     @Override
     protected void seekInternal(long pos) throws IOException {
-      inputStream.seek(pos);
+      synchronized(inputStream) {
+        inputStream.seek(pos);
+      }
     }
     
     @Override
     protected void closeInternal() throws IOException {
       LOG.debug("Closing normal index input on {}", path);
       if (!clone) {
-        inputStream.close();
+        synchronized(inputStream) {
+          inputStream.close();
+        }
       }
     }
     
