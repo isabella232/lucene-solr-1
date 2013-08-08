@@ -91,28 +91,38 @@ public abstract class ConfigSolr {
   }
 
   public static ConfigSolr fromSolrHome(SolrResourceLoader loader, String solrHome) {
-    // first we find zkhost, then we check for solr.xml in zk
+
+    String solrXmlLocation = System.getProperty("solr.solrxml.location");
     
-    boolean solrXmlInZk = false;
     String zkHost = System.getProperty("zkHost");
-    if (zkHost != null) {
-      SolrZkClient zkClient = new SolrZkClient(zkHost, 30000);
-      try {
-        // at the root we look for solr.xml
-        solrXmlInZk = zkClient.exists("/solr.xml", true);
-        if (solrXmlInZk) {
-          log.info("Loading solr.xml from ZooKeeper");
-          byte[] solrXmlBytes = zkClient.getData("/solr.xml", null, null, true);
-          return fromInputStream(loader, new ByteArrayInputStream(solrXmlBytes));
+    
+    if (solrXmlLocation != null && solrXmlLocation.equals("zookeeper")) {
+      if (zkHost != null) {
+        SolrZkClient zkClient = new SolrZkClient(zkHost, 30000);
+        try {
+          // at the root we look for solr.xml
+          if (zkClient.exists("/solr.xml", true)) {
+            log.info("Loading solr.xml from ZooKeeper");
+            byte[] solrXmlBytes = zkClient.getData("/solr.xml", null, null, true);
+            return fromInputStream(loader, new ByteArrayInputStream(solrXmlBytes));
+          } else {
+            throw new SolrException(ErrorCode.SERVER_ERROR, "solr.xml not found in ZooKeeper");
+          }
+        } catch (KeeperException e) {
+          throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+        } finally {
+          zkClient.close();
         }
-      } catch (KeeperException e) {
-        throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
-      } finally {
-        zkClient.close();
+      } else {
+        throw new SolrException(ErrorCode.SERVER_ERROR, "Could not load solr.xml from ZooKeeper because zkHost was not specified");
       }
+    }
+    
+    if (solrXmlLocation != null && !solrXmlLocation.equals("solrhome")) {
+      throw new SolrException(ErrorCode.SERVER_ERROR, "Unknown solr.xml location specified: " + solrXmlLocation);
     }
     
     return fromFile(loader, new File(solrHome, SOLR_XML_FILE));
