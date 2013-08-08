@@ -278,9 +278,6 @@
         <exclude name="example/exampledocs/post.jar" />
         <exclude name="example/solr-webapp/**" />
         <exclude name="package/**"/>
-        <!-- Cloudera: exclude zookeeper because the snapshot jar changes often and breaks
-             the checksum check on the jar -->
-        <exclude name="solrj/lib/zookeeper-*-SNAPSHOT.jar" />
       </additional-excludes>
       <additional-filters>
         <replaceregex pattern="jetty([^/]+)$" replace="jetty" flags="gi" />
