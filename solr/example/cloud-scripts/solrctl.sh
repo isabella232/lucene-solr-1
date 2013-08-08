@@ -15,6 +15,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+SOLR_XML='<solr>
+
+  <solrcloud>
+    <str name="host">${host:}</str>
+    <int name="hostPort">${solr.port:8983}</int>
+    <str name="hostContext">${hostContext:solr}</str>
+    <int name="zkClientTimeout">${zkClientTimeout:15000}</int>
+    <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
+  </solrcloud>
+
+  <shardHandlerFactory name="shardHandlerFactory"
+    class="HttpShardHandlerFactory">
+    <int name="socketTimeout">${socketTimeout:0}</int>
+    <int name="connTimeout">${connTimeout:0}</int>
+  </shardHandlerFactory>
+
+</solr>'
+
 usage() {
   [ $# -eq 0 ] || echo "$@"
   echo "
@@ -65,6 +83,9 @@ die() {
 # FIXME: this is here only for testing purposes
 local_coreconfig() {
   case "$2" in
+    put)
+      echo "$4" > "/var/lib/solr/$3"
+      ;;
     list)
       ls -d /var/lib/solr/*/conf 2>/dev/null | sed -e 's#var/lib/solr#configs#'
       ;;
@@ -171,6 +192,8 @@ while test $# != 0 ; do
 
       eval $SOLR_ADMIN_ZK_CMD -cmd makepath / > /dev/null 2>&1 || : 
       eval $SOLR_ADMIN_ZK_CMD -cmd clear /    || die "Error: failed to initialize Solr"
+
+      eval $SOLR_ADMIN_ZK_CMD -cmd put /solr.xml "'$SOLR_XML'"
 
       shift 1
       ;;
