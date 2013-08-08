@@ -26,12 +26,10 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
-import com.carrotsearch.randomizedtesting.annotations.Nightly;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 
 @Slow
-@Nightly
 @ThreadLeakScope(Scope.NONE) // hdfs client currently leaks thread(s)
 public class HdfsSyncSliceTest extends SyncSliceTest {
   private static MiniDFSCluster dfsCluster;
