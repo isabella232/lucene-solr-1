@@ -25,6 +25,7 @@ import org.apache.solr.common.cloud.ZooKeeperException;
 import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
+import org.apache.solr.handler.admin.InfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.logging.LogWatcher;
 import org.apache.solr.logging.jul.JulWatcher;
@@ -38,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.xml.xpath.XPathExpressionException;
+
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
@@ -91,6 +93,7 @@ public class CoreContainer
 
   protected CoreAdminHandler coreAdminHandler = null;
   protected CollectionsHandler collectionsHandler = null;
+  private InfoHandler infoHandler;
   protected String libDir = null;
 
   protected Properties containerProperties;
@@ -266,6 +269,7 @@ public class CoreContainer
     }
     
     collectionsHandler = new CollectionsHandler(this);
+    infoHandler = new InfoHandler(this);
     containerProperties = cfg.getSolrProperties("solr");
 
     // setup executor to load cores in parallel
@@ -918,6 +922,10 @@ public class CoreContainer
   
   public CollectionsHandler getCollectionsHandler() {
     return collectionsHandler;
+  }
+  
+  public InfoHandler getInfoHandler() {
+    return infoHandler;
   }
   
   /**
