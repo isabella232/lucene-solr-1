@@ -185,8 +185,7 @@ public class HdfsDirectory extends Directory {
     @Override
     protected void readInternal(byte[] b, int offset, int length) throws IOException {
       synchronized(inputStream) {
-        inputStream.seek(getFilePointer());
-        inputStream.readFully(b, offset, length);
+        inputStream.readFully(getFilePointer(), b, offset, length);
       }
     }
     
