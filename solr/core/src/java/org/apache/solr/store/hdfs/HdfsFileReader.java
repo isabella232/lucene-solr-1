@@ -82,11 +82,7 @@ public class HdfsFileReader extends DataInput {
   
   @Override
   public void readBytes(byte[] b, int offset, int len) throws IOException {
-    while (len > 0) {
-      int lenRead = inputStream.read(b, offset, len);
-      offset += lenRead;
-      len -= lenRead;
-    }
+    inputStream.readFully(b, offset, len);
   }
   
   public static long getLength(FileSystem fileSystem, Path path)
