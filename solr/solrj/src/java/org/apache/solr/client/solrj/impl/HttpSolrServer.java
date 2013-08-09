@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -53,6 +54,7 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.RequestWriter;
+import org.apache.solr.client.solrj.request.SolrPing;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.client.solrj.util.ClientUtils;
@@ -115,6 +117,7 @@ public class HttpSolrServer extends SolrServer {
   
   private boolean useMultiPartPost;
   private final boolean internalClient;
+  private final AtomicBoolean needsAuthenticatingPing;
 
   
   /**
@@ -155,6 +158,7 @@ public class HttpSolrServer extends SolrServer {
     }
     
     this.parser = parser;
+    this.needsAuthenticatingPing = (isSecure()) ? new AtomicBoolean(true) : null;
   }
   
   /**
@@ -223,7 +227,7 @@ public class HttpSolrServer extends SolrServer {
             method = new HttpGet( baseUrl + path + ClientUtils.toQueryString( params, false ) );
           }
           else if( SolrRequest.METHOD.POST == request.getMethod() ) {
-
+            sendAuthenticatingPingIfNecessary();
             String url = baseUrl + path;
             boolean hasNullStreamName = false;
             if (streams != null) {
@@ -294,6 +298,7 @@ public class HttpSolrServer extends SolrServer {
             }
             // It is has one stream, it is the post body, put the params in the URL
             else {
+              sendAuthenticatingPingIfNecessary();
               String pstr = ClientUtils.toQueryString(params, false);
               HttpPost post = new HttpPost(url + pstr);
 
@@ -385,6 +390,9 @@ public class HttpSolrServer extends SolrServer {
           throw new RemoteSolrException(httpStatus, "Server at " + getBaseURL()
               + " returned non ok status:" + httpStatus + ", message:"
               + response.getStatusLine().getReasonPhrase(), null);
+      }
+      if (httpStatus == HttpStatus.SC_OK) {
+        setNeedsAuthenticatingPingFalse();
       }
       if (processor == null) {
         // no processor specified, return raw stream
@@ -651,6 +659,39 @@ public class HttpSolrServer extends SolrServer {
    */
   public void setUseMultiPartPost(boolean useMultiPartPost) {
     this.useMultiPartPost = useMultiPartPost;
+  }
+
+  private boolean isSecure() {
+    return System.getProperty("java.security.auth.login.config") != null;
+  }
+
+  private void setNeedsAuthenticatingPingFalse() {
+    if (isSecure()) {
+      needsAuthenticatingPing.set(false);
+    }
+  }
+  /**
+   * SPNego authentication does not work well with a "POST" as a first
+   * request.  This is because the "POST" is sent with the entire body
+   * in the first request, then the SPNego authentication challenge occurs,
+   * and the "POST" may not be able to be resent.
+   *
+   * To get around this, in a secure setup, this function sends a lightweight
+   * SolrPing in order to trigger the authentication process, so the later "POST"
+   * will be successful.
+   *
+   * NOTE: If more than one "POST" is requested before a ping was successful, then
+   * multiple pings may be sent.
+   */
+  private NamedList<Object> sendAuthenticatingPingIfNecessary()
+  throws SolrServerException, IOException {
+    if (isSecure()) {
+      if (needsAuthenticatingPing.get()) {
+        // use a BinaryResponseParser so we are guaranteed the response was OK
+        return request(new SolrPing(), new BinaryResponseParser());
+      }
+    }
+    return null;
   }
 
   /**
