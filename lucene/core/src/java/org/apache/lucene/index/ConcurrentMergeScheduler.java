@@ -65,12 +65,14 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
   // forcefully pause the larger ones, letting the smaller
   // ones run, up until maxMergeCount merges at which point
   // we forcefully pause incoming threads (that presumably
-  // are the ones causing so much merging).
-  private int maxThreadCount = DEFAULT_MAX_THREAD_COUNT;
+  // are the ones causing so much merging).  We dynamically
+  // default this from 1 to 3, depending on how many cores
+  // you have:
+  private int maxThreadCount = Math.max(1, Math.min(3, Runtime.getRuntime().availableProcessors()/2));
 
   // Max number of merges we accept before forcefully
   // throttling the incoming threads
-  private int maxMergeCount = DEFAULT_MAX_MERGE_COUNT;
+  private int maxMergeCount = maxThreadCount+2;
 
   /** {@link Directory} that holds the index. */
   protected Directory dir;
