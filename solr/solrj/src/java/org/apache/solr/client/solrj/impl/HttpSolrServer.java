@@ -36,6 +36,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpOptions;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.conn.ClientConnectionManager;
@@ -117,7 +118,7 @@ public class HttpSolrServer extends SolrServer {
   
   private boolean useMultiPartPost;
   private final boolean internalClient;
-  private final AtomicBoolean needsAuthenticatingPing;
+  private final AtomicBoolean needsAuthenticatingRequest;
 
   
   /**
@@ -158,7 +159,7 @@ public class HttpSolrServer extends SolrServer {
     }
     
     this.parser = parser;
-    this.needsAuthenticatingPing = (isSecure()) ? new AtomicBoolean(true) : null;
+    this.needsAuthenticatingRequest = (isSecure()) ? new AtomicBoolean(true) : null;
   }
   
   /**
@@ -186,16 +187,30 @@ public class HttpSolrServer extends SolrServer {
   
   public NamedList<Object> request(final SolrRequest request,
       final ResponseParser processor) throws SolrServerException, IOException {
+    return request(request, null, processor);
+  }
+
+  /**
+   * Send a request, using either the SolrRequest request or
+   * the HTTP request methodParam.  Specifying both as non-null
+   * is not supported.
+   */
+  private NamedList<Object> request(final SolrRequest request,
+      HttpRequestBase methodParam,
+      final ResponseParser processor) throws SolrServerException, IOException {
+    if ( request != null && methodParam != null) {
+      throw new SolrException( SolrException.ErrorCode.BAD_REQUEST, "request and methodParam cannot both be non-null" );
+    }
     HttpRequestBase method = null;
     InputStream is = null;
-    SolrParams params = request.getParams();
-    Collection<ContentStream> streams = requestWriter.getContentStreams(request);
-    String path = requestWriter.getPath(request);
+    SolrParams params = (request != null) ? request.getParams() : new ModifiableSolrParams();
+    Collection<ContentStream> streams = (request != null) ? requestWriter.getContentStreams(request) : null;
+    String path = (request != null) ? requestWriter.getPath(request) : null;
     if (path == null || !path.startsWith("/")) {
       path = DEFAULT_PATH;
     }
     
-    ResponseParser parser = request.getResponseParser();
+    ResponseParser parser = (request != null) ? request.getResponseParser() : null;
     if (parser == null) {
       parser = this.parser;
     }
@@ -220,14 +235,17 @@ public class HttpSolrServer extends SolrServer {
         // much as tries-times (plus scheduling effects) the given
         // timeAllowed.
         try {
-          if( SolrRequest.METHOD.GET == request.getMethod() ) {
+          if ( methodParam != null ) {
+            method = methodParam;
+          }
+          else if( SolrRequest.METHOD.GET == request.getMethod() ) {
             if( streams != null ) {
               throw new SolrException( SolrException.ErrorCode.BAD_REQUEST, "GET can't send streams!" );
             }
             method = new HttpGet( baseUrl + path + ClientUtils.toQueryString( params, false ) );
           }
           else if( SolrRequest.METHOD.POST == request.getMethod() ) {
-            sendAuthenticatingPingIfNecessary();
+            sendAuthenticatingRequestIfNecessary();
             String url = baseUrl + path;
             boolean hasNullStreamName = false;
             if (streams != null) {
@@ -298,7 +316,7 @@ public class HttpSolrServer extends SolrServer {
             }
             // It is has one stream, it is the post body, put the params in the URL
             else {
-              sendAuthenticatingPingIfNecessary();
+              sendAuthenticatingRequestIfNecessary();
               String pstr = ClientUtils.toQueryString(params, false);
               HttpPost post = new HttpPost(url + pstr);
 
@@ -369,7 +387,7 @@ public class HttpSolrServer extends SolrServer {
       // Execute the method.
       final HttpResponse response = httpClient.execute(method);
       int httpStatus = response.getStatusLine().getStatusCode();
-      
+
       // Read the contents
       respBody = response.getEntity().getContent();
       
@@ -392,7 +410,7 @@ public class HttpSolrServer extends SolrServer {
               + response.getStatusLine().getReasonPhrase(), null);
       }
       if (httpStatus == HttpStatus.SC_OK) {
-        setNeedsAuthenticatingPingFalse();
+        setNeedsAuthenticatingRequestFalse();
       }
       if (processor == null) {
         // no processor specified, return raw stream
@@ -446,11 +464,13 @@ public class HttpSolrServer extends SolrServer {
       if (respBody != null && shouldClose) {
         try {
           respBody.close();
-        } catch (Throwable t) {} // ignore
+        } catch (Throwable t) { //ignore
+          log.warn("Throwable: " + t + " when closing response body");
+        }
       }
     }
   }
-  
+
   // -------------------------------------------------------------------
   // -------------------------------------------------------------------
   
@@ -665,11 +685,12 @@ public class HttpSolrServer extends SolrServer {
     return System.getProperty("java.security.auth.login.config") != null;
   }
 
-  private void setNeedsAuthenticatingPingFalse() {
+  private void setNeedsAuthenticatingRequestFalse() {
     if (isSecure()) {
-      needsAuthenticatingPing.set(false);
+      needsAuthenticatingRequest.set(false);
     }
   }
+
   /**
    * SPNego authentication does not work well with a "POST" as a first
    * request.  This is because the "POST" is sent with the entire body
@@ -677,21 +698,26 @@ public class HttpSolrServer extends SolrServer {
    * and the "POST" may not be able to be resent.
    *
    * To get around this, in a secure setup, this function sends a lightweight
-   * SolrPing in order to trigger the authentication process, so the later "POST"
+   * HttpOptions request in order to trigger the authentication process, so the later "POST"
    * will be successful.
    *
-   * NOTE: If more than one "POST" is requested before a ping was successful, then
-   * multiple pings may be sent.
+   * NOTE: If more than one "POST" is requested before a ping was successful,
+   * then multiple requests may be sent.
    */
-  private NamedList<Object> sendAuthenticatingPingIfNecessary()
+  private void sendAuthenticatingRequestIfNecessary()
   throws SolrServerException, IOException {
     if (isSecure()) {
-      if (needsAuthenticatingPing.get()) {
-        // use a BinaryResponseParser so we are guaranteed the response was OK
-        return request(new SolrPing(), new BinaryResponseParser());
+      if (needsAuthenticatingRequest.get()) {
+        NamedList<Object> rsp = request(null, new HttpOptions(baseUrl + "/"), null);
+        // close the stream
+        try {
+          InputStream respBody = (InputStream)rsp.get("stream");
+          respBody.close();
+        } catch (Throwable t) { //ignore
+          log.warn("Throwable: " + t + " when closing response body");
+        }
       }
     }
-    return null;
   }
 
   /**
