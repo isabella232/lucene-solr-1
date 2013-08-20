@@ -45,13 +45,25 @@
     </env-entry>
    -->
 
+  <!-- Resolves the requester's hostname, necessary for ProxyUserFilter -->
+  <filter>
+    <filter-name>HostnameFilter</filter-name>
+    <filter-class>org.apache.solr.servlet.HostnameFilter</filter-class>
+  </filter>
+
   <!-- Requires Authentication for any path, based on Hadoop's AuthenticationFilter -->
   <filter>
     <filter-name>SolrHadoopAuthenticationFilter</filter-name>
     <filter-class>org.apache.solr.servlet.SolrHadoopAuthenticationFilter</filter-class>
   </filter>
 
+  <!-- Support for secure impersonation -->
+  <filter>
+    <filter-name>ProxyUserFilter</filter-name>
+    <filter-class>org.apache.solr.servlet.ProxyUserFilter</filter-class>
+  </filter>
   <!-- Any path (name) registered in solrconfig.xml will be sent to that filter -->
+
   <filter>
     <filter-name>SolrRequestFilter</filter-name>
     <filter-class>org.apache.solr.servlet.SolrDispatchFilter</filter-class>
@@ -78,8 +90,20 @@
     -->
   </filter>
 
+  <!-- NOTE: The next 3 filters (HostnameFilter, SolrHadoopAuthenticationFilter, ProxyUserFiler)
+    must be in the above order -->
+  <filter-mapping>
+    <filter-name>HostnameFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+
   <filter-mapping>
     <filter-name>SolrHadoopAuthenticationFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+
+  <filter-mapping>
+    <filter-name>ProxyUserFilter</filter-name>
     <url-pattern>/*</url-pattern>
   </filter-mapping>
 

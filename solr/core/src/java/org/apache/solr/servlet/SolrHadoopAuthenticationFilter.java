@@ -24,6 +24,7 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Properties;
@@ -36,6 +37,36 @@ import org.apache.solr.servlet.TeeHttpServletRequestWrapper;
  */
 public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
   static final String SOLR_PREFIX = "solr.authentication.";
+
+  // The ProxyUserFilter can't handle options, let's handle it here
+  private HttpServlet optionsServlet;
+
+  /**
+   * Request attribute constant for the user name.
+   */
+  public static final String USER_NAME = "solr.user.name";
+
+  /**
+   * Initialize the filter.
+   *
+   * @param filterConfig filter configuration.
+   * @throws ServletException thrown if the filter could not be initialized.
+   */
+  @Override
+  public void init(FilterConfig filterConfig) throws ServletException {
+    super.init(filterConfig);
+    optionsServlet = new HttpServlet() {};
+   optionsServlet.init();
+  }
+
+  /**
+   * Destroy the filter.
+   */
+  @Override
+  public void destroy() {
+    optionsServlet.destroy();
+    super.destroy();
+  }
 
   /**
    * Returns the System properties to be used by the authentication filter.
@@ -94,7 +125,13 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
       public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse)
           throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) servletRequest;
-        filterChain.doFilter(servletRequest, servletResponse);
+        if (httpRequest.getMethod().equals("OPTIONS")) {
+          optionsServlet.service(request, response);
+        }
+        else {
+          httpRequest.setAttribute(USER_NAME, httpRequest.getRemoteUser());
+          filterChain.doFilter(servletRequest, servletResponse);
+        }
       }
     };
 
