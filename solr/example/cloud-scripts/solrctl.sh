@@ -140,7 +140,11 @@ get_solr_state() {
   echo "$SOLR_STATE" | grep -v '^/ '
 }
 
-if [ -e /etc/default/solr ] ; then
+SOLR_CONF_DIR=${SOLR_CONF_DIR:-/etc/solr/conf}
+
+if [ -e "$SOLR_CONF_DIR/solr-env.sh" ] ; then
+  . "$SOLR_CONF_DIR/solr-env.sh"
+elif [ -e /etc/default/solr ] ; then
   . /etc/default/solr
 else
   SOLR_PORT=8983
