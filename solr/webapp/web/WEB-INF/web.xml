@@ -104,6 +104,11 @@
   </servlet>
   
   <servlet>
+    <servlet-name>JMX</servlet-name>
+    <servlet-class>org.apache.solr.servlet.JMXJsonServlet</servlet-class>
+  </servlet>
+  
+  <servlet>
     <servlet-name>LoadAdminUI</servlet-name>
     <servlet-class>org.apache.solr.servlet.LoadAdminUiServlet</servlet-class>
   </servlet>
@@ -173,6 +178,11 @@
   </servlet-mapping>
 
   <!-- Servlet Mapping -->
+  <servlet-mapping>
+    <servlet-name>JMX</servlet-name>
+    <url-pattern>/jmx</url-pattern>
+  </servlet-mapping>
+  
   <servlet-mapping>
     <servlet-name>Zookeeper</servlet-name>
     <url-pattern>/zookeeper</url-pattern>
