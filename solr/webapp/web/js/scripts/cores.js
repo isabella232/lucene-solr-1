@@ -540,6 +540,10 @@ sammy.get
                   );
 
                 var reload_button = $( '#actions #reload', cores_element );
+                if( $( '#cloud.global' ).is( ':visible' ) )
+                {
+                  reload_button.hide();
+                }
                 reload_button
                   .die( 'click' )
                   .live
@@ -603,14 +607,23 @@ sammy.get
                     }
                   );
                                 
-                $( '#actions #unload', cores_element )
+                var unload_button = $( '#actions #unload', cores_element )
+                unload_button
                   .die( 'click' )
                   .live
                   (
                     'click',
                     function( event )
                     {
-                      var ret = confirm( 'Do you really want to unload Core "' + current_core + '"?' );
+                      var msg = 'Do you really want to unload Core "' + current_core + '"?';
+                      if( $( '#cloud.global' ).is( ':visible' ) )
+                      {
+                        msg = msg + " This is an *expert* operation when running SolrCloud.";
+                      }
+                      
+                      
+                      var ret = confirm( msg );
+                      
                       if( !ret )
                       {
                         return false;
@@ -646,6 +659,11 @@ sammy.get
                   );
 
                 var optimize_button = $( '#actions #optimize', cores_element );
+
+                if( $( '#cloud.global' ).is( ':visible' ) )
+                {
+                  optimize_button.hide();
+                }
                 optimize_button
                   .die( 'click' )
                   .live
@@ -696,6 +714,15 @@ sammy.get
                       );
                     }
                   );
+                
+                var swap_button = $( '#actions #swap', cores_element );
+                var rename_button = $( '#actions #rename', cores_element );
+
+                if( $( '#cloud.global' ).is( ':visible' ) )
+                {
+                  swap_button.hide();
+                  rename_button.hide();
+                }
 
                 $( '.timeago', data_element )
                   .timeago();
