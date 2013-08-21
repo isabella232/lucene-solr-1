@@ -15,7 +15,7 @@
 
 @defaultMessage Servlet API method is parsing request parameters without using the correct encoding if no extra configuration is given in the servlet container
 
-javax.servlet.ServletRequest#getParameter(java.lang.String) 
+#javax.servlet.ServletRequest#getParameter(java.lang.String) 
 javax.servlet.ServletRequest#getParameterMap() 
 javax.servlet.ServletRequest#getParameterNames() 
 javax.servlet.ServletRequest#getParameterValues(java.lang.String) 
@@ -25,7 +25,7 @@ javax.servlet.http.HttpServletRequest#getSession() @ Servlet API getter has side
 @defaultMessage Servlet API method is broken and slow in some environments (e.g., Jetty's UTF-8 readers)
 
 javax.servlet.ServletRequest#getReader()
-javax.servlet.ServletResponse#getWriter()
+#javax.servlet.ServletResponse#getWriter()
 javax.servlet.ServletInputStream#readLine(byte[],int,int) 
 javax.servlet.ServletOutputStream#print(boolean)
 javax.servlet.ServletOutputStream#print(char)
