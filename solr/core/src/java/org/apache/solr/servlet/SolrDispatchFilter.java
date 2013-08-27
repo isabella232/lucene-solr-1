@@ -18,6 +18,10 @@
 package org.apache.solr.servlet;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.security.authentication.client.AuthenticatedURL;
+import org.apache.hadoop.security.authentication.client.AuthenticationException;
+import org.apache.hadoop.security.authentication.client.Authenticator;
+import org.apache.hadoop.security.authentication.client.KerberosAuthenticator;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.Aliases;
@@ -96,6 +100,8 @@ public class SolrDispatchFilter implements Filter
   protected final Map<SolrConfig, SolrRequestParsers> parsers = new WeakHashMap<SolrConfig, SolrRequestParsers>();
   
   private static final Charset UTF8 = Charset.forName("UTF-8");
+
+  private static final boolean isSecure = System.getProperty("java.security.auth.login.config") != null;
 
   public SolrDispatchFilter() {
     try {
@@ -441,7 +447,49 @@ public class SolrDispatchFilter implements Filter
       }
     }
   }
-  
+
+  /**
+   * Return the Hadoop-auth KerberosAuthenticator to use.
+   */
+  protected Authenticator getAuthenticator() throws IOException {
+    return new KerberosAuthenticator();
+  }
+
+  /**
+   * Get HttpURLConnection to use.  Handles authenticated vs non-authenticated.
+   */
+  protected HttpURLConnection createConnection(URL url, String method) throws IOException {
+    if (!isSecure) {
+      return (HttpURLConnection) url.openConnection();
+    }
+    AuthenticatedURL.Token readToken = new AuthenticatedURL.Token();
+    AuthenticatedURL.Token currentToken = new AuthenticatedURL.Token();
+
+    if (currentToken.isSet()) {
+      HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+      conn.setRequestMethod("OPTIONS");
+      AuthenticatedURL.injectToken(conn, currentToken);
+      if (conn.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED) {
+        currentToken = new AuthenticatedURL.Token();
+      }
+    }
+
+    if (!currentToken.isSet()) {
+      Authenticator authenticator = getAuthenticator();
+      try {
+        new AuthenticatedURL(authenticator).openConnection(url, currentToken);
+      }
+      catch (AuthenticationException ex) {
+        throw new SolrException(ErrorCode.SERVER_ERROR,
+          "Could not authenticate, " + ex.getMessage(), ex);
+      }
+    }
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    AuthenticatedURL.injectToken(conn, currentToken);
+
+    return conn;
+  }
+
   private void remoteQuery(String coreUrl, HttpServletRequest req,
       SolrQueryRequest solrReq, HttpServletResponse resp) throws IOException {
     try {
@@ -452,7 +500,7 @@ public class SolrDispatchFilter implements Filter
       urlstr += queryString == null ? "" : "?" + queryString;
       
       URL url = new URL(urlstr);
-      HttpURLConnection con = (HttpURLConnection) url.openConnection();
+      HttpURLConnection con = createConnection(url, req.getMethod());
       con.setRequestMethod(req.getMethod());
       con.setUseCaches(false);
       
