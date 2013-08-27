@@ -365,7 +365,7 @@ while test $# != 0 ; do
             shift 3
             ;;
         --deletedocs)
-            eval $SOLR_ADMIN_API_CMD "'$SOLR_ADMIN_URI/$3/update?commit=true'" -H "'Content-Type: text/xml'" "--data-binary '<delete><query>*:*</query></delete>'"
+            eval $SOLR_ADMIN_API_CMD "'/$3/update?commit=true'" -H "'Content-Type: text/xml'" "--data-binary '<delete><query>*:*</query></delete>'"
             shift 3
             ;;
         --stat)
