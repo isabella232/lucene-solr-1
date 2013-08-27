@@ -38,6 +38,8 @@ import org.apache.solr.servlet.TeeHttpServletRequestWrapper;
 public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
   static final String SOLR_PREFIX = "solr.authentication.";
 
+  private boolean skipAuthFilter = false;
+  
   // The ProxyUserFilter can't handle options, let's handle it here
   private HttpServlet optionsServlet;
 
@@ -104,6 +106,11 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
       }
     }
 
+    // skip auth filter is simple auth and allows anonymous
+    if (PseudoAuthenticationHandler.TYPE.equals(props.getProperty(AUTH_TYPE))
+      && Boolean.parseBoolean(props.getProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED))) {
+      skipAuthFilter = true;
+    }
     return props;
   }
 
@@ -119,6 +126,11 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
   @Override
   public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain filterChain)
       throws IOException, ServletException {
+
+    if (skipAuthFilter) {
+      filterChain.doFilter(request, response);
+      return;
+    }
 
     FilterChain filterChainWrapper = new FilterChain() {
       @Override
