@@ -82,7 +82,7 @@
   <property name="name" value="${ant.project.name}"/>
   <property name="tests.luceneMatchVersion" value="4.4"/>
   <property name="dev.version.base" value="${cdh.solr.version}"/>
-  <property name="dev.version.suffix" value="SNAPSHOT"/>
+  <property name="dev.version.suffix" value=""/>
   <property name="dev.version" value="${dev.version.base}-${dev.version.suffix}"/>
   <property name="version" value="${dev.version}"/>
   <property name="spec.version" value="${version}"/>	
