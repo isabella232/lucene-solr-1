@@ -192,7 +192,9 @@ public class LicenseCheckTask extends Task {
         }
         final byte[] checksumBytes = md.digest();
         final String checksum = createChecksumString(checksumBytes);
-        if ( ! checksum.equals(expectedChecksum) ) {
+        if (jarFile.getName().contains("SNAPSHOT")) {
+          log("Skipping jar because it is a SNAPSHOT : " + jarFile.getAbsolutePath(), verboseLevel);
+        } else if (!checksum.equals(expectedChecksum)) {
           log("CHECKSUM FAILED for " + jarFile.getPath() + 
               " (expected: \"" + expectedChecksum + "\" was: \"" + checksum + "\")", 
               Project.MSG_ERR);
