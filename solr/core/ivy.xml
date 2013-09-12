@@ -51,7 +51,7 @@
     <dependency org="org.apache.hadoop" name="hadoop-annotations" rev="${hadoop.version}" conf="compile.hadoop->*"/>
     <dependency org="org.apache.hadoop" name="hadoop-auth" rev="${hadoop.version}" conf="compile.hadoop->*"/>
     <dependency org="commons-configuration" name="commons-configuration" rev="1.6" conf="compile.hadoop->*"/>
-    <dependency org="com.google.protobuf" name="protobuf-java" rev="2.4.0a" conf="compile.hadoop->*"/>
+    <dependency org="com.google.protobuf" name="protobuf-java" rev="${protobuf.version}" conf="compile.hadoop->*"/>
     <dependency org="com.googlecode.concurrentlinkedhashmap" name="concurrentlinkedhashmap-lru" rev="1.2" conf="compile.hadoop->*"/>
 
     <!-- Hadoop DfsMiniCluster Dependencies-->
