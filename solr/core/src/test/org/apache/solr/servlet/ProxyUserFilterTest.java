@@ -18,18 +18,13 @@
  */
 package org.apache.solr.servlet;
 
-import junit.framework.Assert;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.util.StringUtils;
+import java.security.AccessControlException;
+import java.util.List;
 
 import javax.servlet.ServletException;
-import java.security.AccessControlException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+
+import org.apache.hadoop.conf.Configuration;
 import org.apache.solr.SolrTestCaseJ4;
-import junit.framework.Assert;
-import junit.framework.TestCase;
 
 public class ProxyUserFilterTest extends SolrTestCaseJ4 {
 
@@ -38,12 +33,12 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
     ProxyUserFilter filter = new ProxyUserFilter();
     try {
       filter.init(null);
-      fail();
+      fail("Expected ServletException exception");
     }
     catch (ServletException ex) {
     }
     catch (Exception ex) {
-      fail();
+      fail("Expected ServletException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
@@ -51,17 +46,17 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
   }
 
   public void testWrongHost() throws Exception {
-    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "otherhost");
+    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "1.1.1.1.1.1");
     System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.groups", "*");
     ProxyUserFilter filter = new ProxyUserFilter();
     try {
       filter.init(null);
-      fail();
+      fail("Expected ServletException exception");
     }
     catch (ServletException ex) {
     }
     catch (Exception ex) {
-      fail();
+      fail("Expected ServletException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
@@ -73,12 +68,12 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
     ProxyUserFilter filter = new ProxyUserFilter();
     try {
       filter.init(null);
-      fail();
+      fail("Expected ServletException exception");
     }
     catch (ServletException ex) {
     }
     catch (Exception ex) {
-      fail();
+      fail("Expected ServletException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
@@ -91,7 +86,7 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
     ProxyUserFilter filter = new ProxyUserFilter();
     filter.init(null);
     try {
-      filter.validate("foo", "localhost", "bar");
+      filter.validate("foo", "127.0.0.1", "bar");
     }
     finally {
       filter.destroy();
@@ -104,13 +99,13 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
     ProxyUserFilter filter = new ProxyUserFilter();
     filter.init(null);
     try {
-      filter.validate("bar", "localhost", "foo");
-      fail();
+      filter.validate("bar", "127.0.0.1", "foo");
+      fail("Expected AccessControlException exception");
     }
     catch (AccessControlException ex) {
     }
     catch (Exception ex) {
-      fail(ex.toString());
+      fail("expected AccessControlException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
@@ -118,12 +113,12 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
   }
 
   public void testValidateHost() throws Exception {
-    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "localhost");
+    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "127.0.0.1");
     System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.groups", "*");
     ProxyUserFilter filter = new ProxyUserFilter();
     filter.init(null);
     try {
-      filter.validate("foo", "localhost", "bar");
+      filter.validate("foo", "127.0.0.1", "bar");
     }
     finally {
       filter.destroy();
@@ -144,7 +139,7 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
     ProxyUserFilter filter = new ProxyUserFilter();
     filter.init(null);
     try {
-      filter.validate("foo", "localhost", System.getProperty("user.name"));
+      filter.validate("foo", "127.0.0.1", System.getProperty("user.name"));
     }
     finally {
       filter.destroy();
@@ -152,19 +147,19 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
   }
 
   public void testUnknownHost() throws Exception {
-    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "localhost");
+    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "127.0.0.1");
     System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.groups", "*");
     ProxyUserFilter filter = new ProxyUserFilter();
     filter.init(null);
     try {
       filter.validate("foo", "unknownhost.bar.foo", "bar");
-      fail();
+      fail("expected AccessControlException exception");
     }
     catch (AccessControlException ex) {
 
     }
     catch (Exception ex) {
-      fail(ex.toString());
+      fail("expected AccessControlException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
@@ -172,19 +167,19 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
   }
 
   public void testInvalidHost() throws Exception {
-    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "localhost");
+    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "127.0.0.1");
     System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.groups", "*");
     ProxyUserFilter filter = new ProxyUserFilter();
     filter.init(null);
     try {
-      filter.validate("foo", "www.example.com", "bar");
-      fail();
+      filter.validate("foo", "[ff01::114]", "bar");
+      fail("Expected AccessControlException exception");
     }
     catch (AccessControlException ex) {
 
     }
     catch (Exception ex) {
-      fail(ex.toString());
+      fail("Expected AccessControlException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
@@ -192,19 +187,19 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
   }
 
   public void testInvalidGroup() throws Exception {
-    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "localhost");
+    System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.hosts", "127.0.0.1");
     System.setProperty(ProxyUserFilter.CONF_PREFIX + "foo.groups", "nobody");
     ProxyUserFilter filter = new ProxyUserFilter();
     filter.init(null);
     try {
-      filter.validate("foo", "localhost", System.getProperty("user.name"));
-      fail();
+      filter.validate("foo", "127.0.0.1", System.getProperty("user.name"));
+      fail("Expected AccessControlException exception");
     }
     catch (AccessControlException ex) {
 
     }
     catch (Exception ex) {
-      fail(ex.toString());
+      fail("Expected AccessControlException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
@@ -215,15 +210,15 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
     ProxyUserFilter filter = new ProxyUserFilter();
     filter.init(null);
     try {
-      filter.validate(null, "localhost", "bar");
-      fail();
+      filter.validate(null, "127.0.0.1", "bar");
+      fail("Expected IllegalArgumentException exception");
     }
     catch (IllegalArgumentException ex) {
       assertTrue(ex.getMessage().contains(ProxyUserFilter.CONF_PREFIX + "#USER#.hosts"));
       assertTrue(ex.getMessage().contains(ProxyUserFilter.CONF_PREFIX + "#USER#.groups"));
     }
     catch (Exception ex) {
-      fail(ex.toString());
+      fail("Expected IllegalArgumentException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
@@ -235,14 +230,14 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
     filter.init(null);
     try {
       filter.validate("foo", null, "bar");
-      fail();
+      fail("Expected IllegalArgumentException exception");
     }
     catch (IllegalArgumentException ex) {
       assertTrue(ex.getMessage().contains(ProxyUserFilter.CONF_PREFIX + "foo.hosts"));
       assertTrue(ex.getMessage().contains(ProxyUserFilter.CONF_PREFIX + "foo.groups"));
     }
     catch (Exception ex) {
-      fail(ex.toString());
+      fail("Expected IllegalArgumentException exception : " + ex.toString());
     }
     finally {
       filter.destroy();
