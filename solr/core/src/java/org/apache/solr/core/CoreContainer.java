@@ -58,6 +58,8 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -193,8 +195,6 @@ public class CoreContainer
 
     log.info("Loading cores into CoreContainer [instanceDir={}]", loader.getInstanceDir());
 
-    ThreadPoolExecutor coreLoadExecutor = null;
-
     // add the sharedLib to the shared resource loader before initializing cfg based plugins
     libDir = cfg.get(ConfigSolr.CfgProp.SOLR_SHAREDLIB , null);
     if (libDir != null) {
@@ -273,9 +273,10 @@ public class CoreContainer
     containerProperties = cfg.getSolrProperties("solr");
 
     // setup executor to load cores in parallel
-    coreLoadExecutor = new ThreadPoolExecutor(coreLoadThreads, coreLoadThreads, 1,
-        TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(),
-        new DefaultSolrThreadFactory("coreLoadExecutor"));
+    // do not limit the size of the executor in zk mode since cores may try and wait for each other.
+    ExecutorService coreLoadExecutor = Executors.newFixedThreadPool(
+        ( zkSys.getZkController() == null ? coreLoadThreads : Integer.MAX_VALUE ),
+        new DefaultSolrThreadFactory("coreLoadExecutor") );
     try {
       CompletionService<SolrCore> completionService = new ExecutorCompletionService<SolrCore>(
           coreLoadExecutor);
