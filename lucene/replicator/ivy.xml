@@ -31,8 +31,8 @@
   </configurations>
 
   <dependencies>
-    <dependency org="org.apache.httpcomponents" name="httpclient" rev="4.2.3" transitive="false" conf="http->default"/>
-    <dependency org="org.apache.httpcomponents" name="httpcore" rev="4.2.2" transitive="false" conf="http->default"/>
+    <dependency org="org.apache.httpcomponents" name="httpclient" rev="${httpcomponents.version}" transitive="false" conf="http->default"/>
+    <dependency org="org.apache.httpcomponents" name="httpcore" rev="${httpcomponents.version}" transitive="false" conf="http->default"/>
     <dependency org="org.eclipse.jetty" name="jetty-server" rev="&jetty.version;" transitive="false" conf="jetty->default"/>
     <dependency org="org.eclipse.jetty" name="jetty-servlet" rev="&jetty.version;" transitive="false" conf="jetty->default"/>
     <dependency org="org.eclipse.jetty" name="jetty-util" rev="&jetty.version;" transitive="false" conf="jetty->default"/>
