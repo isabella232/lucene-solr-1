@@ -32,7 +32,7 @@
 
   <dependencies>
     <dependency org="org.apache.httpcomponents" name="httpclient" rev="${httpcomponents.version}" transitive="false" conf="http->default"/>
-    <dependency org="org.apache.httpcomponents" name="httpcore" rev="${httpcomponents.version}" transitive="false" conf="http->default"/>
+    <dependency org="org.apache.httpcomponents" name="httpcore" rev="${httpcomponents.core.version}" transitive="false" conf="http->default"/>
     <dependency org="org.eclipse.jetty" name="jetty-server" rev="&jetty.version;" transitive="false" conf="jetty->default"/>
     <dependency org="org.eclipse.jetty" name="jetty-servlet" rev="&jetty.version;" transitive="false" conf="jetty->default"/>
     <dependency org="org.eclipse.jetty" name="jetty-util" rev="&jetty.version;" transitive="false" conf="jetty->default"/>

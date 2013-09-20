@@ -5,4 +5,5 @@ hadoop.version=org.apache.hadoop:hadoop-common.version
 avro.version=org.apache.avro:avro.version
 protobuf.version=com.google.protobuf:protobuf-java.version
 httpcomponents.version=org.apache.httpcomponents:httpclient.version
+httpcomponents.core.version=org.apache.httpcomponents:httpcore.version
 skipSnapshotsChecksum=true
