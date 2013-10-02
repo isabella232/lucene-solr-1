@@ -67,6 +67,8 @@
       <resolver ref="sonatype-releases" />
       <resolver ref="maven.restlet.org" />
       <resolver ref="working-chinese-mirror" />
+      <resolver ref="cloudera-releases" />
+      <resolver ref="cloudera-snapshots" />
     </chain>
     <chain name="cloudera" returnFirst="true" checkmodified="true" changingPattern=".*SNAPSHOT">
       <resolver ref="local"/>
