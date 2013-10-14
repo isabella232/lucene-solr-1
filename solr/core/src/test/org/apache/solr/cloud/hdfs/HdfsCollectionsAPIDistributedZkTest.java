@@ -56,7 +56,7 @@ public class HdfsCollectionsAPIDistributedZkTest extends CollectionsAPIDistribut
   
   @Override
   protected String getDataDir(String dataDir) throws IOException {
-    return HdfsTestUtil.getDataDir(dfsCluster, dataDir);
+    return null;
   }
 
 }
