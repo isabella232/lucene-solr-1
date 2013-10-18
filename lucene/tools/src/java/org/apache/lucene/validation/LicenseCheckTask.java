@@ -55,6 +55,7 @@ public class LicenseCheckTask extends Task {
   private static final int CHECKSUM_BYTE_MASK = 0xFF;
 
   private boolean skipSnapshotsChecksum;
+  private boolean skipChecksum;
   
   /**
    * All JAR files to check.
@@ -109,6 +110,10 @@ public class LicenseCheckTask extends Task {
   public void setSkipSnapshotsChecksum(boolean skipSnapshotsChecksum) {
     this.skipSnapshotsChecksum = skipSnapshotsChecksum;
   }
+  
+  public void setSkipChecksum(boolean skipChecksum) {
+    this.skipChecksum = skipChecksum;
+  }
 
   /**
    * Execute the task.
@@ -119,7 +124,12 @@ public class LicenseCheckTask extends Task {
       throw new BuildException("Expected an embedded <licenseMapper>.");
     }
 
-    if (skipSnapshotsChecksum) log("Skipping checksum for SNAPSHOT dependencies", Project.MSG_INFO);
+    if (skipChecksum) {
+      log("Skipping checksum verification for dependencies", Project.MSG_INFO);
+    } else if (skipSnapshotsChecksum) {
+      log("Skipping checksum for SNAPSHOT dependencies", Project.MSG_INFO);
+    }
+
     jarResources.setProject(getProject());
     processJars();
 
