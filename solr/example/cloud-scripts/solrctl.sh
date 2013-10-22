@@ -156,6 +156,14 @@ SOLR_ADMIN_API_CMD='solr_webapi'
 
 SOLR_HOME=${SOLR_HOME:-/usr/lib/solr/}
 
+# Autodetect JAVA_HOME if not defined
+if [ -e ${SOLR_HOME}/../../libexec/bigtop-detect-javahome ]; then
+  . ${SOLR_HOME}/../../libexec/bigtop-detect-javahome
+elif [ -e ${SOLR_HOME}/../bigtop-utils/bigtop-detect-javahome ]; then
+  . ${SOLR_HOME}/../bigtop-utils/bigtop-detect-javahome
+fi
+
+
 # First eat up all the global options
 
 while test $# != 0 ; do
