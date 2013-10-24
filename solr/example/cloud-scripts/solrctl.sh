@@ -73,9 +73,14 @@ Commands:
   exit 1
 }
 
+# Error codes
+ERROR_GENERIC=1
+ERROR_INIT_ALREADY_INITIALIZED=101
+ERROR_INIT_LIVE_NODES=102
+
 die() {
   echo "$1"
-  exit 1
+  exit ${2:-$ERROR_GENERIC}
 }
 
 # FIXME: this is here only for testing purposes
@@ -221,9 +226,9 @@ while test $# != 0 ; do
         LIVE_NODES=`get_solr_state | sed -ne 's#/live_nodes/##p'`
 
         if [ -n "$LIVE_NODES" ] ; then
-          die "Warning: It appears you have live SolrCloud nodes running: `printf '\n%s\nPlease shut them down.' \"${LIVE_NODES}\"`"
+          die "Warning: It appears you have live SolrCloud nodes running: `printf '\n%s\nPlease shut them down.' \"${LIVE_NODES}\"`" $ERROR_INIT_LIVE_NODES
         elif [ -n "`get_solr_state`" ] ; then
-          die "Warning: Solr appears to be initialized (use --force to override)"
+          die "Warning: Solr appears to be initialized (use --force to override)" $ERROR_INIT_ALREADY_INITIALIZED
         fi
       fi
 
