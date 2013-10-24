@@ -113,7 +113,7 @@ public class CoreDescriptor {
 
   private final CoreContainer coreContainer;
 
-  private final CloudDescriptor cloudDesc;
+  private CloudDescriptor cloudDesc;
 
   /** The original standard core properties, before substitution */
   protected final Properties originalCoreProperties = new Properties();
@@ -363,6 +363,10 @@ public class CoreDescriptor {
 
   public CloudDescriptor getCloudDescriptor() {
     return cloudDesc;
+  }
+
+  public void setCloudDescriptor(CloudDescriptor cloudDesc) {
+    this.cloudDesc = cloudDesc;
   }
 
   public boolean isLoadOnStartup() {

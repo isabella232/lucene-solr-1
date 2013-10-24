@@ -311,7 +311,7 @@ public class SolrConfig extends Config {
          "requestDispatcher/@handleSelect", true ); 
      
      addHttpRequestToContext = getBool( 
-         "requestDispatcher/requestParsers/@addHttpRequestToContext", false ); 
+         "requestDispatcher/requestParsers/@addHttpRequestToContext", true ); 
 
     solrRequestParsers = new SolrRequestParsers(this);
     Config.log.info("Loaded SolrConfig: " + name);
