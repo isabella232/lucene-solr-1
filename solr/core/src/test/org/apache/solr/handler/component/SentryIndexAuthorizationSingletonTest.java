@@ -145,6 +145,14 @@ public class SentryIndexAuthorizationSingletonTest extends SolrTestCaseJ4 {
     return responseBuilder;
   }
 
+  private void doExpectComponentUnauthorized(SearchComponent component,
+      String collection, String user) throws Exception {
+    ResponseBuilder responseBuilder = getResponseBuilder();
+    prepareCollAndUser(responseBuilder, collection, user);
+    doExpectUnauthorized(component, responseBuilder,
+      "User " + user + " does not have privileges for " + collection);
+  }
+
   @Test
   public void testNoBinding() throws Exception {
     // Use reflection to construct a non-singleton version of SentryIndexAuthorizationSingleton
@@ -233,15 +241,65 @@ public class SentryIndexAuthorizationSingletonTest extends SolrTestCaseJ4 {
 
   /**
    * Test the QueryIndexAuthorizationComponent on a collection that
+   * the user has UPDATE only access
+   */
+  @Test
+  public void testQueryComponentAccessUpdate() throws Exception {
+    doExpectComponentUnauthorized(new QueryIndexAuthorizationComponent(),
+      "updateCollection", "junit");
+  }
+
+  /**
+   * Test the QueryIndexAuthorizationComponent on a collection that
    * the user has no access
    */
   @Test
   public void testQueryComponentAccessNone() throws Exception {
-    String noAccessCollection = new String("noAccessCollection");
+    doExpectComponentUnauthorized(new QueryIndexAuthorizationComponent(),
+      "noAccessCollection", "junit");
+  }
+
+  /**
+   * Test the UpdateIndexAuthorizationComponent on a collection that
+   * the user has ALL access
+   */
+  @Test
+  public void testUpdateComponentAccessAll() throws Exception {
     ResponseBuilder responseBuilder = getResponseBuilder();
-    prepareCollAndUser(responseBuilder, noAccessCollection, "junit");
-    QueryIndexAuthorizationComponent query = new QueryIndexAuthorizationComponent();
-    doExpectUnauthorized(query, responseBuilder,
-      "User junit does not have privileges for " + noAccessCollection);
+    prepareCollAndUser(responseBuilder, "collection1", "junit");
+    UpdateIndexAuthorizationComponent update = new UpdateIndexAuthorizationComponent();
+    update.prepare(responseBuilder);
+  }
+
+  /**
+   * Test the UpdateIndexAuthorizationComponent on a collection that
+   * the user has UPDATE only access
+   */
+  @Test
+  public void testUpdateComponentAccessUpdate() throws Exception {
+    ResponseBuilder responseBuilder = getResponseBuilder();
+    prepareCollAndUser(responseBuilder, "updateCollection", "junit");
+    UpdateIndexAuthorizationComponent update = new UpdateIndexAuthorizationComponent();
+    update.prepare(responseBuilder);
+  }
+
+  /**
+   * Test the UpdateIndexAuthorizationComponent on a collection that
+   * the user has QUERY only access
+   */
+  @Test
+  public void testUpdateComponentAccessQuery() throws Exception {
+    doExpectComponentUnauthorized(new UpdateIndexAuthorizationComponent(),
+      "queryCollection", "junit");
+  }
+
+  /**
+   * Test the UpdateIndexAuthorizationComponent on a collection that
+   * the user has no access
+   */
+  @Test
+  public void testUpdateComponentAccessNone() throws Exception {
+    doExpectComponentUnauthorized(new UpdateIndexAuthorizationComponent(),
+      "noAccessCollection", "junit");
   }
 }
