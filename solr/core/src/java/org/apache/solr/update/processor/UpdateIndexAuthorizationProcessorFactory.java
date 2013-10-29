@@ -1,3 +1,5 @@
+package org.apache.solr.update.processor;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,37 +17,20 @@
  * limitations under the License.
  */
 
-package org.apache.solr.handler.component;
+import org.apache.solr.common.util.NamedList;
+import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.response.SolrQueryResponse;
 
-import org.apache.sentry.core.model.search.SearchModelAction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.EnumSet;
-
-public class UpdateIndexAuthorizationComponent extends SearchComponent
-{
-  public static Logger log =
-    LoggerFactory.getLogger(UpdateIndexAuthorizationComponent.class);
+public class UpdateIndexAuthorizationProcessorFactory
+  extends UpdateRequestProcessorFactory {
 
   @Override
-  public void prepare(ResponseBuilder rb) throws IOException {
-    SentryIndexAuthorizationSingleton.getInstance().authorizeCollectionAction(
-      rb, EnumSet.of(SearchModelAction.UPDATE));
+  public void init(NamedList args) {
   }
 
   @Override
-  public void process(ResponseBuilder rb) throws IOException {
-  }
-
-  @Override
-  public String getDescription() {
-    return "Handle Update Index Authorization";
-  }
-
-  @Override
-  public String getSource() {
-    return "$URL$";
+  public UpdateIndexAuthorizationProcessor getInstance(SolrQueryRequest req,
+      SolrQueryResponse rsp, UpdateRequestProcessor next) {
+    return new UpdateIndexAuthorizationProcessor(req, rsp, next);
   }
 }
