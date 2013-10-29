@@ -62,7 +62,6 @@
 
     <chain name="default" returnFirst="true" checkmodified="true" changingPattern=".*SNAPSHOT">
       <resolver ref="local"/>
-      <resolver ref="local-maven-2" />
       <resolver ref="main"/>
       <resolver ref="sonatype-releases" />
       <resolver ref="maven.restlet.org" />
@@ -70,16 +69,21 @@
     </chain>
     <chain name="cloudera" returnFirst="true" checkmodified="true" changingPattern=".*SNAPSHOT">
       <resolver ref="local"/>
-      <resolver ref="local-maven-2" />
       <resolver ref="reactor-repo" />
       <resolver ref="cloudera-releases" />
       <resolver ref="cloudera-snapshots" />
+    </chain>
+    <!-- Sentry is integrated in the build via maven, use local-maven-2 as a resolver -->
+    <chain name="sentry" returnFirst="true" checkmodified="true" changingPattern=".*SNAPSHOT">
+      <resolver ref="local"/>
+      <resolver ref="local-maven-2" />
     </chain>
   </resolvers>
   <modules>
     <module organisation="com.cloudera.*" name=".*" resolver="cloudera" />
     <module organisation="org.apache.zookeeper" name=".*" resolver="cloudera" />
     <module organisation="org.apache.hadoop" name=".*" resolver="cloudera" />
+    <module organisation="org.apache.sentry" name=".*" resolver="sentry" />
   </modules>
 
 </ivysettings>

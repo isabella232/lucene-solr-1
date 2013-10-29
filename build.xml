@@ -45,15 +45,6 @@
   </if>
   <property file="${basedir}/../cdh.build.properties" />
 
-  <!-- FIXME: this needs to go once we push sentry out -->
-  <exec  executable="mvn" dir="${basedir}" failonerror="true">
-    <arg value="-DskipTests" />
-    <arg value="-f" />
-    <arg value="sentry/pom.xml" />
-    <arg value="install"/>
-  </exec>
-  
-
   <target name="-projecthelp">
     <java fork="false" classname="org.apache.tools.ant.Main" taskname="-">
       <arg value="-projecthelp"/>

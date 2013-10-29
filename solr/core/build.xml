@@ -51,6 +51,13 @@
   <target name="dist-maven" depends="dist-maven-src-java"/>
 
   <target name="resolve" depends="ivy-availability-check,ivy-fail,ivy-configure">
+    <!-- FIXME: this needs to go once we push sentry out -->
+    <exec  executable="mvn" dir="${basedir}/../../" failonerror="true">
+      <arg value="-DskipTests" />
+      <arg value="-f" />
+      <arg value="sentry/pom.xml" />
+      <arg value="install"/>
+    </exec>
     <sequential>
       <ivy:retrieve conf="compile,compile.hadoop" type="jar,bundle" sync="${ivy.sync}" log="download-only"/>
       <ivy:retrieve conf="test,test.DfsMiniCluster" type="jar,bundle,test" sync="${ivy.sync}" log="download-only"
