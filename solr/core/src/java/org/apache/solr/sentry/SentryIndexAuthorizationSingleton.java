@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.solr.handler.component;
+package org.apache.solr.sentry;
 
 import org.apache.solr.common.SolrException;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.apache.sentry.binding.solr.authz.SolrAuthzBinding;
 import org.apache.sentry.binding.solr.authz.SentrySolrAuthorizationException;
@@ -59,7 +60,7 @@ public class SentryIndexAuthorizationSingleton {
     return INSTANCE;
   }
 
-  public void authorizeCollectionAction(ResponseBuilder rb,
+  public void authorizeCollectionAction(SolrQueryRequest req,
       Set<SearchModelAction> actions) throws SolrException {
     String exMsg = null;
 
@@ -67,8 +68,8 @@ public class SentryIndexAuthorizationSingleton {
       exMsg = "Solr binding was not created successfully.  Defaulting to no access";
     }
     else {
-      SolrCore solrCore = rb.req.getCore();
-      HttpServletRequest httpServletRequest = (HttpServletRequest)rb.req.getContext().get("httpRequest");
+      SolrCore solrCore = req.getCore();
+      HttpServletRequest httpServletRequest = (HttpServletRequest)req.getContext().get("httpRequest");
       if (httpServletRequest == null) {
         StringBuilder builder = new StringBuilder("Unable to locate HttpServletRequest");
         if (solrCore.getSolrConfig().getBool(
