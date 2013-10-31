@@ -68,8 +68,26 @@ public class SentryIndexAuthorizationSingleton {
     return INSTANCE;
   }
 
+  /**
+   * Returns true iff Sentry index authorization checking is enabled
+   */
+  public boolean isEnabled() {
+    return binding != null;
+  }
+
+  public void authorizeAdminAction(SolrQueryRequest req,
+      Set<SearchModelAction> actions) throws SolrException {
+    authorizeCollectionAction(req, actions, "admin");
+    authorizeCollectionAction(req, actions, null);
+  }
+
   public void authorizeCollectionAction(SolrQueryRequest req,
       Set<SearchModelAction> actions) throws SolrException {
+    authorizeCollectionAction(req, actions, null);
+  }
+
+  private void authorizeCollectionAction(SolrQueryRequest req,
+      Set<SearchModelAction> actions, String collectionName) {
     String exMsg = null;
 
     if (binding == null) {
@@ -90,7 +108,9 @@ public class SentryIndexAuthorizationSingleton {
         String userName = (String)httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
         Subject subject = new Subject(userName);
         Subject superUser = new Subject(System.getProperty("solr.authorization.superuser", "solr"));
-        String collectionName = solrCore.getCoreDescriptor().getCloudDescriptor().getCollectionName();
+        if (collectionName == null) {
+          collectionName = solrCore.getCoreDescriptor().getCloudDescriptor().getCollectionName();
+        }
         Collection collection = new Collection(collectionName);
         try {
           if (!superUser.getName().equals(subject.getName())) {

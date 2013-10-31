@@ -25,7 +25,9 @@ import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.sentry.SentryTestBase;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -38,6 +40,18 @@ public class UpdateIndexAuthorizationProcessorTest extends SentryTestBase {
 
   private List<String> methodNames = Arrays.asList("processAdd", "processDelete",
     "processMergeIndexes","processCommit", "processRollback", "finish");
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    setupSentry();
+    createCore("solrconfig.xml", "schema.xml");
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    closeCore();
+    teardownSentry();
+  }
 
   private void verifyAuthorized(String collection, String user) throws Exception {
     getProcessor(collection, user).processAdd(null);

@@ -27,8 +27,9 @@ import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.easymock.EasyMock;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.easymock.IExpectationSetters;
+import org.junit.After;
+import org.junit.Before;
 
 /**
  * Base class for Sentry tests
@@ -38,6 +39,19 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
   private static File sentrySite;
   private static SolrCore core;
   private static CloudDescriptor cloudDescriptor;
+  private SolrQueryRequest request;
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp();
+    request = new LocalSolrQueryRequest(core, new NamedList());
+  }
+
+  @Override
+  public void tearDown() throws Exception {
+    super.tearDown();
+    request.close();
+  }
 
   private static void addPropertyToSentry(StringBuilder builder, String name, String value) {
     builder.append("<property>\n");
@@ -46,7 +60,6 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     builder.append("</property>\n");
   }
 
-  @BeforeClass
   public static void setupSentry() throws Exception {
     sentrySite = File.createTempFile("sentry-site", "xml");
     File authProviderDir = new File(SolrTestCaseJ4.TEST_HOME(), "sentry");
@@ -67,38 +80,58 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     System.setProperty("solr.authorization.sentry.site",
       sentrySite.toURI().toURL().toString().substring("file:".length()));
     SentryIndexAuthorizationSingleton.getInstance();
-    initCore("solrconfig.xml", "schema.xml");
+  }
+
+  public static void createCore(String solrconfig, String schema) throws Exception {
+    initCore(solrconfig, schema);
     core = h.getCoreContainer().getCore("collection1");
     // store the CloudDescriptor, because we will overwrite it with a mock
     // and restore it later
     cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
   }
 
-  @AfterClass
   public static void teardownSentry() throws Exception {
     if (sentrySite != null) {
       FileUtils.deleteQuietly(sentrySite);
     }
-    core.getCoreDescriptor().setCloudDescriptor(cloudDescriptor);
+
+  }
+
+  public static void closeCore() {
+    if (cloudDescriptor != null) {
+      core.getCoreDescriptor().setCloudDescriptor(cloudDescriptor);
+    }
     core.close();
     sentrySite = null;
     core = null;
     cloudDescriptor = null;
   }
 
+  protected SolrCore getCore() {
+    return core;
+  }
+
   protected SolrQueryRequest getRequest() {
-    return new LocalSolrQueryRequest(core, new NamedList());
+    return request;
   }
 
   protected SolrQueryRequest prepareCollAndUser(SolrQueryRequest request,
       String collection, String user) {
+    return prepareCollAndUser(request, collection, user, true);
+  }
+
+  protected SolrQueryRequest prepareCollAndUser(SolrQueryRequest request,
+      String collection, String user, boolean onlyOnce) {
     CloudDescriptor mCloudDescriptor = EasyMock.createMock(CloudDescriptor.class);
-    EasyMock.expect(mCloudDescriptor.getCollectionName()).andReturn(collection);
+    IExpectationSetters getCollNameExpect = EasyMock.expect(mCloudDescriptor.getCollectionName()).andReturn(collection);
+    if (!onlyOnce) getCollNameExpect.anyTimes();
     EasyMock.replay(mCloudDescriptor);
     core.getCoreDescriptor().setCloudDescriptor(mCloudDescriptor);
 
     HttpServletRequest httpServletRequest = EasyMock.createMock(HttpServletRequest.class);
-    EasyMock.expect(httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME)).andReturn(user);
+    IExpectationSetters getAttributeExpect =
+      EasyMock.expect(httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME)).andReturn(user);
+    if(!onlyOnce) getAttributeExpect.anyTimes();
     EasyMock.replay(httpServletRequest);
     request.getContext().put("httpRequest", httpServletRequest);
     return request;
