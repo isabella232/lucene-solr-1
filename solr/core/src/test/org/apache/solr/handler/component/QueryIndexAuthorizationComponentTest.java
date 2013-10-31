@@ -19,15 +19,28 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.handler.component.ResponseBuilder;
 import org.apache.solr.sentry.SentryTestBase;
 import org.apache.solr.request.SolrQueryRequest;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Ignore;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
  * Test for QueryIndexAuthorizationComponent
  */
-@Ignore
+@org.junit.Ignore
 public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    setupSentry();
+    createCore("solrconfig.xml", "schema.xml");
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    closeCore();
+    teardownSentry();
+  }
 
   private void doExpectUnauthorized(SearchComponent component,
       ResponseBuilder rb, String msgContains) throws Exception {

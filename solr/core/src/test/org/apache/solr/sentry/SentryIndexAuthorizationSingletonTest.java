@@ -28,15 +28,28 @@ import org.apache.solr.core.SolrConfig;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.apache.solr.request.SolrQueryRequest;
 import org.easymock.EasyMock;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Ignore;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
  * Test for SentryIndexAuthorizationSingleton
  */
-@Ignore
+@org.junit.Ignore
 public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    setupSentry();
+    createCore("solrconfig.xml", "schema.xml");
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    closeCore();
+    teardownSentry();
+  }
 
   /**
    * Expect an unauthorized SolrException with a message that contains

@@ -37,7 +37,7 @@ public class AdminHandlers implements SolrCoreAware, SolrRequestHandler
 {
   NamedList initArgs = null;
   
-  private static class StandardHandler {
+  protected static class StandardHandler {
     final String name;
     final SolrRequestHandler handler;
     
@@ -55,7 +55,20 @@ public class AdminHandlers implements SolrCoreAware, SolrRequestHandler
   public void init(NamedList args) {
     this.initArgs = args;
   }
-  
+
+  protected StandardHandler[] getStandardHandlers() {
+    return new StandardHandler[] {
+      new StandardHandler( "luke", new LukeRequestHandler() ),
+      new StandardHandler( "system", new SystemInfoHandler() ),
+      new StandardHandler( "mbeans", new SolrInfoMBeanHandler() ),
+      new StandardHandler( "plugins", new PluginInfoHandler() ),
+      new StandardHandler( "threads", new ThreadDumpHandler() ),
+      new StandardHandler( "properties", new PropertiesRequestHandler() ),
+      new StandardHandler( "logging", new LoggingHandler() ),
+      new StandardHandler( "file", new ShowFileRequestHandler() )
+    };
+  }
+
   @Override
   public void inform(SolrCore core) 
   {
@@ -80,16 +93,7 @@ public class AdminHandlers implements SolrCoreAware, SolrRequestHandler
       path += "/";
     }
     
-    StandardHandler[] list = new StandardHandler[] {
-      new StandardHandler( "luke", new LukeRequestHandler() ),
-      new StandardHandler( "system", new SystemInfoHandler() ),
-      new StandardHandler( "mbeans", new SolrInfoMBeanHandler() ),
-      new StandardHandler( "plugins", new PluginInfoHandler() ),
-      new StandardHandler( "threads", new ThreadDumpHandler() ),
-      new StandardHandler( "properties", new PropertiesRequestHandler() ),
-      new StandardHandler( "logging", new LoggingHandler() ),
-      new StandardHandler( "file", new ShowFileRequestHandler() )
-    };
+    StandardHandler[] list = getStandardHandlers();
     
     for( StandardHandler handler : list ) {
       if( core.getRequestHandler( path+handler.name ) == null ) {

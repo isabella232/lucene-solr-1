@@ -96,6 +96,10 @@ import org.apache.solr.util.RefCounted;
 import org.apache.solr.util.plugin.NamedListInitializedPlugin;
 import org.apache.solr.util.plugin.PluginInfoInitialized;
 import org.apache.solr.util.plugin.SolrCoreAware;
+import org.apache.sentry.core.model.search.SearchModelAction;
+import org.apache.solr.handler.admin.SecureAdminHandlerWrapper;
+import org.apache.solr.handler.RequestHandlerBase;
+import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
@@ -128,6 +132,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.EnumSet;
 import java.util.StringTokenizer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -2315,7 +2320,10 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
         
         NamedList<Object> args = new NamedList<>();
         args.add( "invariants", invariants );
-        ShowFileRequestHandler handler = new ShowFileRequestHandler();
+        RequestHandlerBase handler = new ShowFileRequestHandler();
+        if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
+          handler = new SecureAdminHandlerWrapper(handler, EnumSet.of(SearchModelAction.QUERY));
+        }
         handler.init( args );
         reqHandlers.register("/admin/file", handler);
 
