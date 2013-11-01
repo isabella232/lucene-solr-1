@@ -36,7 +36,8 @@ import org.junit.BeforeClass;
 public abstract class SentryTestBase extends SolrTestCaseJ4 {
 
   private static File sentrySite;
-  private SolrCore core;
+  private static SolrCore core;
+  private static CloudDescriptor cloudDescriptor;
 
   private static void addPropertyToSentry(StringBuilder builder, String name, String value) {
     builder.append("<property>\n");
@@ -66,6 +67,11 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     System.setProperty("solr.authorization.sentry.site",
       sentrySite.toURI().toURL().toString());
     SentryIndexAuthorizationSingleton.getInstance();
+    initCore("solrconfig.xml", "schema.xml");
+    core = h.getCoreContainer().getCore("collection1");
+    // store the CloudDescriptor, because we will overwrite it with a mock
+    // and restore it later
+    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
   }
 
   @AfterClass
@@ -73,20 +79,8 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     if (sentrySite != null) {
       FileUtils.deleteQuietly(sentrySite);
     }
-  }
-
-  @Override
-  public void setUp() throws Exception {
-    super.setUp();
-    initCore("solrconfig.xml", "schema.xml");
-    core = h.getCoreContainer().getCore("collection1");
-  }
-
-  @Override
-  public void tearDown() throws Exception {
+    core.getCoreDescriptor().setCloudDescriptor(cloudDescriptor);
     core.close();
-    deleteCore();
-    super.tearDown();
   }
 
   protected SolrQueryRequest getRequest() {
@@ -95,10 +89,10 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
 
   protected SolrQueryRequest prepareCollAndUser(SolrQueryRequest request,
       String collection, String user) {
-    CloudDescriptor cloudDescriptor = EasyMock.createMock(CloudDescriptor.class);
-    EasyMock.expect(cloudDescriptor.getCollectionName()).andReturn(collection);
-    EasyMock.replay(cloudDescriptor);
-    core.getCoreDescriptor().setCloudDescriptor(cloudDescriptor);
+    CloudDescriptor mCloudDescriptor = EasyMock.createMock(CloudDescriptor.class);
+    EasyMock.expect(mCloudDescriptor.getCollectionName()).andReturn(collection);
+    EasyMock.replay(mCloudDescriptor);
+    core.getCoreDescriptor().setCloudDescriptor(mCloudDescriptor);
 
     HttpServletRequest httpServletRequest = EasyMock.createMock(HttpServletRequest.class);
     EasyMock.expect(httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME)).andReturn(user);
