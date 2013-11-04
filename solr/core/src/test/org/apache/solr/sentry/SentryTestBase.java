@@ -81,6 +81,9 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     }
     core.getCoreDescriptor().setCloudDescriptor(cloudDescriptor);
     core.close();
+    sentrySite = null;
+    core = null;
+    cloudDescriptor = null;
   }
 
   protected SolrQueryRequest getRequest() {
