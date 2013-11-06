@@ -81,7 +81,7 @@ public class SecureAdminHandlersTest extends SentryTestBase {
       assertFalse(ex.code() == SolrException.ErrorCode.UNAUTHORIZED.code);
     } catch (Throwable t) {
       // okay, we only want to verify we didn't get an Unauthorized exception,
-      // going to treat each handler as a block box.
+      // going to treat each handler as a black box.
     }
   }
 

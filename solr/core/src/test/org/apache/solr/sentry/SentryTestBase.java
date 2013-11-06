@@ -20,11 +20,14 @@ import java.io.File;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.cloud.CloudDescriptor;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.easymock.EasyMock;
 import org.easymock.IExpectationSetters;
@@ -135,5 +138,31 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     EasyMock.replay(httpServletRequest);
     request.getContext().put("httpRequest", httpServletRequest);
     return request;
+  }
+
+  protected void verifyAuthorized(RequestHandlerBase handler,
+      SolrQueryRequest req) throws Exception {
+    SolrQueryResponse rsp = new SolrQueryResponse();
+    // just ensure we don't get an unauthorized exception
+    try {
+      handler.handleRequestBody(req, rsp);
+    } catch (SolrException ex) {
+      assertFalse(ex.code() == SolrException.ErrorCode.UNAUTHORIZED.code);
+    } catch (Throwable t) {
+      // okay, we only want to verify we didn't get an Unauthorized exception,
+      // going to treat each handler as a black box.
+    }
+  }
+
+  protected void verifyUnauthorized(RequestHandlerBase handler,
+      SolrQueryRequest req, String collection, String user) throws Exception {
+    String exMsgContains = "User " + user + " does not have privileges for " + collection;
+    SolrQueryResponse rsp = new SolrQueryResponse();
+    try {
+      handler.handleRequestBody(req, rsp);
+    } catch (SolrException ex) {
+      assertEquals(SolrException.ErrorCode.UNAUTHORIZED.code, ex.code());
+      assertTrue(ex.getMessage().contains(exMsgContains));
+    }
   }
 }

@@ -47,34 +47,6 @@ public class SecureInfoHandlerTest extends SentryTestBase {
     return req;
   }
 
-  private void verifyAuthorized(RequestHandlerBase handler,
-      String collection, String user, String path) throws Exception {
-    SolrQueryRequest req = getInfoRequest(collection, user, path);
-    SolrQueryResponse rsp = new SolrQueryResponse();
-    // just ensure we don't get an unauthorized exception
-    try {
-      handler.handleRequestBody(req, rsp);
-    } catch (SolrException ex) {
-      assertFalse(ex.code() == SolrException.ErrorCode.UNAUTHORIZED.code);
-    } catch (Throwable t) {
-      // okay, we only want to verify we didn't get an Unauthorized exception,
-      // going to treat each handler as a block box.
-    }
-  }
-
-  private void verifyUnauthorized(RequestHandlerBase handler,
-      String collection, String user, String path) throws Exception {
-    String exMsgContains = "User " + user + " does not have privileges for " + collection;
-    SolrQueryRequest req = getInfoRequest(collection, user, path);
-    SolrQueryResponse rsp = new SolrQueryResponse();
-    try {
-      handler.handleRequestBody(req, rsp);
-    } catch (SolrException ex) {
-      assertEquals(ex.code(), SolrException.ErrorCode.UNAUTHORIZED.code);
-      assertTrue(ex.getMessage().contains(exMsgContains));
-    }
-  }
-
   @Test
   public void testSecureInfoHandlers() throws Exception {
     verifyThreadDumpHandler();
@@ -85,18 +57,18 @@ public class SecureInfoHandlerTest extends SentryTestBase {
 
   private void verifyQueryAccess(String path) throws Exception {
     InfoHandler handler = h.getCoreContainer().getInfoHandler();
-    verifyAuthorized(handler, "collection1", "junit", path);
-    verifyAuthorized(handler, "queryCollection", "junit", path);
-    verifyUnauthorized(handler, "bogusCollection", "junit", path);
-    verifyUnauthorized(handler, "updateCollection", "junit", path);
+    verifyAuthorized(handler, getInfoRequest("collection1", "junit", path));
+    verifyAuthorized(handler, getInfoRequest("queryCollection", "junit", path));
+    verifyUnauthorized(handler, getInfoRequest("bogusCollection", "junit", path), "bogusCollection", "junit");
+    verifyUnauthorized(handler, getInfoRequest("updateCollection", "junit", path), "updateCollection", "junit");
   }
 
   private void verifyQueryUpdateAccess(String path) throws Exception {
     InfoHandler handler = h.getCoreContainer().getInfoHandler();
-    verifyAuthorized(handler, "collection1", "junit", path);
-    verifyUnauthorized(handler, "queryCollection", "junit", path);
-    verifyUnauthorized(handler, "bogusCollection", "junit", path);
-    verifyUnauthorized(handler, "updateCollection", "junit", path);
+    verifyAuthorized(handler, getInfoRequest("collection1", "junit", path));
+    verifyUnauthorized(handler, getInfoRequest("queryCollection", "junit", path), "queryCollection", "junit");
+    verifyUnauthorized(handler, getInfoRequest("bogusCollection", "junit", path), "bogusCollection", "junit");
+    verifyUnauthorized(handler, getInfoRequest("updateCollection", "junit", path), "updateCollection", "junit");
   }
 
   private void verifyThreadDumpHandler() throws Exception {
