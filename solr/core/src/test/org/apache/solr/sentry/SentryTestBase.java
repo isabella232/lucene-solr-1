@@ -94,7 +94,7 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     if (sentrySite != null) {
       FileUtils.deleteQuietly(sentrySite);
     }
-
+    System.clearProperty("solr.authorization.sentry.site");
   }
 
   public static void closeCore() {

@@ -38,9 +38,14 @@ import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
+import org.apache.solr.handler.admin.SecureInfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.logging.LogWatcher;
 import org.apache.solr.update.UpdateShardHandler;
+import org.apache.solr.logging.jul.JulWatcher;
+import org.apache.solr.schema.IndexSchema;
+import org.apache.solr.schema.IndexSchemaFactory;
+import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.FileUtils;
 import org.apache.zookeeper.KeeperException;
@@ -222,7 +227,12 @@ public class CoreContainer {
     zkSys.initZooKeeper(this, solrHome, cfg);
 
     collectionsHandler = createHandler(cfg.getCollectionsHandlerClass(), CollectionsHandler.class);
-    infoHandler        = createHandler(cfg.getInfoHandlerClass(), InfoHandler.class);
+    if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
+      infoHandler = new SecureInfoHandler(this);
+    }
+    else {
+      infoHandler = new InfoHandler(this);
+    }
     coreAdminHandler   = createHandler(cfg.getCoreAdminHandlerClass(), CoreAdminHandler.class);
 
     coreConfigService = cfg.createCoreConfigService(loader, zkSys.getZkController());
