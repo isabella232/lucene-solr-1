@@ -25,27 +25,17 @@ import org.apache.solr.handler.RequestHandlerBase;
  */
 public class SecureAdminHandlers extends AdminHandlers {
 
-  private StandardHandler createStandardHandler(String name, RequestHandlerBase requestHandler,
-      EnumSet<SearchModelAction> actions) {
-    return new StandardHandler(name, new SecureAdminHandlerWrapper(requestHandler, actions));
-  }
-
   @Override
   protected StandardHandler[] getStandardHandlers() {
-    EnumSet<SearchModelAction> queryOnly = EnumSet.of(SearchModelAction.QUERY);
-    EnumSet<SearchModelAction> queryAndUpdate =
-      EnumSet.of(SearchModelAction.QUERY, SearchModelAction.UPDATE);
-
     return new StandardHandler[] {
-      createStandardHandler( "luke", new LukeRequestHandler(), queryOnly ),
-      createStandardHandler( "system", new SystemInfoHandler(), queryOnly ),
-      createStandardHandler( "mbeans", new SolrInfoMBeanHandler(), queryOnly ),
-      createStandardHandler( "plugins", new PluginInfoHandler(), queryOnly ),
-      createStandardHandler( "threads", new ThreadDumpHandler(), queryOnly ),
-      createStandardHandler( "properties", new PropertiesRequestHandler(), queryOnly ),
-      // user has the ability to change what is logged via LoggingHandler
-      createStandardHandler( "logging", new LoggingHandler(), queryAndUpdate ),
-      createStandardHandler( "file", new ShowFileRequestHandler(), queryOnly )
+      new StandardHandler( "luke", new SecureHandler.SecureLukeRequestHandler() ),
+      new StandardHandler( "system", new SecureHandler.SecureSystemInfoHandler() ),
+      new StandardHandler( "mbeans", new SecureHandler.SecureSolrInfoMBeanHandler() ),
+      new StandardHandler( "plugins", new SecureHandler.SecurePluginInfoHandler() ),
+      new StandardHandler( "threads", new SecureHandler.SecureThreadDumpHandler() ),
+      new StandardHandler( "properties", new SecureHandler.SecurePropertiesRequestHandler() ),
+      new StandardHandler( "logging", new SecureHandler.SecureLoggingHandler() ),
+      new StandardHandler( "file", new SecureHandler.SecureShowFileRequestHandler() )
     };
   }
 }

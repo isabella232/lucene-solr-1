@@ -18,6 +18,7 @@ package org.apache.solr.handler.admin;
 
 import java.util.Map;
 
+import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.sentry.SentryTestBase;
 import org.apache.solr.request.SolrQueryRequest;
@@ -52,7 +53,7 @@ public class SecureAdminHandlersTest extends SentryTestBase {
     int numFound = 0;
     for (Map.Entry<String, SolrRequestHandler> entry : getCore().getRequestHandlers().entrySet() ) {
       if (entry.getKey().startsWith("/admin/")) {
-         assertTrue(entry.getValue() instanceof SecureAdminHandlerWrapper);
+         assertTrue(entry.getValue().getClass().getEnclosingClass().equals(SecureHandler.class));
          ++numFound;
       }
     }
@@ -70,7 +71,7 @@ public class SecureAdminHandlersTest extends SentryTestBase {
     verifyFile();
   }
 
-  private void verifyAuthorized(SecureAdminHandlerWrapper handler, String collection, String user) throws Exception {
+  private void verifyAuthorized(RequestHandlerBase handler, String collection, String user) throws Exception {
     SolrQueryRequest req = getRequest();
     prepareCollAndUser(req, collection, user, false);
     // just ensure we don't get an unauthorized exception
@@ -84,7 +85,7 @@ public class SecureAdminHandlersTest extends SentryTestBase {
     }
   }
 
-  private void verifyUnauthorized(SecureAdminHandlerWrapper handler,
+  private void verifyUnauthorized(RequestHandlerBase handler,
       String collection, String user) throws Exception {
     String exMsgContains = "User " + user + " does not have privileges for " + collection;
     SolrQueryRequest req = getRequest();
@@ -99,8 +100,8 @@ public class SecureAdminHandlersTest extends SentryTestBase {
   }
 
   private void verifyQueryAccess(String path) throws Exception {
-    SecureAdminHandlerWrapper handler =
-      (SecureAdminHandlerWrapper)getCore().getRequestHandlers().get(path);
+    RequestHandlerBase handler =
+      (RequestHandlerBase)getCore().getRequestHandlers().get(path);
     verifyAuthorized(handler, "collection1", "junit");
     verifyAuthorized(handler, "queryCollection", "junit");
     verifyUnauthorized(handler, "bogsuCollection", "junit");
@@ -108,8 +109,8 @@ public class SecureAdminHandlersTest extends SentryTestBase {
   }
 
   private void verifyQueryUpdateAccess(String path) throws Exception {
-    SecureAdminHandlerWrapper handler =
-      (SecureAdminHandlerWrapper)getCore().getRequestHandlers().get(path);
+    RequestHandlerBase handler =
+      (RequestHandlerBase)getCore().getRequestHandlers().get(path);
     verifyAuthorized(handler, "collection1", "junit");
     verifyUnauthorized(handler, "queryCollection", "junit");
     verifyUnauthorized(handler, "bogusCollection", "junit");

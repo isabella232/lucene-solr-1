@@ -129,7 +129,7 @@ import org.apache.solr.util.plugin.NamedListInitializedPlugin;
 import org.apache.solr.util.plugin.PluginInfoInitialized;
 import org.apache.solr.util.plugin.SolrCoreAware;
 import org.apache.sentry.core.model.search.SearchModelAction;
-import org.apache.solr.handler.admin.SecureAdminHandlerWrapper;
+import org.apache.solr.handler.admin.SecureHandler;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.slf4j.Logger;
@@ -2241,9 +2241,11 @@ public final class SolrCore implements SolrInfoMBean {
         
         NamedList<Object> args = new NamedList<Object>();
         args.add( "invariants", invariants );
-        RequestHandlerBase handler = new ShowFileRequestHandler();
+        RequestHandlerBase handler;
         if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
-          handler = new SecureAdminHandlerWrapper(handler, EnumSet.of(SearchModelAction.QUERY));
+          handler = new SecureHandler.SecureShowFileRequestHandler();
+        } else {
+          handler = new ShowFileRequestHandler();
         }
         handler.init( args );
         reqHandlers.register("/admin/file", handler);

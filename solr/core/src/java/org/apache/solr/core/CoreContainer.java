@@ -26,11 +26,13 @@ import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
+import org.apache.solr.handler.admin.SecureInfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.logging.LogWatcher;
 import org.apache.solr.logging.jul.JulWatcher;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.schema.IndexSchemaFactory;
+import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.FileUtils;
 import org.apache.solr.util.PropertiesUtil;
@@ -269,7 +271,12 @@ public class CoreContainer
     }
     
     collectionsHandler = new CollectionsHandler(this);
-    infoHandler = new InfoHandler(this);
+    if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
+      infoHandler = new SecureInfoHandler(this);
+    }
+    else {
+      infoHandler = new InfoHandler(this);
+    }
     containerProperties = cfg.getSolrProperties("solr");
 
     // setup executor to load cores in parallel
