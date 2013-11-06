@@ -26,6 +26,7 @@ import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
+import org.apache.solr.handler.admin.SecureCollectionsHandler;
 import org.apache.solr.handler.admin.SecureInfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.logging.LogWatcher;
@@ -270,12 +271,13 @@ public class CoreContainer
       }
     }
     
-    collectionsHandler = new CollectionsHandler(this);
     if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
       infoHandler = new SecureInfoHandler(this);
+      collectionsHandler = new SecureCollectionsHandler(this);
     }
     else {
       infoHandler = new InfoHandler(this);
+      collectionsHandler = new CollectionsHandler(this);
     }
     containerProperties = cfg.getSolrProperties("solr");
 
