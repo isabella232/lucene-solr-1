@@ -47,9 +47,17 @@ public class SentryIndexAuthorizationSingleton {
 
   private SentryIndexAuthorizationSingleton() {
     SolrAuthzBinding tmpBinding = null;
+    String propertyName = "solr.authorization.sentry.site";
+    String sentrySiteLocation = System.getProperty(propertyName);
     try {
-      tmpBinding =
-        new SolrAuthzBinding(new SolrAuthzConf(new URL(System.getProperty("solr.authorization.sentry.site"))));
+      if (sentrySiteLocation != null && sentrySiteLocation != "") {
+        tmpBinding =
+          new SolrAuthzBinding(new SolrAuthzConf(new URL("file://" + sentrySiteLocation)));
+        log.info("SolrAuthzBinding created successfully");
+      } else {
+        log.info("SolrAuthzBinding not created because " + propertyName
+          + " not set, sentry not enabled");
+      }
     } catch (Exception ex) {
       log.error("Unable to create SolrAuthzBinding", ex);
     }
