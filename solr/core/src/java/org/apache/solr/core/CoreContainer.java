@@ -39,6 +39,7 @@ import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
 import org.apache.solr.handler.admin.SecureCollectionsHandler;
+import org.apache.solr.handler.admin.SecureCoreAdminHandler;
 import org.apache.solr.handler.admin.SecureInfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.logging.LogWatcher;
@@ -226,6 +227,12 @@ public class CoreContainer {
     log.info("Host Name: " + hostName);
 
     zkSys.initZooKeeper(this, solrHome, cfg);
+    
+    if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
+      coreAdminHandler = new SecureCoreAdminHandler(this);
+    } else {
+      coreAdminHandler = new CoreAdminHandler(this);
+    }
 
     if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
       infoHandler = new SecureInfoHandler(this);

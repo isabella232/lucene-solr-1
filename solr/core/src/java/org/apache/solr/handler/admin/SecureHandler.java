@@ -31,6 +31,10 @@ import org.apache.zookeeper.KeeperException;
  */
 public class SecureHandler {
 
+  public static final Set<SearchModelAction> QUERY_ONLY = EnumSet.of(SearchModelAction.QUERY);
+  public static final Set<SearchModelAction> UPDATE_ONLY = EnumSet.of(SearchModelAction.UPDATE);
+  public static final Set<SearchModelAction> QUERY_AND_UPDATE = EnumSet.of(SearchModelAction.QUERY, SearchModelAction.UPDATE);
+
   /**
    * Check with sentry whether all of the specified actions are valid for the request
    */
@@ -47,7 +51,7 @@ public class SecureHandler {
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
       // logging handler can be used both to read and change logs
-      SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.QUERY, SearchModelAction.UPDATE));
+      SecureHandler.checkSentry(req, QUERY_AND_UPDATE);
       super.handleRequestBody(req, rsp);
     }
   }
@@ -55,7 +59,7 @@ public class SecureHandler {
   public static class SecureLukeRequestHandler extends LukeRequestHandler {
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
-      SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.QUERY));
+      SecureHandler.checkSentry(req, QUERY_ONLY);
       super.handleRequestBody(req, rsp);
     }
   }
@@ -63,7 +67,7 @@ public class SecureHandler {
   public static class SecurePluginInfoHandler extends PluginInfoHandler {
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
-      SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.QUERY));
+      SecureHandler.checkSentry(req, QUERY_ONLY);
       super.handleRequestBody(req, rsp);
     }
   }
@@ -71,7 +75,7 @@ public class SecureHandler {
   public static class SecurePropertiesRequestHandler extends PropertiesRequestHandler {
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
-      SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.QUERY));
+      SecureHandler.checkSentry(req, QUERY_ONLY);
       super.handleRequestBody(req, rsp);
     }
   }
@@ -80,7 +84,7 @@ public class SecureHandler {
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp)
      throws IOException, KeeperException, InterruptedException {
-      SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.QUERY));
+      SecureHandler.checkSentry(req, QUERY_ONLY);
       super.handleRequestBody(req, rsp);
     }
   }
@@ -88,7 +92,7 @@ public class SecureHandler {
   public static class SecureSolrInfoMBeanHandler extends SolrInfoMBeanHandler {
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
-      SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.QUERY));
+      SecureHandler.checkSentry(req, QUERY_ONLY);
       super.handleRequestBody(req, rsp);
     }
   }
@@ -96,7 +100,7 @@ public class SecureHandler {
   public static class SecureSystemInfoHandler extends SystemInfoHandler {
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
-      SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.QUERY));
+      SecureHandler.checkSentry(req, QUERY_ONLY);
       super.handleRequestBody(req, rsp);
     }
   }
@@ -104,7 +108,7 @@ public class SecureHandler {
   public static class SecureThreadDumpHandler extends ThreadDumpHandler {
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
-      SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.QUERY));
+      SecureHandler.checkSentry(req, QUERY_ONLY);
       super.handleRequestBody(req, rsp);
     }
   }
