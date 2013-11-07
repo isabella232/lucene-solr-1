@@ -27,6 +27,7 @@ import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
 import org.apache.solr.handler.admin.SecureCollectionsHandler;
+import org.apache.solr.handler.admin.SecureCoreAdminHandler;
 import org.apache.solr.handler.admin.SecureInfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.logging.LogWatcher;
@@ -265,8 +266,16 @@ public class CoreContainer
     
     if (adminPath != null) {
       if (adminHandler == null) {
-        coreAdminHandler = new CoreAdminHandler(this);
+        if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
+          coreAdminHandler = new SecureCoreAdminHandler(this);
+        } else {
+          coreAdminHandler = new CoreAdminHandler(this);
+        }
       } else {
+        if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
+          throw new SolrException(ErrorCode.SERVER_ERROR,
+            "Specifying SOLR_ADMINHANDLER not supported in secure mode");
+        }
         coreAdminHandler = this.createMultiCoreHandler(adminHandler);
       }
     }

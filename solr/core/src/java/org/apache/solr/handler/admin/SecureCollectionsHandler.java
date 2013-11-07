@@ -19,7 +19,6 @@ package org.apache.solr.handler.admin;
 
 import java.util.EnumSet;
 import org.apache.sentry.core.model.search.SearchModelAction;
-import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.core.CoreContainer;
@@ -41,7 +40,7 @@ public class SecureCollectionsHandler extends CollectionsHandler {
   public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
     // all actions require UPDATE privileges, so we don't have to do
     // special handling for each action
-    SecureHandler.checkSentry(req, EnumSet.of(SearchModelAction.UPDATE));
+    SecureHandler.checkSentry(req, SecureHandler.UPDATE_ONLY);
     super.handleRequestBody(req, rsp);
   }
 }
