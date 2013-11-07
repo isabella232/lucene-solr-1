@@ -65,7 +65,7 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     // ensure the SentryIndexAuthorizationSingleton is created with
     // the correct sentrySite
     System.setProperty("solr.authorization.sentry.site",
-      sentrySite.toURI().toURL().toString());
+      sentrySite.toURI().toURL().toString().substring("file:".length()));
     SentryIndexAuthorizationSingleton.getInstance();
     initCore("solrconfig.xml", "schema.xml");
     core = h.getCoreContainer().getCore("collection1");
