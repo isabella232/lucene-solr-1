@@ -98,7 +98,7 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
       }
     }
 
-    // ensure old behavior (no authentication ) if properties not specified
+    // ensure old behavior (simple authentication) if properties not specified
     if (props.getProperty(AUTH_TYPE) == null) {
       props.setProperty(AUTH_TYPE, PseudoAuthenticationHandler.TYPE);
       if (props.getProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED) == null) {
@@ -106,11 +106,12 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
       }
     }
 
-    // skip auth filter is simple auth and allows anonymous
-    if (PseudoAuthenticationHandler.TYPE.equals(props.getProperty(AUTH_TYPE))
-      && Boolean.parseBoolean(props.getProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED))) {
-      skipAuthFilter = true;
+    // use QueryStringAuthenticationHandler rather than hadoop's
+    // PseudoAuthenticationHandler, so we don't affect getInputStream()
+    if (props.getProperty(AUTH_TYPE) == PseudoAuthenticationHandler.TYPE) {
+      props.setProperty(AUTH_TYPE, QueryStringAuthenticationHandler.TYPE);
     }
+
     return props;
   }
 
@@ -127,11 +128,6 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
   public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain filterChain)
       throws IOException, ServletException {
 
-    if (skipAuthFilter) {
-      filterChain.doFilter(request, response);
-      return;
-    }
-
     FilterChain filterChainWrapper = new FilterChain() {
       @Override
       public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse)
@@ -147,10 +143,6 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
       }
     };
 
-    // Ensure the next filter in the chain (i.e. SolrRequestFilter) gets an
-    // InputStream with all the content, as that is required.
-    TeeHttpServletRequestWrapper teeRequest =
-      new TeeHttpServletRequestWrapper((HttpServletRequest)request);
-    super.doFilter(teeRequest, response, filterChainWrapper);
+    super.doFilter(request, response, filterChainWrapper);
   }
 }

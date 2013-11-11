@@ -34,7 +34,7 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
   @Test
   public void testDefaults() throws Exception {
     Properties props = filter.getConfiguration(null, null);
-    assertEquals(props.getProperty(SolrHadoopAuthenticationFilter.AUTH_TYPE), PseudoAuthenticationHandler.TYPE);
+    assertEquals(props.getProperty(SolrHadoopAuthenticationFilter.AUTH_TYPE), QueryStringAuthenticationHandler.class.getCanonicalName());
     assertEquals("true", props.getProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED));
   }
 
