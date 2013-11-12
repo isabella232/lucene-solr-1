@@ -28,6 +28,7 @@ import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
+import org.apache.solr.request.SolrRequestHandler;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.easymock.EasyMock;
 import org.easymock.IExpectationSetters;
@@ -90,12 +91,18 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     return request;
   }
 
-  protected void verifyAuthorized(RequestHandlerBase handler,
-      SolrQueryRequest req) throws Exception {
+  private void verifyAuthorized(SolrRequestHandler handler,
+      RequestHandlerBase handlerBase, SolrQueryRequest req) throws Exception {
+    assert((handler == null && handlerBase != null)
+      || (handler != null && handlerBase == null));
     SolrQueryResponse rsp = new SolrQueryResponse();
     // just ensure we don't get an unauthorized exception
     try {
-      handler.handleRequestBody(req, rsp);
+      if (handler != null) {
+        handler.handleRequest(req, rsp);
+      } else {
+        handlerBase.handleRequestBody(req, rsp);
+      }
     } catch (SolrException ex) {
       assertFalse(ex.code() == SolrException.ErrorCode.UNAUTHORIZED.code);
     } catch (Throwable t) {
@@ -104,15 +111,43 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     }
   }
 
-  protected void verifyUnauthorized(RequestHandlerBase handler,
-      SolrQueryRequest req, String collection, String user) throws Exception {
+  protected void verifyAuthorized(RequestHandlerBase handlerBase,
+      SolrQueryRequest req) throws Exception {
+    verifyAuthorized(null, handlerBase, req);
+  }
+
+
+  protected void verifyAuthorized(SolrRequestHandler handler,
+      SolrQueryRequest req) throws Exception {
+    verifyAuthorized(handler, null, req);
+  }
+
+  protected void verifyUnauthorized(SolrRequestHandler handler,
+      RequestHandlerBase handlerBase, SolrQueryRequest req, String collection, String user)
+      throws Exception {
+    assert((handler == null && handlerBase != null)
+      || (handler != null && handlerBase == null));
     String exMsgContains = "User " + user + " does not have privileges for " + collection;
     SolrQueryResponse rsp = new SolrQueryResponse();
     try {
-      handler.handleRequestBody(req, rsp);
+      if (handler!= null) {
+        handler.handleRequest(req, rsp);
+      } else {
+        handlerBase.handleRequestBody(req, rsp);
+      }
     } catch (SolrException ex) {
       assertEquals(SolrException.ErrorCode.UNAUTHORIZED.code, ex.code());
       assertTrue(ex.getMessage().contains(exMsgContains));
     }
+  }
+
+  protected void verifyUnauthorized(RequestHandlerBase handlerBase,
+      SolrQueryRequest req, String collection, String user) throws Exception {
+    verifyUnauthorized(null, handlerBase, req, collection, user);
+  }
+
+  protected void verifyUnauthorized(SolrRequestHandler handler,
+      SolrQueryRequest req, String collection, String user) throws Exception {
+    verifyUnauthorized(handler, null, req, collection, user);
   }
 }
