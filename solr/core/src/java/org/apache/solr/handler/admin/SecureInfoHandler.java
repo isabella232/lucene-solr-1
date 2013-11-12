@@ -30,10 +30,10 @@ public class SecureInfoHandler extends InfoHandler {
   public SecureInfoHandler(final CoreContainer coreContainer) {
     super(coreContainer);
 
-    setPropertiesHandler( new SecureHandler.SecurePropertiesRequestHandler() );
-    setThreadDumpHandler( new SecureHandler.SecureThreadDumpHandler() );
-    setLoggingHandler( new SecureHandler.SecureLoggingHandler() );
-    setSystemInfoHandler( new SecureHandler.SecureSystemInfoHandler() );
+    setPropertiesHandler( new SecureAdminHandlers.SecurePropertiesRequestHandler() );
+    setThreadDumpHandler( new SecureAdminHandlers.SecureThreadDumpHandler() );
+    setLoggingHandler( new SecureAdminHandlers.SecureLoggingHandler() );
+    setSystemInfoHandler( new SecureAdminHandlers.SecureSystemInfoHandler() );
   }
 
 }

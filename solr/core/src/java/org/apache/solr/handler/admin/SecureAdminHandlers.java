@@ -16,9 +16,14 @@
  */
 package org.apache.solr.handler.admin;
 
+import java.io.IOException;
 import java.util.EnumSet;
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.handler.RequestHandlerBase;
+import org.apache.solr.handler.SecureRequestHandlerUtil;
+import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.response.SolrQueryResponse;
+import org.apache.zookeeper.KeeperException;
 
 /**
  * Secure version of AdminHandlers that creates Sentry-aware AdminHandlers.
@@ -28,14 +33,80 @@ public class SecureAdminHandlers extends AdminHandlers {
   @Override
   protected StandardHandler[] getStandardHandlers() {
     return new StandardHandler[] {
-      new StandardHandler( "luke", new SecureHandler.SecureLukeRequestHandler() ),
-      new StandardHandler( "system", new SecureHandler.SecureSystemInfoHandler() ),
-      new StandardHandler( "mbeans", new SecureHandler.SecureSolrInfoMBeanHandler() ),
-      new StandardHandler( "plugins", new SecureHandler.SecurePluginInfoHandler() ),
-      new StandardHandler( "threads", new SecureHandler.SecureThreadDumpHandler() ),
-      new StandardHandler( "properties", new SecureHandler.SecurePropertiesRequestHandler() ),
-      new StandardHandler( "logging", new SecureHandler.SecureLoggingHandler() ),
-      new StandardHandler( "file", new SecureHandler.SecureShowFileRequestHandler() )
+      new StandardHandler( "luke", new SecureLukeRequestHandler() ),
+      new StandardHandler( "system", new SecureSystemInfoHandler() ),
+      new StandardHandler( "mbeans", new SecureSolrInfoMBeanHandler() ),
+      new StandardHandler( "plugins", new SecurePluginInfoHandler() ),
+      new StandardHandler( "threads", new SecureThreadDumpHandler() ),
+      new StandardHandler( "properties", new SecurePropertiesRequestHandler() ),
+      new StandardHandler( "logging", new SecureLoggingHandler() ),
+      new StandardHandler( "file", new SecureShowFileRequestHandler() )
     };
+  }
+
+  public static class SecureLoggingHandler extends LoggingHandler {
+    @Override
+    public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
+      // logging handler can be used both to read and change logs
+      SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true);
+      super.handleRequestBody(req, rsp);
+    }
+  }
+
+  public static class SecureLukeRequestHandler extends LukeRequestHandler {
+    @Override
+    public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
+      SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
+      super.handleRequestBody(req, rsp);
+    }
+  }
+
+  public static class SecurePluginInfoHandler extends PluginInfoHandler {
+    @Override
+    public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
+      SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
+      super.handleRequestBody(req, rsp);
+    }
+  }
+
+  public static class SecurePropertiesRequestHandler extends PropertiesRequestHandler {
+    @Override
+    public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
+      SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
+      super.handleRequestBody(req, rsp);
+    }
+  }
+
+  public static class SecureShowFileRequestHandler extends ShowFileRequestHandler {
+    @Override
+    public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp)
+     throws IOException, KeeperException, InterruptedException {
+      SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
+      super.handleRequestBody(req, rsp);
+    }
+  }
+
+  public static class SecureSolrInfoMBeanHandler extends SolrInfoMBeanHandler {
+    @Override
+    public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
+      SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
+      super.handleRequestBody(req, rsp);
+    }
+  }
+
+  public static class SecureSystemInfoHandler extends SystemInfoHandler {
+    @Override
+    public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
+      SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
+      super.handleRequestBody(req, rsp);
+    }
+  }
+
+  public static class SecureThreadDumpHandler extends ThreadDumpHandler {
+    @Override
+    public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
+      SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
+      super.handleRequestBody(req, rsp);
+    }
   }
 }

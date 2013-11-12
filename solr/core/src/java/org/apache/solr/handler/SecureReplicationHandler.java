@@ -1,5 +1,3 @@
-package org.apache.solr.handler.admin;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,32 +14,18 @@ package org.apache.solr.handler.admin;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.solr.handler;
 
-import java.util.EnumSet;
-import org.apache.sentry.core.model.search.SearchModelAction;
-import org.apache.solr.handler.SecureRequestHandlerUtil;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
-import org.apache.solr.core.CoreContainer;
 
 /**
- * Secure (sentry-aware) version of CollectionsHandler
+ * Secure (sentry-aware) version of ReplicationHandler
  */
-public class SecureCollectionsHandler extends CollectionsHandler {
-
-  public SecureCollectionsHandler() {
-    super();
-  }
-
-  public SecureCollectionsHandler(final CoreContainer coreContainer) {
-    super(coreContainer);
-  }
-
+public class SecureReplicationHandler extends ReplicationHandler {
   @Override
   public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
-    // all actions require UPDATE privileges, so we don't have to do
-    // special handling for each action
-    SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.UPDATE_ONLY, true);
+    SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true);
     super.handleRequestBody(req, rsp);
   }
 }

@@ -97,7 +97,7 @@ import org.apache.solr.util.plugin.NamedListInitializedPlugin;
 import org.apache.solr.util.plugin.PluginInfoInitialized;
 import org.apache.solr.util.plugin.SolrCoreAware;
 import org.apache.sentry.core.model.search.SearchModelAction;
-import org.apache.solr.handler.admin.SecureHandler;
+import org.apache.solr.handler.admin.SecureAdminHandlers;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.slf4j.Logger;
@@ -2322,7 +2322,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
         args.add( "invariants", invariants );
         RequestHandlerBase handler;
         if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
-          handler = new SecureHandler.SecureShowFileRequestHandler();
+          handler = new SecureAdminHandlers.SecureShowFileRequestHandler();
         } else {
           handler = new ShowFileRequestHandler();
         }

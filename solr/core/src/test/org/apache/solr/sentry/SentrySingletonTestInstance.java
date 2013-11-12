@@ -20,7 +20,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.SolrTestCaseJ4;
-import org.apache.solr.handler.admin.SecureHandler;
+import org.apache.solr.handler.SecureRequestHandlerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,8 +74,8 @@ public class SentrySingletonTestInstance {
       ctor.setAccessible(true);
       sentryInstance =
         (SentryIndexAuthorizationSingleton)ctor.newInstance(sentrySite.toURI().toURL().toString().substring("file:".length()));
-      // ensure all SecureHandlers use this instance
-      SecureHandler.testOverride = sentryInstance;
+      // ensure all SecureAdminHandlers use this instance
+      SecureRequestHandlerUtil.testOverride = sentryInstance;
     } catch (Exception ex) {
       LOGGER.error("Unable to create SentrySingletonTestInstance", ex);
     }

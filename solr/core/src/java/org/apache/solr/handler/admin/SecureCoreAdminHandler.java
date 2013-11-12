@@ -22,6 +22,7 @@ import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CoreAdminParams.CoreAdminAction;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.handler.SecureRequestHandlerUtil;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.core.CoreContainer;
@@ -48,13 +49,13 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
       action = CoreAdminAction.get(a);
       if (action == null) {
         // some custom action -- let's reqiure QUERY and UPDATE
-        SecureHandler.checkSentry(req, SecureHandler.QUERY_AND_UPDATE);
+        SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true);
       }
     }
     if (action != null) {
       switch (action) {
         case STATUS: {
-          SecureHandler.checkSentry(req, SecureHandler.QUERY_ONLY);
+          SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
           break;
         }
         case LOAD:
@@ -76,12 +77,12 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
         case DELETEALIAS:
         case LOAD_ON_STARTUP:
         case TRANSIENT: {
-          SecureHandler.checkSentry(req, SecureHandler.UPDATE_ONLY);
+          SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.UPDATE_ONLY, true);
           break;
         }
         default: {
           // some custom action -- let's reqiure QUERY and UPDATE
-          SecureHandler.checkSentry(req, SecureHandler.QUERY_AND_UPDATE);
+          SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true);
           break;
         }
       }

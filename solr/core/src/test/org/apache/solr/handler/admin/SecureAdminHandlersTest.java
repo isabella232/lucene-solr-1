@@ -69,7 +69,7 @@ public class SecureAdminHandlersTest extends SentryTestBase {
     for (Map.Entry<String, SolrRequestHandler> entry : core.getRequestHandlers().entrySet() ) {
       // see note about ShowFileRequestHandler below
       if (entry.getKey().startsWith("/admin/") && !(entry.getValue() instanceof ShowFileRequestHandler)) {
-         assertTrue(entry.getValue().getClass().getEnclosingClass().equals(SecureHandler.class));
+         assertTrue(entry.getValue().getClass().getEnclosingClass().equals(SecureAdminHandlers.class));
          ++numFound;
       }
     }
@@ -170,8 +170,8 @@ public class SecureAdminHandlersTest extends SentryTestBase {
     // handler will not be secure, so let's create one to test.
     String path = "/admin/file";
     RequestHandlerBase handler = (RequestHandlerBase)core.getRequestHandlers().get(path);
-    assertFalse(handler instanceof SecureHandler.SecureShowFileRequestHandler);
-    handler = new SecureHandler.SecureShowFileRequestHandler();
+    assertFalse(handler instanceof SecureAdminHandlers.SecureShowFileRequestHandler);
+    handler = new SecureAdminHandlers.SecureShowFileRequestHandler();
     verifyQueryAccess(handler);
   }
 }
