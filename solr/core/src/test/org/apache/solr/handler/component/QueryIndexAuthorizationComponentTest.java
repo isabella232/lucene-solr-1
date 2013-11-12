@@ -15,9 +15,14 @@ package org.apache.solr.handler.component;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.core.SolrCore;
 import org.apache.solr.handler.component.ResponseBuilder;
+import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.sentry.SentryTestBase;
+import org.apache.solr.sentry.SentrySingletonTestInstance;
 import org.apache.solr.request.SolrQueryRequest;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -29,17 +34,29 @@ import org.junit.Test;
  */
 @org.junit.Ignore
 public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
+  private static SolrCore core;
+  private static CloudDescriptor cloudDescriptor;
+  private static SentryIndexAuthorizationSingleton sentryInstance;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setupSentry();
-    createCore("solrconfig.xml", "schema.xml");
+    core = createCore("solrconfig.xml", "schema.xml");
+    // store the CloudDescriptor, because we will overwrite it with a mock
+    // and restore it later
+    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
+    sentryInstance = SentrySingletonTestInstance.getInstance().getSentryInstance();
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    closeCore();
-    teardownSentry();
+    closeCore(core, cloudDescriptor);
+    core = null;
+    cloudDescriptor = null;
+  }
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp(core);
   }
 
   private void doExpectUnauthorized(SearchComponent component,
@@ -56,7 +73,7 @@ public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
   private void doExpectComponentUnauthorized(SearchComponent component,
       String collection, String user) throws Exception {
     ResponseBuilder responseBuilder = getResponseBuilder();
-    prepareCollAndUser(responseBuilder.req, collection, user);
+    prepareCollAndUser(core, responseBuilder.req, collection, user);
     doExpectUnauthorized(component, responseBuilder,
       "User " + user + " does not have privileges for " + collection);
   }
@@ -73,8 +90,8 @@ public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
   @Test
   public void testQueryComponentAccessAll() throws Exception {
     ResponseBuilder responseBuilder = getResponseBuilder();
-    prepareCollAndUser(responseBuilder.req, "collection1", "junit");
-    QueryIndexAuthorizationComponent query = new QueryIndexAuthorizationComponent();
+    prepareCollAndUser(core, responseBuilder.req, "collection1", "junit");
+    QueryIndexAuthorizationComponent query = new QueryIndexAuthorizationComponent(sentryInstance);
     query.prepare(responseBuilder);
   }
 
@@ -85,8 +102,8 @@ public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
   @Test
   public void testQueryComponentAccessQuery() throws Exception {
     ResponseBuilder responseBuilder = getResponseBuilder();
-    prepareCollAndUser(responseBuilder.req, "queryCollection", "junit");
-    QueryIndexAuthorizationComponent query = new QueryIndexAuthorizationComponent();
+    prepareCollAndUser(core, responseBuilder.req, "queryCollection", "junit");
+    QueryIndexAuthorizationComponent query = new QueryIndexAuthorizationComponent(sentryInstance);
     query.prepare(responseBuilder);
   }
 
@@ -96,7 +113,7 @@ public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
    */
   @Test
   public void testQueryComponentAccessUpdate() throws Exception {
-    doExpectComponentUnauthorized(new QueryIndexAuthorizationComponent(),
+    doExpectComponentUnauthorized(new QueryIndexAuthorizationComponent(sentryInstance),
       "updateCollection", "junit");
   }
 
@@ -106,7 +123,7 @@ public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
    */
   @Test
   public void testQueryComponentAccessNone() throws Exception {
-    doExpectComponentUnauthorized(new QueryIndexAuthorizationComponent(),
+    doExpectComponentUnauthorized(new QueryIndexAuthorizationComponent(sentryInstance),
       "noAccessCollection", "junit");
   }
 }

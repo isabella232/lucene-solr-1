@@ -35,14 +35,19 @@ public class SecureHandler {
   public static final Set<SearchModelAction> UPDATE_ONLY = EnumSet.of(SearchModelAction.UPDATE);
   public static final Set<SearchModelAction> QUERY_AND_UPDATE = EnumSet.of(SearchModelAction.QUERY, SearchModelAction.UPDATE);
 
+  // Hack to provide a test-only version of SentryIndexAuthorizationSingleton
+  public static SentryIndexAuthorizationSingleton testOverride = null;
+
   /**
    * Check with sentry whether all of the specified actions are valid for the request
    */
   public static void checkSentry(SolrQueryRequest req, Set<SearchModelAction> andActions) {
    // Sentry currently does have AND support for actions; need to check
     // actions one at a time
+    final SentryIndexAuthorizationSingleton sentryInstance =
+      (testOverride == null)?SentryIndexAuthorizationSingleton.getInstance():testOverride;
     for (SearchModelAction action : andActions) {
-      SentryIndexAuthorizationSingleton.getInstance().authorizeAdminAction(
+      sentryInstance.authorizeAdminAction(
         req, EnumSet.of(action));
     }
   }

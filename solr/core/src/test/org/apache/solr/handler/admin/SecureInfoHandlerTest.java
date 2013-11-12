@@ -16,11 +16,14 @@
  */
 package org.apache.solr.handler.admin;
 
+import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.core.SolrCore;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.sentry.SentryTestBase;
+import org.apache.solr.sentry.SentrySingletonTestInstance;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -28,21 +31,33 @@ import org.junit.Test;
 
 public class SecureInfoHandlerTest extends SentryTestBase {
 
+  private static SolrCore core;
+  private static CloudDescriptor cloudDescriptor;
+
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setupSentry();
-    createCore("solrconfig-secureadmin.xml", "schema.xml");
+    core = createCore("solrconfig-secureadmin.xml", "schema.xml");
+    // store the CloudDescriptor, because we will overwrite it with a mock
+    // and restore it later
+    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
+    SentrySingletonTestInstance.getInstance();
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    closeCore();
-    teardownSentry();
+    closeCore(core, cloudDescriptor);
+    core = null;
+    cloudDescriptor = null;
+  }
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp(core);
   }
 
   private SolrQueryRequest getInfoRequest(String collection, String user, String path) {
     SolrQueryRequest req = getRequest();
-    prepareCollAndUser(req, collection, user, false);
+    prepareCollAndUser(core, req, collection, user, false);
     req.getContext().put("path", path);
     return req;
   }
@@ -56,7 +71,7 @@ public class SecureInfoHandlerTest extends SentryTestBase {
   }
 
   private void verifyQueryAccess(String path) throws Exception {
-    InfoHandler handler = h.getCoreContainer().getInfoHandler();
+    InfoHandler handler = new SecureInfoHandler(h.getCoreContainer());
     verifyAuthorized(handler, getInfoRequest("collection1", "junit", path));
     verifyAuthorized(handler, getInfoRequest("queryCollection", "junit", path));
     verifyUnauthorized(handler, getInfoRequest("bogusCollection", "junit", path), "bogusCollection", "junit");
@@ -64,7 +79,7 @@ public class SecureInfoHandlerTest extends SentryTestBase {
   }
 
   private void verifyQueryUpdateAccess(String path) throws Exception {
-    InfoHandler handler = h.getCoreContainer().getInfoHandler();
+    InfoHandler handler = new SecureInfoHandler(h.getCoreContainer());
     verifyAuthorized(handler, getInfoRequest("collection1", "junit", path));
     verifyUnauthorized(handler, getInfoRequest("queryCollection", "junit", path), "queryCollection", "junit");
     verifyUnauthorized(handler, getInfoRequest("bogusCollection", "junit", path), "bogusCollection", "junit");

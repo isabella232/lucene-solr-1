@@ -21,18 +21,29 @@ import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.EnumSet;
 
 public class QueryIndexAuthorizationComponent extends SearchComponent
 {
-  public static Logger log =
+  private static Logger log =
     LoggerFactory.getLogger(QueryIndexAuthorizationComponent.class);
+  private SentryIndexAuthorizationSingleton sentryInstance;
+
+  public QueryIndexAuthorizationComponent() {
+    this(SentryIndexAuthorizationSingleton.getInstance());
+  }
+
+  @VisibleForTesting
+  public QueryIndexAuthorizationComponent(SentryIndexAuthorizationSingleton sentryInstance) {
+    super();
+    this.sentryInstance = sentryInstance;
+  }
 
   @Override
   public void prepare(ResponseBuilder rb) throws IOException {
-    SentryIndexAuthorizationSingleton.getInstance().authorizeCollectionAction(
+    sentryInstance.authorizeCollectionAction(
       rb.req, EnumSet.of(SearchModelAction.QUERY));
   }
 

@@ -27,6 +27,7 @@ import org.apache.solr.update.DeleteUpdateCommand;
 import org.apache.solr.update.MergeIndexesCommand;
 import org.apache.solr.update.RollbackUpdateCommand;
 import org.apache.sentry.core.model.search.SearchModelAction;
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,15 +37,23 @@ import java.util.EnumSet;
 public class UpdateIndexAuthorizationProcessor extends UpdateRequestProcessor {
 
   private SolrQueryRequest req;
+  private SentryIndexAuthorizationSingleton sentryInstance;
 
   public UpdateIndexAuthorizationProcessor(SolrQueryRequest req,
       SolrQueryResponse rsp, UpdateRequestProcessor next) {
+    this(SentryIndexAuthorizationSingleton.getInstance(), req, rsp, next);
+  }
+
+  @VisibleForTesting
+  public UpdateIndexAuthorizationProcessor(SentryIndexAuthorizationSingleton sentryInstance,
+      SolrQueryRequest req, SolrQueryResponse rsp, UpdateRequestProcessor next) {
     super(next);
+    this.sentryInstance = sentryInstance;
     this.req = req;
   }
 
   public void authorizeCollectionAction() throws SolrException {
-    SentryIndexAuthorizationSingleton.getInstance().authorizeCollectionAction(
+    sentryInstance.authorizeCollectionAction(
       req, EnumSet.of(SearchModelAction.UPDATE));
   }
 

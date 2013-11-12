@@ -39,13 +39,9 @@ import org.junit.Before;
  */
 public abstract class SentryTestBase extends SolrTestCaseJ4 {
 
-  private static File sentrySite;
-  private static SolrCore core;
-  private static CloudDescriptor cloudDescriptor;
   private SolrQueryRequest request;
 
-  @Override
-  public void setUp() throws Exception {
+  public void setUp(SolrCore core) throws Exception {
     super.setUp();
     request = new LocalSolrQueryRequest(core, new NamedList());
   }
@@ -56,74 +52,28 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     request.close();
   }
 
-  private static void addPropertyToSentry(StringBuilder builder, String name, String value) {
-    builder.append("<property>\n");
-    builder.append("<name>").append(name).append("</name>\n");
-    builder.append("<value>").append(value).append("</value>\n");
-    builder.append("</property>\n");
-  }
-
-  public static void setupSentry() throws Exception {
-    sentrySite = File.createTempFile("sentry-site", "xml");
-    File authProviderDir = new File(SolrTestCaseJ4.TEST_HOME(), "sentry");
-    
-    // need to write sentry-site at execution time because we don't know
-    // the location of sentry.solr.provider.resource beforehand
-    StringBuilder sentrySiteData = new StringBuilder();
-    sentrySiteData.append("<configuration>\n");
-    addPropertyToSentry(sentrySiteData, "sentry.provider",
-      "org.apache.sentry.provider.file.LocalGroupResourceAuthorizationProvider");
-    addPropertyToSentry(sentrySiteData, "sentry.solr.provider.resource",
-       new File(authProviderDir.toString(), "test-authz-provider.ini").toURI().toURL().toString());
-    sentrySiteData.append("</configuration>\n");
-    FileUtils.writeStringToFile(sentrySite,sentrySiteData.toString());
-
-    // ensure the SentryIndexAuthorizationSingleton is created with
-    // the correct sentrySite
-    System.setProperty("solr.authorization.sentry.site",
-      sentrySite.toURI().toURL().toString().substring("file:".length()));
-    SentryIndexAuthorizationSingleton.getInstance();
-  }
-
-  public static void createCore(String solrconfig, String schema) throws Exception {
+  public static SolrCore createCore(String solrconfig, String schema) throws Exception {
     initCore(solrconfig, schema);
-    core = h.getCoreContainer().getCore("collection1");
-    // store the CloudDescriptor, because we will overwrite it with a mock
-    // and restore it later
-    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
+    return h.getCoreContainer().getCore("collection1");
   }
 
-  public static void teardownSentry() throws Exception {
-    if (sentrySite != null) {
-      FileUtils.deleteQuietly(sentrySite);
-    }
-    System.clearProperty("solr.authorization.sentry.site");
-  }
-
-  public static void closeCore() {
+  public static void closeCore(SolrCore coreToClose, CloudDescriptor cloudDescriptor) {
     if (cloudDescriptor != null) {
-      core.getCoreDescriptor().setCloudDescriptor(cloudDescriptor);
+      coreToClose.getCoreDescriptor().setCloudDescriptor(cloudDescriptor);
     }
-    core.close();
-    sentrySite = null;
-    core = null;
-    cloudDescriptor = null;
-  }
-
-  protected SolrCore getCore() {
-    return core;
+    coreToClose.close();
   }
 
   protected SolrQueryRequest getRequest() {
     return request;
   }
 
-  protected SolrQueryRequest prepareCollAndUser(SolrQueryRequest request,
+  protected SolrQueryRequest prepareCollAndUser(SolrCore core, SolrQueryRequest request,
       String collection, String user) {
-    return prepareCollAndUser(request, collection, user, true);
+    return prepareCollAndUser(core, request, collection, user, true);
   }
 
-  protected SolrQueryRequest prepareCollAndUser(SolrQueryRequest request,
+  protected SolrQueryRequest prepareCollAndUser(SolrCore core, SolrQueryRequest request,
       String collection, String user, boolean onlyOnce) {
     CloudDescriptor mCloudDescriptor = EasyMock.createMock(CloudDescriptor.class);
     IExpectationSetters getCollNameExpect = EasyMock.expect(mCloudDescriptor.getCollectionName()).andReturn(collection);

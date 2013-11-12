@@ -24,7 +24,9 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.core.SolrConfig;
+import org.apache.solr.core.SolrCore;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.apache.solr.request.SolrQueryRequest;
 import org.easymock.EasyMock;
@@ -39,16 +41,29 @@ import org.junit.Test;
 @org.junit.Ignore
 public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
 
+  private static SolrCore core;
+  private static CloudDescriptor cloudDescriptor;
+  private static SentryIndexAuthorizationSingleton sentryInstance;
+
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setupSentry();
-    createCore("solrconfig.xml", "schema.xml");
+    core = createCore("solrconfig.xml", "schema.xml");
+    // store the CloudDescriptor, because we will overwrite it with a mock
+    // and restore it later
+    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
+    sentryInstance = SentrySingletonTestInstance.getInstance().getSentryInstance();
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    closeCore();
-    teardownSentry();
+    closeCore(core, cloudDescriptor);
+    core = null;
+    cloudDescriptor = null;
+  }
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp(core);
   }
 
   /**
@@ -57,7 +72,7 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
    */
   private void doExpectUnauthorized(SolrQueryRequest request,
       Set<SearchModelAction> actions, String msgContains) throws Exception {
-    doExpectUnauthorized(SentryIndexAuthorizationSingleton.getInstance(), request, actions, msgContains);
+    doExpectUnauthorized(sentryInstance, request, actions, msgContains);
   }
 
   private void doExpectUnauthorized(SentryIndexAuthorizationSingleton singleton, SolrQueryRequest request,
@@ -75,12 +90,11 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
   public void testNoBinding() throws Exception {
     // Use reflection to construct a non-singleton version of SentryIndexAuthorizationSingleton
     // in order to get an instance without a binding
-    System.setProperty("solr.authorization.sentry.site", "");
     Constructor ctor =
-      SentryIndexAuthorizationSingleton.class.getDeclaredConstructor();
+      SentryIndexAuthorizationSingleton.class.getDeclaredConstructor(String.class);
     ctor.setAccessible(true);
     SentryIndexAuthorizationSingleton nonSingleton =
-      (SentryIndexAuthorizationSingleton)ctor.newInstance();
+      (SentryIndexAuthorizationSingleton)ctor.newInstance("");
     doExpectUnauthorized(nonSingleton, null, null, "binding");
   }
 
@@ -93,7 +107,7 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
  @Test
   public void testNullUserName() throws Exception {
     SolrQueryRequest request = getRequest();
-    prepareCollAndUser(request, "collection1", null);
+    prepareCollAndUser(core, request, "collection1", null);
     doExpectUnauthorized(request, EnumSet.of(SearchModelAction.ALL),
       "User null does not have privileges for collection1");
   }
@@ -102,7 +116,7 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
   public void testEmptySuperUser() throws Exception {
     System.setProperty("solr.authorization.superuser", "");
     SolrQueryRequest request = getRequest();
-    prepareCollAndUser(request, "collection1", "solr");
+    prepareCollAndUser(core, request, "collection1", "solr");
     doExpectUnauthorized(request, EnumSet.of(SearchModelAction.ALL),
       "User solr does not have privileges for collection1");
   }
@@ -114,9 +128,9 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
   public void testSuperUserAccess() throws Exception {
     System.setProperty("solr.authorization.superuser", "junit");
     SolrQueryRequest request = getRequest();
-    prepareCollAndUser(request, "collection1", "junit");
+    prepareCollAndUser(core, request, "collection1", "junit");
 
-    SentryIndexAuthorizationSingleton.getInstance().authorizeCollectionAction(
+    sentryInstance.authorizeCollectionAction(
       request, EnumSet.of(SearchModelAction.ALL));
   }
 
@@ -127,9 +141,9 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
   public void testSuperUserNoAccess() throws Exception {
     System.setProperty("solr.authorization.superuser", "junit");
     SolrQueryRequest request = getRequest();
-    prepareCollAndUser(request, "bogusCollection", "junit");
+    prepareCollAndUser(core, request, "bogusCollection", "junit");
 
-    SentryIndexAuthorizationSingleton.getInstance().authorizeCollectionAction(
+    sentryInstance.authorizeCollectionAction(
       request, EnumSet.of(SearchModelAction.ALL));
   }
 }

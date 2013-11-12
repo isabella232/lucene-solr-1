@@ -23,9 +23,12 @@ import java.util.List;
 import java.util.TreeSet;
 
 import org.apache.commons.lang.mutable.MutableInt;
+import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.core.SolrCore;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.sentry.SentryTestBase;
+import org.apache.solr.sentry.SentrySingletonTestInstance;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -37,22 +40,30 @@ import org.junit.Test;
 @org.junit.Ignore
 public class UpdateIndexAuthorizationProcessorTest extends SentryTestBase {
 
-  private UpdateIndexAuthorizationProcessorFactory factory =
-    new UpdateIndexAuthorizationProcessorFactory();
-
   private List<String> methodNames = Arrays.asList("processAdd", "processDelete",
     "processMergeIndexes","processCommit", "processRollback", "finish");
 
+  private static SolrCore core;
+  private static CloudDescriptor cloudDescriptor;
+
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setupSentry();
-    createCore("solrconfig.xml", "schema.xml");
+    core = createCore("solrconfig.xml", "schema.xml");
+    // store the CloudDescriptor, because we will overwrite it with a mock
+    // and restore it later
+    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    closeCore();
-    teardownSentry();
+    closeCore(core, cloudDescriptor);
+    core = null;
+    cloudDescriptor = null;
+  }
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp(core);
   }
 
   private void verifyAuthorized(String collection, String user) throws Exception {
@@ -110,8 +121,9 @@ public class UpdateIndexAuthorizationProcessorTest extends SentryTestBase {
 
   private UpdateIndexAuthorizationProcessor getProcessor(String collection, String user) {
     SolrQueryRequest request = getRequest();
-    prepareCollAndUser(request, collection, user);
-    return factory.getInstance(request, null, null);
+    prepareCollAndUser(core, request, collection, user);
+    return new UpdateIndexAuthorizationProcessor(
+      SentrySingletonTestInstance.getInstance().getSentryInstance(), request, null, null);
   }
 
  /**
