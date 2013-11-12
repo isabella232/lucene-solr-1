@@ -344,6 +344,11 @@
         <classifier>tests</classifier>
       </dependency>
       <dependency>
+        <groupId>org.apache.sentry</groupId>
+        <artifactId>sentry-binding-solr</artifactId>
+        <version>${sentry.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.tika</groupId>
         <artifactId>tika-core</artifactId>
         <version>${tika.version}</version>

@@ -177,6 +177,13 @@
     <property name="maven.dist.dir"  location="dist/maven" />
     <mkdir dir="${maven.dist.dir}" />
     <ant dir="lucene" target="filter-pom-templates"/>
+    <exec  executable="mvn" dir="${basedir}" failonerror="true">
+      <arg value="-DskipTests" />
+      <arg value="-f" />
+      <arg value="sentry/pom.xml" />
+      <arg value="clean"/>
+      <arg value="deploy"/>
+    </exec>
     <subant target="generate-maven-artifacts" inheritall="false" failonerror="true">
       <property name="maven.dist.dir"  location="${maven.dist.dir}" />
       <property name="filtered.pom.templates.uptodate" value="true"/>
