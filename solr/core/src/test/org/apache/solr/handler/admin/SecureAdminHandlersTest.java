@@ -19,11 +19,14 @@ package org.apache.solr.handler.admin;
 import java.util.Map;
 
 import org.apache.solr.handler.RequestHandlerBase;
+import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.core.SolrCore;
 import org.apache.solr.sentry.SentryTestBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrRequestHandler;
 import org.apache.solr.response.SolrQueryResponse;
+import org.apache.solr.sentry.SentrySingletonTestInstance;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -35,24 +38,37 @@ import org.slf4j.LoggerFactory;
 public class SecureAdminHandlersTest extends SentryTestBase {
 
   private static Logger log = LoggerFactory.getLogger(LukeRequestHandler.class);
+  private static SolrCore core;
+  private static CloudDescriptor cloudDescriptor;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setupSentry();
-    createCore("solrconfig-secureadmin.xml", "schema.xml");
+    core = createCore("solrconfig-secureadmin.xml", "schema.xml");
+    // store the CloudDescriptor, because we will overwrite it with a mock
+    // and restore it later
+    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
+    // ensure SentrySingletonTestInstance is initialized
+    SentrySingletonTestInstance.getInstance();
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    closeCore();
-    teardownSentry();
+    closeCore(core, cloudDescriptor);
+    core = null;
+    cloudDescriptor = null;
+  }
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp(core);
   }
 
   @Test
   public void testAllAdminHandlersSecured() throws Exception {
     int numFound = 0;
-    for (Map.Entry<String, SolrRequestHandler> entry : getCore().getRequestHandlers().entrySet() ) {
-      if (entry.getKey().startsWith("/admin/")) {
+    for (Map.Entry<String, SolrRequestHandler> entry : core.getRequestHandlers().entrySet() ) {
+      // see note about ShowFileRequestHandler below
+      if (entry.getKey().startsWith("/admin/") && !(entry.getValue() instanceof ShowFileRequestHandler)) {
          assertTrue(entry.getValue().getClass().getEnclosingClass().equals(SecureHandler.class));
          ++numFound;
       }
@@ -73,7 +89,7 @@ public class SecureAdminHandlersTest extends SentryTestBase {
 
   private void verifyAuthorized(RequestHandlerBase handler, String collection, String user) throws Exception {
     SolrQueryRequest req = getRequest();
-    prepareCollAndUser(req, collection, user, false);
+    prepareCollAndUser(core, req, collection, user, false);
     // just ensure we don't get an unauthorized exception
     try {
       handler.handleRequestBody(req, new SolrQueryResponse());
@@ -89,7 +105,7 @@ public class SecureAdminHandlersTest extends SentryTestBase {
       String collection, String user) throws Exception {
     String exMsgContains = "User " + user + " does not have privileges for " + collection;
     SolrQueryRequest req = getRequest();
-    prepareCollAndUser(req, collection, user, false);
+    prepareCollAndUser(core, req, collection, user, false);
     try {
       handler.handleRequestBody(req, new SolrQueryResponse());
       Assert.fail("Expected SolrException");
@@ -99,18 +115,22 @@ public class SecureAdminHandlersTest extends SentryTestBase {
     }
   }
 
-  private void verifyQueryAccess(String path) throws Exception {
-    RequestHandlerBase handler =
-      (RequestHandlerBase)getCore().getRequestHandlers().get(path);
+  private void verifyQueryAccess(RequestHandlerBase handler) throws Exception {
     verifyAuthorized(handler, "collection1", "junit");
     verifyAuthorized(handler, "queryCollection", "junit");
     verifyUnauthorized(handler, "bogsuCollection", "junit");
     verifyUnauthorized(handler, "updateCollection", "junit");
   }
 
+  private void verifyQueryAccess(String path) throws Exception {
+    RequestHandlerBase handler =
+      (RequestHandlerBase)core.getRequestHandlers().get(path);
+    verifyQueryAccess(handler);
+  }
+
   private void verifyQueryUpdateAccess(String path) throws Exception {
     RequestHandlerBase handler =
-      (RequestHandlerBase)getCore().getRequestHandlers().get(path);
+      (RequestHandlerBase)core.getRequestHandlers().get(path);
     verifyAuthorized(handler, "collection1", "junit");
     verifyUnauthorized(handler, "queryCollection", "junit");
     verifyUnauthorized(handler, "bogusCollection", "junit");
@@ -146,6 +166,12 @@ public class SecureAdminHandlersTest extends SentryTestBase {
   }
 
   private void verifyFile() throws Exception {
-    verifyQueryAccess("/admin/file");
+    // file handler is built-in for backwards compatibility reasons.  Thus,
+    // handler will not be secure, so let's create one to test.
+    String path = "/admin/file";
+    RequestHandlerBase handler = (RequestHandlerBase)core.getRequestHandlers().get(path);
+    assertFalse(handler instanceof SecureHandler.SecureShowFileRequestHandler);
+    handler = new SecureHandler.SecureShowFileRequestHandler();
+    verifyQueryAccess(handler);
   }
 }

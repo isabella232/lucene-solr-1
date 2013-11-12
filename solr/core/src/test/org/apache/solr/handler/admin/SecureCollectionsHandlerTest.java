@@ -16,33 +16,49 @@
  */
 package org.apache.solr.handler.admin;
 
+import org.apache.solr.cloud.CloudDescriptor;
+import org.apache.solr.core.SolrCore;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CollectionParams.CollectionAction;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.sentry.SentryTestBase;
+import org.apache.solr.sentry.SentrySingletonTestInstance;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class SecureCollectionsHandlerTest extends SentryTestBase {
 
+  private static SolrCore core;
+  private static CloudDescriptor cloudDescriptor;
+
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setupSentry();
-    createCore("solrconfig-secureadmin.xml", "schema.xml");
+    core = createCore("solrconfig-secureadmin.xml", "schema.xml");
+    // store the CloudDescriptor, because we will overwrite it with a mock
+    // and restore it later
+    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
+    // ensure SentrySingletonTestInstance is initialized
+    SentrySingletonTestInstance.getInstance();
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    closeCore();
-    teardownSentry();
+    closeCore(core, cloudDescriptor);
+    core = null;
+    cloudDescriptor = null;
+  }
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp(core);
   }
 
   private SolrQueryRequest getCollectionsRequest(String collection, String user,
       CollectionAction action) {
     SolrQueryRequest req = getRequest();
-    prepareCollAndUser(req, collection, user, false);
+    prepareCollAndUser(core, req, collection, user, false);
     ModifiableSolrParams modParams = new ModifiableSolrParams(req.getParams());
     modParams.set(CoreAdminParams.ACTION, action.name());
     req.setParams(modParams);
@@ -50,7 +66,7 @@ public class SecureCollectionsHandlerTest extends SentryTestBase {
   }
 
   private void verifyUpdateAccess(CollectionAction action) throws Exception {
-    CollectionsHandler handler = h.getCoreContainer().getCollectionsHandler();
+    CollectionsHandler handler = new SecureCollectionsHandler(h.getCoreContainer());
     verifyAuthorized(handler, getCollectionsRequest("collection1", "junit", action));
     verifyAuthorized(handler, getCollectionsRequest("updateCollection", "junit", action));
     verifyUnauthorized(handler, getCollectionsRequest("queryCollection", "junit", action), "queryCollection", "junit");

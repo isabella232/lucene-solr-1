@@ -40,17 +40,17 @@ public class SentryIndexAuthorizationSingleton {
   private static Logger log =
     LoggerFactory.getLogger(SentryIndexAuthorizationSingleton.class);
 
+  public static final String propertyName = "solr.authorization.sentry.site";
+
   private static final SentryIndexAuthorizationSingleton INSTANCE =
-    new SentryIndexAuthorizationSingleton();
+    new SentryIndexAuthorizationSingleton(System.getProperty(propertyName));
 
   private final SolrAuthzBinding binding;
 
-  private SentryIndexAuthorizationSingleton() {
+  private SentryIndexAuthorizationSingleton(String sentrySiteLocation) {
     SolrAuthzBinding tmpBinding = null;
-    String propertyName = "solr.authorization.sentry.site";
-    String sentrySiteLocation = System.getProperty(propertyName);
     try {
-      if (sentrySiteLocation != null && sentrySiteLocation != "") {
+      if (sentrySiteLocation != null && sentrySiteLocation.length() > 0) {
         tmpBinding =
           new SolrAuthzBinding(new SolrAuthzConf(new URL("file://" + sentrySiteLocation)));
         log.info("SolrAuthzBinding created successfully");

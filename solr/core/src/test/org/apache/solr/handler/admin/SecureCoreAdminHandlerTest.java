@@ -18,17 +18,23 @@ package org.apache.solr.handler.admin;
 
 import java.util.Arrays;
 import java.util.List;
+import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CoreAdminParams.CoreAdminAction;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.CoreAdminParams.CoreAdminAction;
+import org.apache.solr.core.SolrCore;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.sentry.SentryTestBase;
+import org.apache.solr.sentry.SentrySingletonTestInstance;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class SecureCoreAdminHandlerTest extends SentryTestBase {
+
+  private static SolrCore core;
+  private static CloudDescriptor cloudDescriptor;
 
   public final static List<CoreAdminAction> QUERY_ACTIONS = Arrays.asList(CoreAdminAction.STATUS);
   public final static List<CoreAdminAction> UPDATE_ACTIONS = Arrays.asList(
@@ -55,20 +61,30 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    setupSentry();
-    createCore("solrconfig-secureadmin.xml", "schema.xml");
+    core = createCore("solrconfig-secureadmin.xml", "schema.xml");
+    // store the CloudDescriptor, because we will overwrite it with a mock
+    // and restore it later
+    cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
+    // ensure the SentrySingletonTestInstance is initialized
+    SentrySingletonTestInstance.getInstance();
   }
 
   @AfterClass
   public static void afterClass() throws Exception {
-    closeCore();
-    teardownSentry();
+    closeCore(core, cloudDescriptor);
+    core = null;
+    cloudDescriptor = null;
+  }
+
+  @Override
+  public void setUp() throws Exception {
+    super.setUp(core);
   }
 
   private SolrQueryRequest getCoreAdminRequest(String collection, String user,
       CoreAdminAction action) {
     SolrQueryRequest req = getRequest();
-    prepareCollAndUser(req, collection, user, false);
+    prepareCollAndUser(core, req, collection, user, false);
     ModifiableSolrParams modParams = new ModifiableSolrParams(req.getParams());
     modParams.set(CoreAdminParams.ACTION, action.name());
     req.setParams(modParams);
@@ -76,7 +92,7 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
   }
 
   private void verifyQueryAccess(CoreAdminAction action) throws Exception {
-    CoreAdminHandler handler = h.getCoreContainer().getMultiCoreHandler();
+    CoreAdminHandler handler = new SecureCoreAdminHandler(h.getCoreContainer());
     verifyAuthorized(handler, getCoreAdminRequest("collection1", "junit", action));
     verifyAuthorized(handler, getCoreAdminRequest("queryCollection", "junit", action));
     verifyUnauthorized(handler, getCoreAdminRequest("bogusCollection", "junit", action), "bogusCollection", "junit");
@@ -84,7 +100,7 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
   }
 
   private void verifyUpdateAccess(CoreAdminAction action) throws Exception {
-    CoreAdminHandler handler = h.getCoreContainer().getMultiCoreHandler();
+    CoreAdminHandler handler = new SecureCoreAdminHandler(h.getCoreContainer());
     verifyAuthorized(handler, getCoreAdminRequest("collection1", "junit", action));
     verifyAuthorized(handler, getCoreAdminRequest("updateCollection", "junit", action));
     verifyUnauthorized(handler, getCoreAdminRequest("bogusCollection", "junit", action), "bogusCollection", "junit");
