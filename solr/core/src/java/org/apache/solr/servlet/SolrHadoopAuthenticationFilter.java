@@ -29,7 +29,6 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Properties;
 import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHandler;
-import org.apache.solr.servlet.TeeHttpServletRequestWrapper;
 
 /**
  * Authentication filter that extends Hadoop-auth AuthenticationFilter to override
