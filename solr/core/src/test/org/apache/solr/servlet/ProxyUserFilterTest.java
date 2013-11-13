@@ -243,4 +243,10 @@ public class ProxyUserFilterTest extends SolrTestCaseJ4 {
       filter.destroy();
     }
   }
+
+  public void testSuperUser() throws Exception {
+    ProxyUserFilter filter = new ProxyUserFilter();
+    filter.init(null);
+    filter.validate("solr", "localhost", "foobar");
+  }
 }
