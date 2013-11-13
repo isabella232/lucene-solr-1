@@ -55,6 +55,7 @@ public class ProxyUserFilter implements Filter {
   private Map<String, Set<String>> proxyUserHosts = new HashMap<String, Set<String>>();
   private Map<String, Set<String>> proxyUserGroups = new HashMap<String, Set<String>>();
   private org.apache.hadoop.security.Groups hGroups;
+  private static String superUser = System.getProperty("solr.authorization.superuser", "solr");
 
 
   @Override
@@ -101,6 +102,15 @@ public class ProxyUserFilter implements Filter {
         }
         proxyUserHosts.put(proxyUser, values);
       }
+    }
+    // superuser must be able to proxy any user in order to properly
+    // forward requests
+    if (!proxyUserGroups.containsKey(superUser) && !proxyUserHosts.containsKey(superUser)) {
+      proxyUserGroups.put(superUser, null);
+      proxyUserHosts.put(superUser, null);
+    } else {
+      LOG.warn("Not automatically granting proxy privileges to superUser: " + superUser
+        + " because user groups or user hosts already set for superUser");
     }
     hGroups = new org.apache.hadoop.security.Groups(new Configuration());
   }
