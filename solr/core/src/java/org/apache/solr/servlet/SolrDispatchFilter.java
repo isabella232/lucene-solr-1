@@ -66,9 +66,12 @@ import org.apache.solr.request.SolrRequestInfo;
 import org.apache.solr.response.BinaryQueryResponseWriter;
 import org.apache.solr.response.QueryResponseWriter;
 import org.apache.solr.response.SolrQueryResponse;
+import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.servlet.cache.HttpCacheHeaderUtil;
 import org.apache.solr.servlet.cache.Method;
 import org.apache.solr.update.processor.DistributingUpdateProcessorFactory;
+import org.apache.solr.servlet.ProxyUserFilter;
+import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.apache.solr.util.FastWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -511,7 +514,22 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       String urlstr = coreUrl;
       
       String queryString = req.getQueryString();
-      
+      if (queryString != null) {
+        final SolrParams params = SolrRequestParsers.parseQueryString(queryString);
+        final String doAsUserName = params.get(ProxyUserFilter.DO_AS_PARAM);
+        if (SentryIndexAuthorizationSingleton.getInstance().isEnabled() && doAsUserName == null) {
+          // doAsUserName not null, let's add it to the request so authorization
+          // works properly
+          String userName = (String)req.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
+          if (userName == null) {
+            throw new IOException("Attempting to proxy secure request, but "
+              + SolrHadoopAuthenticationFilter.USER_NAME + " not found");
+          }
+          StringBuilder doAsParam = new StringBuilder("&").append(ProxyUserFilter.DO_AS_PARAM)
+            .append("=").append(userName);
+          queryString += doAsParam.toString();
+        }
+      }
       urlstr += queryString == null ? "" : "?" + queryString;
       
       URL url = new URL(urlstr);
