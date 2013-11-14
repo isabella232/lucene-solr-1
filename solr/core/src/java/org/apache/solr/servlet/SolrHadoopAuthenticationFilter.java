@@ -107,7 +107,7 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
 
     // use QueryStringAuthenticationHandler rather than hadoop's
     // PseudoAuthenticationHandler, so we don't affect getInputStream()
-    if (props.getProperty(AUTH_TYPE) == PseudoAuthenticationHandler.TYPE) {
+    if (props.getProperty(AUTH_TYPE).equals(PseudoAuthenticationHandler.TYPE)) {
       props.setProperty(AUTH_TYPE, QueryStringAuthenticationHandler.TYPE);
     }
 
