@@ -75,19 +75,39 @@ public class SentryIndexAuthorizationSingleton {
     return binding != null;
   }
 
+  /**
+   * Attempt to authorize an administrative action.
+   *
+   * @param req request to check
+   * @param actions set of actions to check
+   * @param checkCollection check the collection the action is on, or only "admin"?
+   * @param collection only relevant if checkCollection==true,
+   *   use collection (if non-null) instead pulling collection name from req (if null)
+   */
   public void authorizeAdminAction(SolrQueryRequest req,
-      Set<SearchModelAction> actions) throws SolrException {
-    authorizeCollectionAction(req, actions, "admin");
-    authorizeCollectionAction(req, actions, null);
+      Set<SearchModelAction> actions, boolean checkCollection, String collection)
+      throws SolrException {
+    authorizeCollectionAction(req, actions, "admin", true);
+    if (checkCollection) {
+      // Let's not error out if we can't find the collection associated with an
+      // admin action, it's pretty complicated to get all the possible administrative
+      // actions correct.  Instead, let's warn in the log and address any issues we
+      // find.
+      authorizeCollectionAction(req, actions, collection, false);
+    }
   }
 
+  /**
+   * Attempt to authorize a collection action.  The collection
+   * name will be pulled from the request.
+   */
   public void authorizeCollectionAction(SolrQueryRequest req,
       Set<SearchModelAction> actions) throws SolrException {
-    authorizeCollectionAction(req, actions, null);
+    authorizeCollectionAction(req, actions, null, true);
   }
 
   private void authorizeCollectionAction(SolrQueryRequest req,
-      Set<SearchModelAction> actions, String collectionName) {
+      Set<SearchModelAction> actions, String collectionName, boolean errorIfNoCollection) {
     String exMsg = null;
 
     if (binding == null) {
@@ -109,6 +129,16 @@ public class SentryIndexAuthorizationSingleton {
         Subject subject = new Subject(userName);
         Subject superUser = new Subject(System.getProperty("solr.authorization.superuser", "solr"));
         if (collectionName == null) {
+          if (solrCore == null) {
+            String msg = "Unable to locate collection for sentry to authorize because "
+              + "no SolrCore attached to request";
+            if (errorIfNoCollection) {
+              throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, msg);
+            } else { // just warn
+              log.warn(msg);
+              return;
+            }
+          }
           collectionName = solrCore.getCoreDescriptor().getCloudDescriptor().getCollectionName();
         }
         Collection collection = new Collection(collectionName);

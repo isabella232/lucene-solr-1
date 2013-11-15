@@ -25,7 +25,13 @@ import org.apache.solr.response.SolrQueryResponse;
 public class SecureReplicationHandler extends ReplicationHandler {
   @Override
   public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
-    SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true);
+    String collection = null;
+    if (req.getCore() == null) {
+      // if the request doesn't have a core, let's use the core stored on the
+      // request handler
+      collection = core.getCoreDescriptor().getCloudDescriptor().getCollectionName();
+    }
+    SecureRequestHandlerUtil.checkSentryAdmin(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true, collection);
     super.handleRequestBody(req, rsp);
   }
 }

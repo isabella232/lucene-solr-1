@@ -18,6 +18,9 @@ package org.apache.solr.handler.admin;
  */
 
 import java.util.EnumSet;
+import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.params.CollectionParams.CollectionAction;
+import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.handler.SecureRequestHandlerUtil;
 import org.apache.solr.request.SolrQueryRequest;
@@ -39,9 +42,40 @@ public class SecureCollectionsHandler extends CollectionsHandler {
 
   @Override
   public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
-    // all actions require UPDATE privileges, so we don't have to do
-    // special handling for each action
-    SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.UPDATE_ONLY, true);
+    // Pick the action
+    SolrParams params = req.getParams();
+    CollectionAction action = null;
+    String a = params.get(CoreAdminParams.ACTION);
+    String collection = null;
+    if (a != null) {
+      action = CollectionAction.get(a);
+    }
+    if (action != null) {
+      switch (action) {
+        case CREATE:
+        case DELETE:
+        case RELOAD:
+        case CREATEALIAS: // FixMe: do we need to check the underlying "collections" as well?
+        case DELETEALIAS:
+        {
+          collection = req.getParams().required().get("name");
+          break;
+        }
+        case SYNCSHARD:
+        case SPLITSHARD:
+        case DELETESHARD: {
+          collection = req.getParams().required().get("collection");
+          break;
+        }
+        default: {
+          collection = null;
+          break;
+        }
+      }
+    }
+    // all actions require UPDATE privileges
+    SecureRequestHandlerUtil.checkSentryAdmin(req, SecureRequestHandlerUtil.UPDATE_ONLY,
+      true, collection);
     super.handleRequestBody(req, rsp);
   }
 }

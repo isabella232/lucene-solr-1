@@ -123,11 +123,11 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
   }
 
   protected void verifyUnauthorized(SolrRequestHandler handler,
-      RequestHandlerBase handlerBase, SolrQueryRequest req, String collection, String user)
+      RequestHandlerBase handlerBase, SolrQueryRequest req, String collection, String user, boolean shouldFailAdmin)
       throws Exception {
     assert((handler == null && handlerBase != null)
       || (handler != null && handlerBase == null));
-    String exMsgContains = "User " + user + " does not have privileges for " + collection;
+    String exMsgContains = "User " + user + " does not have privileges for " + (shouldFailAdmin?"admin":collection);
     SolrQueryResponse rsp = new SolrQueryResponse();
     try {
       if (handler!= null) {
@@ -142,12 +142,17 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
   }
 
   protected void verifyUnauthorized(RequestHandlerBase handlerBase,
+      SolrQueryRequest req, String collection, String user, boolean shouldFailAdmin) throws Exception {
+    verifyUnauthorized(null, handlerBase, req, collection, user, shouldFailAdmin);
+  }
+
+  protected void verifyUnauthorized(RequestHandlerBase handlerBase,
       SolrQueryRequest req, String collection, String user) throws Exception {
-    verifyUnauthorized(null, handlerBase, req, collection, user);
+    verifyUnauthorized(null, handlerBase, req, collection, user, false);
   }
 
   protected void verifyUnauthorized(SolrRequestHandler handler,
       SolrQueryRequest req, String collection, String user) throws Exception {
-    verifyUnauthorized(handler, null, req, collection, user);
+    verifyUnauthorized(handler, null, req, collection, user, false);
   }
 }

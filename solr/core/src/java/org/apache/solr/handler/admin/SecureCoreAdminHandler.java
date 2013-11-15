@@ -18,6 +18,7 @@ package org.apache.solr.handler.admin;
  */
 
 import java.util.EnumSet;
+import org.apache.solr.core.SolrCore;
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CoreAdminParams.CoreAdminAction;
@@ -49,13 +50,53 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
       action = CoreAdminAction.get(a);
       if (action == null) {
         // some custom action -- let's reqiure QUERY and UPDATE
-        SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true);
+        SecureRequestHandlerUtil.checkSentryAdmin(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true, null);
       }
     }
+    String collection = null;
+    boolean checkCollection = true;
     if (action != null) {
       switch (action) {
+        case RENAME:
+        case UNLOAD:
+        case STATUS:
+        case RELOAD:
+        case SWAP:
+        case MERGEINDEXES:
+        case SPLIT:
+        case PREPRECOVERY:
+        case REQUESTRECOVERY:
+        case REQUESTSYNCSHARD:
+        case REQUESTAPPLYUPDATES: {
+          String cname = params.get(CoreAdminParams.NAME, "");
+          if (cname != "") {
+            SolrCore core = coreContainer.getCore(cname);
+            if (core != null) {
+              collection = core.getCoreDescriptor().getCloudDescriptor().getCollectionName();
+            }
+          }
+          break;
+        }
+        case CREATE: {
+          collection = params.get(CoreAdminParams.COLLECTION);
+          break;
+        }
+        case PERSIST:
+        case CREATEALIAS:
+        case DELETEALIAS:
+        case LOAD_ON_STARTUP:
+        case TRANSIENT:
+        default: {
+          // these are actions that are not core related or not actually
+          // handled by the CoreAdminHandler
+          checkCollection = false;
+          break;
+        }
+      }
+
+      switch (action) {
         case STATUS: {
-          SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_ONLY, true);
+          SecureRequestHandlerUtil.checkSentryAdmin(req, SecureRequestHandlerUtil.QUERY_ONLY, checkCollection, collection);
           break;
         }
         case LOAD:
@@ -77,12 +118,12 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
         case DELETEALIAS:
         case LOAD_ON_STARTUP:
         case TRANSIENT: {
-          SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.UPDATE_ONLY, true);
+          SecureRequestHandlerUtil.checkSentryAdmin(req, SecureRequestHandlerUtil.UPDATE_ONLY, checkCollection, collection);
           break;
         }
         default: {
           // some custom action -- let's reqiure QUERY and UPDATE
-          SecureRequestHandlerUtil.checkSentry(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, true);
+          SecureRequestHandlerUtil.checkSentryAdmin(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, checkCollection, collection);
           break;
         }
       }

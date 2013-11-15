@@ -102,8 +102,8 @@ public class SecureAdminHandlersTest extends SentryTestBase {
   }
 
   private void verifyUnauthorized(RequestHandlerBase handler,
-      String collection, String user) throws Exception {
-    String exMsgContains = "User " + user + " does not have privileges for " + collection;
+      String collection, String user, boolean shouldFailAdmin) throws Exception {
+    String exMsgContains = "User " + user + " does not have privileges for " + (shouldFailAdmin?"admin":collection);
     SolrQueryRequest req = getRequest();
     prepareCollAndUser(core, req, collection, user, false);
     try {
@@ -115,54 +115,61 @@ public class SecureAdminHandlersTest extends SentryTestBase {
     }
   }
 
-  private void verifyQueryAccess(RequestHandlerBase handler) throws Exception {
+  private void verifyQueryAccess(RequestHandlerBase handler, boolean checkCollection) throws Exception {
     verifyAuthorized(handler, "collection1", "junit");
     verifyAuthorized(handler, "queryCollection", "junit");
-    verifyUnauthorized(handler, "bogsuCollection", "junit");
-    verifyUnauthorized(handler, "updateCollection", "junit");
+    if (checkCollection) {
+      verifyUnauthorized(handler, "bogusCollection", "junit", false);
+      verifyUnauthorized(handler, "updateCollection", "junit", false);
+    } else {
+      verifyUnauthorized(handler, "collection1", "bogusUser", true);
+    }
   }
 
-  private void verifyQueryAccess(String path) throws Exception {
+  private void verifyQueryAccess(String path, boolean checkCollection) throws Exception {
     RequestHandlerBase handler =
       (RequestHandlerBase)core.getRequestHandlers().get(path);
-    verifyQueryAccess(handler);
+    verifyQueryAccess(handler, checkCollection);
   }
 
-  private void verifyQueryUpdateAccess(String path) throws Exception {
+  private void verifyQueryUpdateAccess(String path, boolean checkCollection) throws Exception {
     RequestHandlerBase handler =
       (RequestHandlerBase)core.getRequestHandlers().get(path);
     verifyAuthorized(handler, "collection1", "junit");
-    verifyUnauthorized(handler, "queryCollection", "junit");
-    verifyUnauthorized(handler, "bogusCollection", "junit");
-    verifyUnauthorized(handler, "updateCollection", "junit");
+    verifyUnauthorized(handler, "collection1", "bogusUser", true);
+    if (checkCollection) {
+      verifyUnauthorized(handler, "queryCollection", "junit", false);
+      verifyUnauthorized(handler, "bogusCollection", "junit", false);
+      verifyUnauthorized(handler, "updateCollection", "junit", false);
+    }
   }
 
   private void verifyLuke() throws Exception {
-    verifyQueryAccess("/admin/luke");
+    verifyQueryAccess("/admin/luke", true);
   }
 
   private void verifySystem() throws Exception {
-    verifyQueryAccess("/admin/system");
+    verifyQueryAccess("/admin/system", true);
   }
 
   private void verifyMBeans() throws Exception {
-    verifyQueryAccess("/admin/mbeans");
+    verifyQueryAccess("/admin/mbeans", true);
   }
 
   private void verifyPlugins() throws Exception {
-    verifyQueryAccess("/admin/plugins");
+    verifyQueryAccess("/admin/plugins", true);
   }
 
   private void verifyThreads() throws Exception {
-    verifyQueryAccess("/admin/threads");
+    verifyQueryAccess("/admin/threads", false);
   }
 
   private void verifyProperties() throws Exception {
-    verifyQueryAccess("/admin/properties");
+    verifyQueryAccess("/admin/properties", false);
   }
 
   private void verifyLogging() throws Exception {
-    verifyQueryUpdateAccess("/admin/logging");
+    verifyQueryUpdateAccess("/admin/logging", false);
   }
 
   private void verifyFile() throws Exception {
@@ -172,6 +179,6 @@ public class SecureAdminHandlersTest extends SentryTestBase {
     RequestHandlerBase handler = (RequestHandlerBase)core.getRequestHandlers().get(path);
     assertFalse(handler instanceof SecureAdminHandlers.SecureShowFileRequestHandler);
     handler = new SecureAdminHandlers.SecureShowFileRequestHandler();
-    verifyQueryAccess(handler);
+    verifyQueryAccess(handler, true);
   }
 }
