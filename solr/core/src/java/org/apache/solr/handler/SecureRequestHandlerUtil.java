@@ -35,16 +35,35 @@ public class SecureRequestHandlerUtil {
   public static SentryIndexAuthorizationSingleton testOverride = null;
 
   /**
-   * Check with sentry whether all of the specified actions are valid for the request
+   * Attempt to authorize an administrative action.
+   *
+   * @param req request to check
+   * @param actions set of actions to check
+   * @param checkCollection check the collection the action is on, or only "admin"?
+   * @param collect only relevant if checkCollection==true,
+   *   use collection (if non-null) instead pulling collection name from req (if null)
    */
-  public static void checkSentry(SolrQueryRequest req, Set<SearchModelAction> andActions, boolean admin) {
-   // Sentry currently does have AND support for actions; need to check
+  public static void checkSentryAdmin(SolrQueryRequest req, Set<SearchModelAction> andActions, boolean checkCollection, String collection) {
+    checkSentry(req, andActions, true, checkCollection, collection);
+  }
+
+  /**
+   * Attempt to authorize a collection action.  The collection
+   * name will be pulled from the request.
+   */
+  public static void checkSentryCollection(SolrQueryRequest req, Set<SearchModelAction> andActions) {
+    checkSentry(req, andActions, false, false, null);
+  }
+
+  private static void checkSentry(SolrQueryRequest req, Set<SearchModelAction> andActions,
+      boolean admin, boolean checkCollection, String collection) {
+    // Sentry currently does have AND support for actions; need to check
     // actions one at a time
     final SentryIndexAuthorizationSingleton sentryInstance =
       (testOverride == null)?SentryIndexAuthorizationSingleton.getInstance():testOverride;
     for (SearchModelAction action : andActions) {
       if (admin) {
-        sentryInstance.authorizeAdminAction(req, EnumSet.of(action));
+        sentryInstance.authorizeAdminAction(req, EnumSet.of(action), checkCollection, collection);
       } else {
         sentryInstance.authorizeCollectionAction(req, EnumSet.of(action));
       }

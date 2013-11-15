@@ -61,6 +61,8 @@ public class SecureCollectionsHandlerTest extends SentryTestBase {
     prepareCollAndUser(core, req, collection, user, false);
     ModifiableSolrParams modParams = new ModifiableSolrParams(req.getParams());
     modParams.set(CoreAdminParams.ACTION, action.name());
+    modParams.set("name", collection);
+    modParams.set("collection", collection);
     req.setParams(modParams);
     return req;
   }
