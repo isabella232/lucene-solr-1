@@ -59,6 +59,15 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
     CoreAdminAction.RELOAD
   );
 
+  // actions which are not related to collections
+  public final static List<CoreAdminAction> NO_CHECK_COLLECTIONS = Arrays.asList(
+    CoreAdminAction.PERSIST,
+    CoreAdminAction.CREATEALIAS,
+    CoreAdminAction.DELETEALIAS,
+    CoreAdminAction.LOAD_ON_STARTUP,
+    CoreAdminAction.TRANSIENT
+  );
+
   @BeforeClass
   public static void beforeClass() throws Exception {
     core = createCore("solrconfig-secureadmin.xml", "schema.xml");
@@ -87,6 +96,13 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
     prepareCollAndUser(core, req, collection, user, false);
     ModifiableSolrParams modParams = new ModifiableSolrParams(req.getParams());
     modParams.set(CoreAdminParams.ACTION, action.name());
+    for (SolrCore core : h.getCoreContainer().getCores()) {
+      if(core.getCoreDescriptor().getCloudDescriptor().getCollectionName().equals(collection)) {
+        modParams.set("core", core.getName());
+        break;
+      }
+    }
+    modParams.set("collection", collection);
     req.setParams(modParams);
     return req;
   }
@@ -99,12 +115,14 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
     verifyUnauthorized(handler, getCoreAdminRequest("updateCollection", "junit", action), "updateCollection", "junit");
   }
 
-  private void verifyUpdateAccess(CoreAdminAction action) throws Exception {
+  private void verifyUpdateAccess(CoreAdminAction action, boolean checkCollection) throws Exception {
     CoreAdminHandler handler = new SecureCoreAdminHandler(h.getCoreContainer());
     verifyAuthorized(handler, getCoreAdminRequest("collection1", "junit", action));
     verifyAuthorized(handler, getCoreAdminRequest("updateCollection", "junit", action));
-    verifyUnauthorized(handler, getCoreAdminRequest("bogusCollection", "junit", action), "bogusCollection", "junit");
-    verifyUnauthorized(handler, getCoreAdminRequest("queryCollection", "junit", action), "queryCollection", "junit");
+    verifyUnauthorized(handler, getCoreAdminRequest("bogusCollection", "bogusUser", action), "bogusCollection", "bogusUser", true);
+    if (checkCollection) {
+      verifyUnauthorized(handler, getCoreAdminRequest("queryCollection", "junit", action), "queryCollection", "junit");
+    }
   }
 
   @Test
@@ -113,7 +131,7 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
       verifyQueryAccess(action);
     }
     for (CoreAdminAction action : UPDATE_ACTIONS) {
-      verifyUpdateAccess(action);
+      verifyUpdateAccess(action, !NO_CHECK_COLLECTIONS.contains(action));
     }
   }
 
