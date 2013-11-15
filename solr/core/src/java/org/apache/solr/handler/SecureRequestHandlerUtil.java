@@ -38,9 +38,9 @@ public class SecureRequestHandlerUtil {
    * Attempt to authorize an administrative action.
    *
    * @param req request to check
-   * @param actions set of actions to check
+   * @param andActions set of actions to check
    * @param checkCollection check the collection the action is on, or only "admin"?
-   * @param collect only relevant if checkCollection==true,
+   * @param collection only relevant if checkCollection==true,
    *   use collection (if non-null) instead pulling collection name from req (if null)
    */
   public static void checkSentryAdmin(SolrQueryRequest req, Set<SearchModelAction> andActions, boolean checkCollection, String collection) {
