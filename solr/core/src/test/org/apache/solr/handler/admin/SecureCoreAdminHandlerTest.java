@@ -59,8 +59,14 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
     CoreAdminAction.RELOAD
   );
 
-  // actions which are not related to collections
+  // only specify the collection on these, no cores
+  public final static List<CoreAdminAction> REQUIRES_COLLECTION = Arrays.asList(
+    CoreAdminAction.CREATE
+  );
+
+  // actions which don't check the actual collection
   public final static List<CoreAdminAction> NO_CHECK_COLLECTIONS = Arrays.asList(
+    CoreAdminAction.LOAD,
     CoreAdminAction.PERSIST,
     CoreAdminAction.CREATEALIAS,
     CoreAdminAction.DELETEALIAS,
@@ -96,13 +102,20 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
     prepareCollAndUser(core, req, collection, user, false);
     ModifiableSolrParams modParams = new ModifiableSolrParams(req.getParams());
     modParams.set(CoreAdminParams.ACTION, action.name());
-    for (SolrCore core : h.getCoreContainer().getCores()) {
-      if(core.getCoreDescriptor().getCloudDescriptor().getCollectionName().equals(collection)) {
-        modParams.set("core", core.getName());
-        break;
+    modParams.set(CoreAdminParams.COLLECTION, "");
+    modParams.set(CoreAdminParams.CORE, "");
+    modParams.set(CoreAdminParams.NAME, "");
+    if (!REQUIRES_COLLECTION.contains(action)) {
+      for (SolrCore core : h.getCoreContainer().getCores()) {
+        if(core.getCoreDescriptor().getCloudDescriptor().getCollectionName().equals(collection)) {
+          modParams.set(CoreAdminParams.CORE, core.getName());
+          modParams.set(CoreAdminParams.NAME, core.getName());
+          break;
+        }
       }
+    } else {
+      modParams.set(CoreAdminParams.COLLECTION, collection);
     }
-    modParams.set("collection", collection);
     req.setParams(modParams);
     return req;
   }

@@ -74,16 +74,16 @@ public class SecureInfoHandlerTest extends SentryTestBase {
     InfoHandler handler = new SecureInfoHandler(h.getCoreContainer());
     verifyAuthorized(handler, getInfoRequest("collection1", "junit", path));
     verifyAuthorized(handler, getInfoRequest("queryCollection", "junit", path));
-    verifyUnauthorized(handler, getInfoRequest("bogusCollection", "junit", path), "bogusCollection", "junit");
-    verifyUnauthorized(handler, getInfoRequest("updateCollection", "junit", path), "updateCollection", "junit");
+    verifyUnauthorized(handler, getInfoRequest("bogusCollection", "bogusUser", path), "bogusCollection", "bogusUser", true);
+    verifyUnauthorized(handler, getInfoRequest("updateCollection", "updateOnlyAdmin", path), "updateCollection", "updateOnlyAdmin", true);
   }
 
   private void verifyQueryUpdateAccess(String path) throws Exception {
     InfoHandler handler = new SecureInfoHandler(h.getCoreContainer());
     verifyAuthorized(handler, getInfoRequest("collection1", "junit", path));
-    verifyUnauthorized(handler, getInfoRequest("queryCollection", "junit", path), "queryCollection", "junit");
-    verifyUnauthorized(handler, getInfoRequest("bogusCollection", "junit", path), "bogusCollection", "junit");
-    verifyUnauthorized(handler, getInfoRequest("updateCollection", "junit", path), "updateCollection", "junit");
+    verifyUnauthorized(handler, getInfoRequest("queryCollection", "queryOnlyAdmin", path), "queryCollection", "queryOnlyAdmin", true);
+    verifyUnauthorized(handler, getInfoRequest("bogusCollection", "bogusUser", path), "bogusCollection", "bogusUser", true);
+    verifyUnauthorized(handler, getInfoRequest("updateCollection", "updateOnlyAdmin", path), "updateCollection", "updateOnlyAdmin", true);
   }
 
   private void verifyThreadDumpHandler() throws Exception {
