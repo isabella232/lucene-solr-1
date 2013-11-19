@@ -31,6 +31,7 @@ import org.apache.sentry.policy.common.PolicyEngine;
 import org.apache.sentry.provider.common.AuthorizationProvider;
 import org.apache.sentry.provider.common.ProviderBackend;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.HdfsDirectoryFactory;
 import org.apache.solr.util.HdfsUtil;
 
@@ -67,6 +68,7 @@ public class SolrAuthzBinding {
     Constructor<?> providerBackendConstructor =
       Class.forName(providerBackendName).getDeclaredConstructor(Configuration.class, String.class);
     providerBackendConstructor.setAccessible(true);
+    maybeInitKerberos();
     Configuration conf = getConf();
     ProviderBackend providerBackend =
       (ProviderBackend) providerBackendConstructor.newInstance(new Object[] {conf, resourceName});
@@ -116,5 +118,17 @@ public class SolrAuthzBinding {
       throw new IOException("Sentry binding encountered an exception trying to create Configuration", se);
     }
     return conf;
+  }
+
+  private void maybeInitKerberos() {
+    // solr will loginFromKeytab when the HdfsDirectoryFactory is created
+    NamedList kerberosArgs = new NamedList();
+    kerberosArgs.add(HdfsDirectoryFactory.KERBEROS_KEYTAB,
+      System.getProperty(HdfsDirectoryFactory.KERBEROS_KEYTAB, ""));
+    kerberosArgs.add(HdfsDirectoryFactory.KERBEROS_PRINCIPAL,
+      System.getProperty(HdfsDirectoryFactory.KERBEROS_PRINCIPAL, ""));
+    kerberosArgs.add(HdfsDirectoryFactory.KERBEROS_ENABLED,
+      System.getProperty(HdfsDirectoryFactory.KERBEROS_ENABLED, "false"));
+    new HdfsDirectoryFactory().init(kerberosArgs);
   }
 }
