@@ -17,14 +17,31 @@
 
 package org.apache.solr;
 
-import com.carrotsearch.randomizedtesting.RandomizedContext;
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
-import com.carrotsearch.randomizedtesting.rules.SystemPropertiesRestoreRule;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+
+import javax.xml.xpath.XPathExpressionException;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.QuickPatchThreadsFilter;
 import org.apache.solr.client.solrj.util.ClientUtils;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.SolrInputField;
@@ -62,22 +79,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
-import javax.xml.xpath.XPathExpressionException;
-import java.io.File;
-import java.io.IOException;
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-
-import static com.google.common.base.Preconditions.checkNotNull;
+import com.carrotsearch.randomizedtesting.RandomizedContext;
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
+import com.carrotsearch.randomizedtesting.rules.SystemPropertiesRestoreRule;
 
 /**
  * A junit4 Solr test harness that extends LuceneTestCaseJ4. To change which core is used when loading the schema and solrconfig.xml, simply
@@ -1540,8 +1544,43 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       throw new RuntimeException("XPath is invalid", e2);
     }
   }
+/*<<<<<<< HEAD
   // Creates a mininmal conf dir.
   public void copyMinConf(File dstRoot) throws IOException {
+======= */
+                                                         
+  /**
+   * Fails if the number of documents in the given SolrDocumentList differs
+   * from the given number of expected values, or if any of the values in the
+   * given field don't match the expected values in the same order.
+   */
+  public static void assertFieldValues(SolrDocumentList documents, String fieldName, Object... expectedValues) {
+    if (documents.size() != expectedValues.length) {
+      fail("Number of documents (" + documents.size()
+          + ") is different from number of expected values (" + expectedValues.length);
+    }
+    for (int docNum = 1 ; docNum <= documents.size() ; ++docNum) {
+      SolrDocument doc = documents.get(docNum - 1);
+      Object expected = expectedValues[docNum - 1];
+      Object actual = doc.get(fieldName);
+      if (null != expected && null != actual) {
+        if ( ! expected.equals(actual)) {
+          fail( "Unexpected " + fieldName + " field value in document #" + docNum
+              + ": expected=[" + expected + "], actual=[" + actual + "]");
+        }
+      }
+    }
+  }
+
+  public static void copyMinConf(File dstRoot) throws IOException {
+    copyMinConf(dstRoot, null);
+  }
+
+  // Creates a minimal conf dir. Optionally adding in a core.properties file from the string passed in
+  // the string to write to the core.properties file may be null in which case nothing is done with it.
+  // propertiesContent may be an empty string, which will actually work.
+  public static void copyMinConf(File dstRoot, String propertiesContent) throws IOException {
+//>>>>>>> 8313b5a... SOLR-5354: Distributed sort is broken with CUSTOM FieldType (merged trunk r1546457)
 
     File subHome = new File(dstRoot, "conf");
     assertTrue("Failed to make subdirectory ", dstRoot.mkdirs());

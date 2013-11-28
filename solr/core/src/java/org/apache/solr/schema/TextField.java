@@ -17,24 +17,33 @@
 
 package org.apache.solr.schema;
 
-import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
-import org.apache.lucene.search.*;
-import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CachingTokenFilter;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
+import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
+import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.MultiPhraseQuery;
+import org.apache.lucene.search.PhraseQuery;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CharsRef;
+import org.apache.lucene.util.UnicodeUtil;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.response.TextResponseWriter;
 import org.apache.solr.search.QParser;
-
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.io.IOException;
 
 /** <code>TextField</code> is the basic type for configurable text analysis.
  * Analyzers for field types using this implementation should be defined in the schema.
@@ -335,5 +344,26 @@ public class TextField extends FieldType {
 
   public boolean isExplicitMultiTermAnalyzer() {
     return isExplicitMultiTermAnalyzer;
+  }
+
+  @Override
+  public Object marshalSortValue(Object value) {
+    if (null == value) {
+      return null;
+    }
+    CharsRef spare = new CharsRef();
+    UnicodeUtil.UTF8toUTF16((BytesRef)value, spare);
+    return spare.toString();
+  }
+
+  @Override
+  public Object unmarshalSortValue(Object value) {
+    if (null == value) {
+      return null;
+    }
+    BytesRef spare = new BytesRef();
+    String stringVal = (String)value;
+    UnicodeUtil.UTF16toUTF8(stringVal, 0, stringVal.length(), spare);
+    return spare;
   }
 }
