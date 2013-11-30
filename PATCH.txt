@@ -1,0 +1,2 @@
+PATCH-561
+SOLR-5515 NPE when getting stats on date field with empty result on solrcloud
