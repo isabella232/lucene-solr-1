@@ -32,8 +32,8 @@ public class SecureInfoHandler extends InfoHandler {
 
     setPropertiesHandler( new SecureAdminHandlers.SecurePropertiesRequestHandler() );
     setThreadDumpHandler( new SecureAdminHandlers.SecureThreadDumpHandler() );
-    setLoggingHandler( new SecureAdminHandlers.SecureLoggingHandler() );
-    setSystemInfoHandler( new SecureAdminHandlers.SecureSystemInfoHandler() );
+    setLoggingHandler( new SecureAdminHandlers.SecureLoggingHandler(coreContainer) );
+    setSystemInfoHandler( new SecureAdminHandlers.SecureSystemInfoHandler(coreContainer) );
   }
 
 }

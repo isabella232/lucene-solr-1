@@ -33,6 +33,7 @@ import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.easymock.EasyMock;
 import org.easymock.IExpectationSetters;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 
 /**
@@ -105,7 +106,7 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
       }
     } catch (SolrException ex) {
       assertFalse(ex.code() == SolrException.ErrorCode.UNAUTHORIZED.code);
-    } catch (Throwable t) {
+    } catch (Exception ex) {
       // okay, we only want to verify we didn't get an Unauthorized exception,
       // going to treat each handler as a black box.
     }
@@ -132,12 +133,21 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     try {
       if (handler!= null) {
         handler.handleRequest(req, rsp);
+        if (rsp.getException() != null) {
+          throw rsp.getException();
+        }
       } else {
         handlerBase.handleRequestBody(req, rsp);
+        if (rsp.getException() != null) {
+          throw rsp.getException();
+        }
       }
+      Assert.fail("Expected SolrException");
     } catch (SolrException ex) {
       assertEquals(SolrException.ErrorCode.UNAUTHORIZED.code, ex.code());
       assertTrue(ex.getMessage().contains(exMsgContains));
+    } catch (Exception ex) {
+      Assert.fail("Expected SolrException");
     }
   }
 

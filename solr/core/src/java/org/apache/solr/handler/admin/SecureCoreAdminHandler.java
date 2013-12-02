@@ -41,6 +41,23 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
      super(coreContainer);
   }
 
+  private String getCollectionFromCoreName(String coreName) {
+    SolrCore solrCore = null;
+    try {
+      if (coreName != null && !coreName.equals("")) {
+        solrCore = coreContainer.getCore(coreName);
+        if (solrCore != null) {
+          return solrCore.getCoreDescriptor().getCloudDescriptor().getCollectionName();
+        }
+      }
+    } finally {
+      if (solrCore != null) {
+        solrCore.close();
+      }
+    }
+    return null;
+  }
+
   @Override
   public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
     SolrParams params = req.getParams();
@@ -66,15 +83,14 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
         case SPLIT:
         case PREPRECOVERY:
         case REQUESTRECOVERY:
-        case REQUESTSYNCSHARD:
+        case REQUESTSYNCSHARD: {
+          String cname = params.get(CoreAdminParams.CORE,"");
+          collection = getCollectionFromCoreName(cname);
+          break;
+        }
         case REQUESTAPPLYUPDATES: {
           String cname = params.get(CoreAdminParams.NAME, "");
-          if (cname != "") {
-            SolrCore core = coreContainer.getCore(cname);
-            if (core != null) {
-              collection = core.getCoreDescriptor().getCloudDescriptor().getCollectionName();
-            }
-          }
+          collection = getCollectionFromCoreName(cname);
           break;
         }
         case CREATE: {
