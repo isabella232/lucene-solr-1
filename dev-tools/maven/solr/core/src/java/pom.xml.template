@@ -281,6 +281,14 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.apache.sentry</groupid>
+      <artifactId>sentry-binding-solr</artfactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.sentry</groupid>
+      <artifactId>sentry-provider-file</artfactId>
+    </dependency>
+    <dependency>
       <groupId>org.restlet.jee</groupId>
       <artifactId>org.restlet</artifactId>
       <version>${restlet.version}</version>
