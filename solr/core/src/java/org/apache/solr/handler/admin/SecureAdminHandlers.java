@@ -18,6 +18,7 @@ package org.apache.solr.handler.admin;
 
 import java.io.IOException;
 import java.util.EnumSet;
+import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrCore;
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.handler.RequestHandlerBase;
@@ -46,6 +47,14 @@ public class SecureAdminHandlers extends AdminHandlers {
   }
 
   public static class SecureLoggingHandler extends LoggingHandler {
+    public SecureLoggingHandler(CoreContainer cc) {
+      super(cc);
+    }
+
+    public SecureLoggingHandler() {
+      super();
+    }
+
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
       // logging handler can be used both to read and change logs
@@ -96,6 +105,14 @@ public class SecureAdminHandlers extends AdminHandlers {
   }
 
   public static class SecureSystemInfoHandler extends SystemInfoHandler {
+    public SecureSystemInfoHandler() {
+      super();
+    }
+
+    public SecureSystemInfoHandler(CoreContainer cc) {
+      super(cc);
+    }
+
     @Override
     public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
       // this may or may not have the core
