@@ -281,11 +281,11 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.sentry</groupid>
+      <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-binding-solr</artfactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.sentry</groupid>
+      <groupId>org.apache.sentry</groupId>
       <artifactId>sentry-provider-file</artfactId>
     </dependency>
     <dependency>
