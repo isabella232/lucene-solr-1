@@ -282,11 +282,11 @@
     </dependency>
     <dependency>
       <groupId>org.apache.sentry</groupId>
-      <artifactId>sentry-binding-solr</artfactId>
+      <artifactId>sentry-binding-solr</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.sentry</groupId>
-      <artifactId>sentry-provider-file</artfactId>
+      <artifactId>sentry-provider-file</artifactId>
     </dependency>
     <dependency>
       <groupId>org.restlet.jee</groupId>
