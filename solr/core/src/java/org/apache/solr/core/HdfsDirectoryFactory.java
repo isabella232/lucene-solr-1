@@ -45,6 +45,8 @@ import org.apache.solr.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.sentry.binding.solr.authz.SolrAuthzBinding;
+
 public class HdfsDirectoryFactory extends CachingDirectoryFactory {
   public static Logger LOG = LoggerFactory
       .getLogger(HdfsDirectoryFactory.class);
@@ -307,31 +309,6 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
       throw new IllegalArgumentException(KERBEROS_PRINCIPAL
           + " required because " + KERBEROS_ENABLED + " set to true");
     }
-    synchronized (HdfsDirectoryFactory.class) {
-      if (kerberosInit == null) {
-        kerberosInit = new Boolean(true);
-        final Configuration conf = getConf();
-        final String authVal = conf.get(HADOOP_SECURITY_AUTHENTICATION);
-        final String kerberos = "kerberos";
-        if (authVal != null && !authVal.equals(kerberos)) {
-          throw new IllegalArgumentException(HADOOP_SECURITY_AUTHENTICATION
-              + " set to: " + authVal + ", not kerberos, but attempting to "
-              + " connect to HDFS via kerberos");
-        }
-        // let's avoid modifying the supplied configuration, just to be conservative
-        final Configuration ugiConf = new Configuration(getConf());
-        ugiConf.set(HADOOP_SECURITY_AUTHENTICATION, kerberos);
-        UserGroupInformation.setConfiguration(ugiConf);
-        LOG.info(
-            "Attempting to acquire kerberos ticket with keytab: {}, principal: {} ",
-            keytabFile, principal);
-        try {
-          UserGroupInformation.loginUserFromKeytab(principal, keytabFile);
-        } catch (IOException ioe) {
-          throw new RuntimeException(ioe);
-        }
-        LOG.info("Got Kerberos ticket");
-      }
-    }
+    SolrAuthzBinding.initKerberos(keytabFile, principal);
   }
 }
