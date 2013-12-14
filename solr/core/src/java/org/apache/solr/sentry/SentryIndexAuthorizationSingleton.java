@@ -18,6 +18,7 @@ package org.apache.solr.sentry;
 
 import org.apache.solr.common.SolrException;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.apache.sentry.binding.solr.authz.SolrAuthzBinding;
@@ -116,7 +117,9 @@ public class SentryIndexAuthorizationSingleton {
     else {
       SolrCore solrCore = req.getCore();
       HttpServletRequest httpServletRequest = (HttpServletRequest)req.getContext().get("httpRequest");
-      if (httpServletRequest == null) {
+      // LocalSolrQueryRequests won't have the HttpServletRequest because there is no
+      // http request associated with it.
+      if (httpServletRequest == null && !(req instanceof LocalSolrQueryRequest)) {
         StringBuilder builder = new StringBuilder("Unable to locate HttpServletRequest");
         if (solrCore.getSolrConfig().getBool(
           "requestDispatcher/requestParsers/@addHttpRequestToContext", true) == false) {
@@ -125,9 +128,12 @@ public class SentryIndexAuthorizationSingleton {
         exMsg = builder.toString();
       }
       else {
-        String userName = (String)httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
-        Subject subject = new Subject(userName);
         Subject superUser = new Subject(System.getProperty("solr.authorization.superuser", "solr"));
+        // If a local request, treat it like a super user request; i.e. it is equivalent to an
+        // http request from the same process.
+        String userName = req instanceof LocalSolrQueryRequest?
+          superUser.getName():(String)httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
+        Subject subject = new Subject(userName);
         if (collectionName == null) {
           if (solrCore == null) {
             String msg = "Unable to locate collection for sentry to authorize because "

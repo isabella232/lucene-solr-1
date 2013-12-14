@@ -19,14 +19,15 @@ package org.apache.solr.sentry;
 import java.io.File;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.io.FileUtils;
+import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.SolrTestCaseJ4;
-import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.request.SolrQueryRequestBase;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.request.SolrRequestHandler;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
@@ -45,7 +46,7 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
 
   public void setUp(SolrCore core) throws Exception {
     super.setUp();
-    request = new LocalSolrQueryRequest(core, new NamedList());
+    request = new SolrQueryRequestBase( core, new ModifiableSolrParams() ) { };
   }
 
   @Override
