@@ -107,7 +107,17 @@ public class SentryIndexAuthorizationSingleton {
     authorizeCollectionAction(req, actions, null, true);
   }
 
-  private void authorizeCollectionAction(SolrQueryRequest req,
+  /**
+   * Attempt to authorize a collection action.
+   *
+   * @param req request to check
+   * @param actions set of actions to check
+   * @param collectionName the collection to check.  If null, the collection
+   *   name is pulled from the request
+   * @param errorIfNoCollection is true, throw an exception if collection
+   *   cannot be located
+   */
+  public void authorizeCollectionAction(SolrQueryRequest req,
       Set<SearchModelAction> actions, String collectionName, boolean errorIfNoCollection) {
     String exMsg = null;
 
