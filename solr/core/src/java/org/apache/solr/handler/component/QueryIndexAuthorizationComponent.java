@@ -17,6 +17,7 @@
 
 package org.apache.solr.handler.component;
 
+import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.EnumSet;
+import java.util.List;
 
 public class QueryIndexAuthorizationComponent extends SearchComponent
 {
@@ -45,6 +47,23 @@ public class QueryIndexAuthorizationComponent extends SearchComponent
   public void prepare(ResponseBuilder rb) throws IOException {
     sentryInstance.authorizeCollectionAction(
       rb.req, EnumSet.of(SearchModelAction.QUERY));
+    String collections = rb.req.getParams().get("collection");
+    if (collections != null) {
+      List<String> collectionList = StrUtils.splitSmart(collections, ",", true);
+      // this may be an alias request: check each collection listed in "collections".
+      // NOTE1: this may involve checking a collection twice, because the collection
+      // on which this component is running may also be in the collections list,
+      // but this simplifies the logic.  We don't want to only check the collections in the
+      // list, because the user can spoof this by adding collections to non-alias requests.
+
+      // NOTE2: we only need to do this for queries, not for updates, because updates are only
+      // written to the first alias in the collection list, so are guaranteed to undergo the
+      // correct sentry check
+      for (String coll : collectionList) {
+        sentryInstance.authorizeCollectionAction(rb.req, EnumSet.of(SearchModelAction.QUERY),
+          coll, true);
+      }
+    }
   }
 
   @Override
