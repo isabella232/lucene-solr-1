@@ -501,13 +501,16 @@ public class SolrDispatchFilter implements Filter
       SolrQueryRequest solrReq, HttpServletResponse resp) throws IOException {
     try {
       String urlstr = coreUrl;
-      
       String queryString = req.getQueryString();
-      if (queryString != null) {
-        final SolrParams params = SolrRequestParsers.parseQueryString(queryString);
-        final String doAsUserName = params.get(ProxyUserFilter.DO_AS_PARAM);
-        if (SentryIndexAuthorizationSingleton.getInstance().isEnabled() && doAsUserName == null) {
-          // doAsUserName not null, let's add it to the request so authorization
+
+      if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
+        String doAsUserName = null;
+        if (queryString != null) {
+          final SolrParams params = SolrRequestParsers.parseQueryString(queryString);
+          doAsUserName = params.get(ProxyUserFilter.DO_AS_PARAM);
+        }
+        if (doAsUserName == null) {
+          // doAsUserName is null, let's add it to the request so authorization
           // works properly
           String userName = (String)req.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
           if (userName == null) {
@@ -516,7 +519,7 @@ public class SolrDispatchFilter implements Filter
           }
           StringBuilder doAsParam = new StringBuilder("&").append(ProxyUserFilter.DO_AS_PARAM)
             .append("=").append(userName);
-          queryString += doAsParam.toString();
+          queryString = queryString == null ? doAsParam.toString() : queryString + doAsParam.toString();
         }
       }
       urlstr += queryString == null ? "" : "?" + queryString;
