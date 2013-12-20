@@ -104,7 +104,7 @@ public class SolrRequestParsers
           "requestDispatcher/@handleSelect", true ); 
       
       addHttpRequestToContext = globalConfig.getBool( 
-          "requestDispatcher/requestParsers/@addHttpRequestToContext", true );
+          "requestDispatcher/requestParsers/@addHttpRequestToContext", false );
     }
     init(multipartUploadLimitKB, formUploadLimitKB);
   }
@@ -112,7 +112,7 @@ public class SolrRequestParsers
   private SolrRequestParsers() {
     enableRemoteStreams = false;
     handleSelect = false;
-    addHttpRequestToContext = true;
+    addHttpRequestToContext = false;
     init(2048, 2048);
   }
 
