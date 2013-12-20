@@ -370,15 +370,15 @@ public class SolrRequestParserTest extends SolrTestCaseJ4 {
     replay(request);
     
     SolrRequestParsers parsers = new SolrRequestParsers(h.getCore().getSolrConfig());
-    assertTrue(parsers.isAddRequestHeadersToContext());
+    assertFalse(parsers.isAddRequestHeadersToContext());
     SolrQueryRequest solrReq = parsers.parse(h.getCore(), "/select", request);
-    assertTrue(solrReq.getContext().containsKey("httpRequest"));
+    assertFalse(solrReq.getContext().containsKey("httpRequest"));
+
+    parsers.setAddRequestHeadersToContext(true);
+    solrReq = parsers.parse(h.getCore(), "/select", request);
     assertEquals(request, solrReq.getContext().get("httpRequest"));
     assertEquals("10.0.0.1", ((HttpServletRequest)solrReq.getContext().get("httpRequest")).getHeaders("X-Forwarded-For").nextElement());
-    
-    parsers.setAddRequestHeadersToContext(false);
-    solrReq = parsers.parse(h.getCore(), "/select", request);
-    assertFalse(solrReq.getContext().containsKey("httpRequest"));    
+     
   }
 
   public void testPostMissingContentType() throws Exception {

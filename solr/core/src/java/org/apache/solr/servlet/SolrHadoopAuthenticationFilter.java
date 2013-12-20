@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Properties;
 import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHandler;
+import org.apache.solr.servlet.SolrRequestParsers;
 
 /**
  * Authentication filter that extends Hadoop-auth AuthenticationFilter to override
@@ -57,7 +58,9 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
   public void init(FilterConfig filterConfig) throws ServletException {
     super.init(filterConfig);
     optionsServlet = new HttpServlet() {};
-   optionsServlet.init();
+    optionsServlet.init();
+    // ensure the admin requests add the request
+    SolrRequestParsers.DEFAULT.setAddRequestHeadersToContext(true);
   }
 
   /**

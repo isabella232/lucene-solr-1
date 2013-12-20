@@ -131,7 +131,7 @@ public class SentryIndexAuthorizationSingleton {
       // http request associated with it.
       if (httpServletRequest == null && !(req instanceof LocalSolrQueryRequest)) {
         StringBuilder builder = new StringBuilder("Unable to locate HttpServletRequest");
-        if (solrCore.getSolrConfig().getBool(
+        if (solrCore != null && solrCore.getSolrConfig().getBool(
           "requestDispatcher/requestParsers/@addHttpRequestToContext", true) == false) {
           builder.append(", ensure requestDispatcher/requestParsers/@addHttpRequestToContext is set to true");
         }
