@@ -34,7 +34,6 @@ import org.apache.solr.logging.LogWatcher;
 import org.apache.solr.logging.jul.JulWatcher;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.schema.IndexSchemaFactory;
-import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.FileUtils;
 import org.apache.solr.util.PropertiesUtil;
@@ -255,6 +254,9 @@ public class CoreContainer
       indexSchemaCache = new ConcurrentHashMap<String,IndexSchema>();
     }
 
+
+
+
     zkClientTimeout = Integer.parseInt(System.getProperty("zkClientTimeout",
         Integer.toString(zkClientTimeout)));
     zkSys.initZooKeeper(this, solrHome, zkHost, zkClientTimeout, hostPort, hostContext, host, leaderVoteWait, genericCoreNodeNames, distribUpdateConnTimeout, distribUpdateSoTimeout);
@@ -265,29 +267,11 @@ public class CoreContainer
     }
     
     if (adminPath != null) {
-      if (adminHandler == null) {
-        if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
-          coreAdminHandler = new SecureCoreAdminHandler(this);
-        } else {
-          coreAdminHandler = new CoreAdminHandler(this);
-        }
-      } else {
-        if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
-          throw new SolrException(ErrorCode.SERVER_ERROR,
-            "Specifying SOLR_ADMINHANDLER not supported in secure mode");
-        }
-        coreAdminHandler = this.createMultiCoreHandler(adminHandler);
-      }
+      coreAdminHandler = createHandler(cfg.getCoreAdminHandlerClass(), CoreAdminHandler.class);
     }
-    
-    if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
-      infoHandler = new SecureInfoHandler(this);
-      collectionsHandler = new SecureCollectionsHandler(this);
-    }
-    else {
-      infoHandler = new InfoHandler(this);
-      collectionsHandler = new CollectionsHandler(this);
-    }
+    collectionsHandler = createHandler(cfg.getCollectionsHandlerClass(), CollectionsHandler.class);
+    infoHandler        = createHandler(cfg.getInfoHandlerClass(), InfoHandler.class);
+
     containerProperties = cfg.getSolrProperties("solr");
 
     // setup executor to load cores in parallel
@@ -853,10 +837,11 @@ public class CoreContainer
       }
     }
   }
-  /** 
+
+  /**
    * Gets a core by name and increase its refcount.
    *
-   * @see SolrCore#close() 
+   * @see SolrCore#close()
    * @param name the core name
    * @return the core if found, null if a SolrCore by this name does not exist
    * @exception SolrException if a SolrCore with this name failed to be initialized
@@ -875,7 +860,7 @@ public class CoreContainer
     // OK, it's not presently in any list, is it in the list of dynamic cores but not loaded yet? If so, load it.
     CoreDescriptor desc = solrCores.getDynamicDescriptor(name);
     if (desc == null) { //Nope, no transient core with this name
-      
+
       // if there was an error initalizing this core, throw a 500
       // error with the details for clients attempting to access it.
       Exception e = getCoreInitFailures().get(name);
@@ -906,7 +891,7 @@ public class CoreContainer
       }
     } catch(Exception ex){
       // remains to be seen how transient cores and such
-      // will work in SolrCloud mode, but just to be future 
+      // will work in SolrCloud mode, but just to be future
       // proof...
       if (isZooKeeperAware()) {
         try {
@@ -926,34 +911,33 @@ public class CoreContainer
     return core;
   }
 
-  // ---------------- Multicore self related methods ---------------
-  /** 
-   * Creates a CoreAdminHandler for this MultiCore.
-   * @return a CoreAdminHandler
-   */
-  protected CoreAdminHandler createMultiCoreHandler(final String adminHandlerClass) {
-    return loader.newAdminHandlerInstance(CoreContainer.this, adminHandlerClass);
+  // ---------------- CoreContainer request handlers --------------
+
+  protected <T> T createHandler(String handlerClass, Class<T> clazz) {
+    return loader.newInstance(handlerClass, clazz, null, new Class[] { CoreContainer.class }, new Object[] { this });
   }
 
   public CoreAdminHandler getMultiCoreHandler() {
     return coreAdminHandler;
   }
-  
+
   public CollectionsHandler getCollectionsHandler() {
     return collectionsHandler;
   }
-  
+
   public InfoHandler getInfoHandler() {
     return infoHandler;
   }
-  
+
+  // ---------------- Multicore self related methods ---------------
+
   /**
    * the default core name, or null if there is no default core name
    */
   public String getDefaultCoreName() {
     return defaultCoreName;
   }
-  
+
   // all of the following properties aren't synchronized
   // but this should be OK since they normally won't be changed rapidly
   @Deprecated
