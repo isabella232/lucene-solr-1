@@ -1,0 +1,20 @@
+<solr>
+  <str name="adminHandler">org.apache.solr.handler.admin.SecureCoreAdminHandler</str>
+  <str name="collectionsHandler">org.apache.solr.handler.admin.SecureCollectionsHandler</str>
+  <str name="infoHandler">org.apache.solr.handler.admin.SecureInfoHandler</str>
+
+  <solrcloud>
+    <str name="host">${host:}</str>
+    <int name="hostPort">${solr.port:8983}</int>
+    <str name="hostContext">${hostContext:solr}</str>
+    <int name="zkClientTimeout">${zkClientTimeout:15000}</int>
+    <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
+  </solrcloud>
+
+  <shardHandlerFactory name="shardHandlerFactory"
+    class="HttpShardHandlerFactory">
+    <int name="socketTimeout">${socketTimeout:0}</int>
+    <int name="connTimeout">${connTimeout:0}</int>
+  </shardHandlerFactory>
+
+</solr>
