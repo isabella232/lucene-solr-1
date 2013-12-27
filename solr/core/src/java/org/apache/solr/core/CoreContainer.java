@@ -369,7 +369,7 @@ public class CoreContainer
                     preRegisterInZk(p);
                   }
                   c = create(p);
-                  registerCore(p.isTransient(), name, c, false);
+                  registerCore(p.isTransient(), name, c, false, false);
                 } catch (Throwable t) {
                   if (isZooKeeperAware()) {
                     try {
@@ -427,6 +427,20 @@ public class CoreContainer
     } finally {
       if (coreLoadExecutor != null) {
         ExecutorUtil.shutdownNowAndAwaitTermination(coreLoadExecutor);
+      }
+    }
+    
+    if (isZooKeeperAware()) {
+      // register in zk in background threads
+      Collection<SolrCore> cores = getCores();
+      if (cores != null) {
+        for (SolrCore core : cores) {
+          try {
+            zkSys.registerInZk(core, true);
+          } catch (Throwable t) {
+            SolrException.log(log, "Error registering SolrCore", t);
+          }
+        }
       }
     }
   }
@@ -526,6 +540,10 @@ public class CoreContainer
   }
 
   protected SolrCore registerCore(boolean isTransientCore, String name, SolrCore core, boolean returnPrevNotClosed) {
+    return registerCore(isTransientCore, name, core, returnPrevNotClosed, true);
+  }
+  
+  protected SolrCore registerCore(boolean isTransientCore, String name, SolrCore core, boolean returnPrevNotClosed, boolean registerInZk) {
     if( core == null ) {
       throw new RuntimeException( "Can not register a null core." );
     }
@@ -560,7 +578,9 @@ public class CoreContainer
 
     if( old == null || old == core) {
       log.info( "registering core: "+name );
-      zkSys.registerInZk(core);
+      if (registerInZk) {
+        zkSys.registerInZk(core, false);
+      }
       return null;
     }
     else {
@@ -568,7 +588,9 @@ public class CoreContainer
       if (!returnPrevNotClosed) {
         old.close();
       }
-      zkSys.registerInZk(core);
+      if (registerInZk) {
+        zkSys.registerInZk(core, false);
+      }
       return old;
     }
   }
