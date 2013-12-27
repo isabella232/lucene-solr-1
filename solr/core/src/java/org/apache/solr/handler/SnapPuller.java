@@ -16,6 +16,7 @@
  */
 package org.apache.solr.handler;
 
+import static org.apache.lucene.util.IOUtils.CHARSET_UTF_8;
 import static org.apache.solr.handler.ReplicationHandler.ALIAS;
 import static org.apache.solr.handler.ReplicationHandler.CHECKSUM;
 import static org.apache.solr.handler.ReplicationHandler.CMD_DETAILS;
@@ -47,6 +48,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -55,6 +57,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,12 +78,12 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
-import static org.apache.lucene.util.IOUtils.CHARSET_UTF_8;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
@@ -247,13 +250,18 @@ public class SnapPuller {
     params.set(CommonParams.QT, "/replication");
     QueryRequest req = new QueryRequest(params);
     HttpSolrServer server = new HttpSolrServer(masterUrl, myHttpClient); //XXX modify to use shardhandler
-    server.setSoTimeout(60000);
-    server.setConnectionTimeout(15000);
+    NamedList rsp;
     try {
-      return server.request(req);
+      server.setSoTimeout(60000);
+      server.setConnectionTimeout(15000);
+      
+      rsp = server.request(req);
     } catch (SolrServerException e) {
-      throw new IOException(e);
+      throw new SolrException(ErrorCode.SERVER_ERROR, e.getMessage());
+    } finally {
+      server.shutdown();
     }
+    return rsp;
   }
 
   /**
@@ -267,10 +275,9 @@ public class SnapPuller {
     params.set(CommonParams.QT, "/replication");
     QueryRequest req = new QueryRequest(params);
     HttpSolrServer server = new HttpSolrServer(masterUrl, myHttpClient);  //XXX modify to use shardhandler
-    server.setSoTimeout(60000);
-    server.setConnectionTimeout(15000);
-
     try {
+      server.setSoTimeout(60000);
+      server.setConnectionTimeout(15000);
       NamedList response = server.request(req);
 
       List<Map<String, Object>> files = (List<Map<String,Object>>) response.get(CMD_GET_FILE_LIST);
@@ -287,6 +294,8 @@ public class SnapPuller {
 
     } catch (SolrServerException e) {
       throw new IOException(e);
+    } finally {
+      server.shutdown();
     }
   }
 
@@ -379,8 +388,8 @@ public class SnapPuller {
       fsyncService = Executors.newSingleThreadExecutor(new DefaultSolrThreadFactory("fsyncService"));
       // use a synchronized list because the list is read by other threads (to show details)
       filesDownloaded = Collections.synchronizedList(new ArrayList<Map<String, Object>>());
-      // if the generateion of master is older than that of the slave , it means they are not compatible to be copied
-      // then a new index direcory to be created and all the files need to be copied
+      // if the generation of master is older than that of the slave , it means they are not compatible to be copied
+      // then a new index directory to be created and all the files need to be copied
       boolean isFullCopyNeeded = IndexDeletionPolicyWrapper
           .getCommitTimestamp(commit) >= latestVersion
           || commit.getGeneration() >= latestGeneration || forceReplication;
@@ -399,58 +408,75 @@ public class SnapPuller {
         if (isIndexStale(indexDir)) {
           isFullCopyNeeded = true;
         }
-        LOG.info("Starting download to " + tmpIndexDir + " fullCopy=" + isFullCopyNeeded);
-        successfulInstall = false;
         
-        downloadIndexFiles(isFullCopyNeeded, tmpIndexDir, latestGeneration);
-        LOG.info("Total time taken for download : " + ((System.currentTimeMillis() - replicationStartTime) / 1000) + " secs");
-        Collection<Map<String, Object>> modifiedConfFiles = getModifiedConfFiles(confFilesToDownload);
-        if (!modifiedConfFiles.isEmpty()) {
-          downloadConfFiles(confFilesToDownload, latestGeneration);
-          if (isFullCopyNeeded) {
-            successfulInstall = modifyIndexProps(tmpIdxDirName);
-            deleteTmpIdxDir  =  false;
-          } else {
-            solrCore.getUpdateHandler().getSolrCoreState()
-                .closeIndexWriter(core, true);
-            try {
-              successfulInstall = moveIndexFiles(tmpIndexDir, indexDir);
-            } finally {
-              solrCore.getUpdateHandler().getSolrCoreState()
-                  .openIndexWriter(core);
-            }
-          }
-          if (successfulInstall) {
+        if (!isFullCopyNeeded) {
+          // rollback - and do it before we download any files
+          // so we don't remove files we thought we didn't need
+          // to download later
+          solrCore.getUpdateHandler().getSolrCoreState()
+          .closeIndexWriter(core, true);
+        }
+        
+        boolean reloadCore = false;
+        
+        try {
+          LOG.info("Starting download to " + tmpIndexDir + " fullCopy="
+              + isFullCopyNeeded);
+          successfulInstall = false;
+          
+          downloadIndexFiles(isFullCopyNeeded, indexDir, tmpIndexDir,
+              latestGeneration);
+          LOG.info("Total time taken for download : "
+              + ((System.currentTimeMillis() - replicationStartTime) / 1000)
+              + " secs");
+          Collection<Map<String,Object>> modifiedConfFiles = getModifiedConfFiles(confFilesToDownload);
+          if (!modifiedConfFiles.isEmpty()) {
+            downloadConfFiles(confFilesToDownload, latestGeneration);
             if (isFullCopyNeeded) {
-              // let the system know we are changing dir's and the old one
-              // may be closed
-              if (indexDir != null) {
-                LOG.info("removing old index directory " + indexDir);
-                core.getDirectoryFactory().doneWithDirectory(indexDir);
-                core.getDirectoryFactory().remove(indexDir);
-              }
-            }
-            
-            LOG.info("Configuration files are modified, core will be reloaded");
-            logReplicationTimeAndConfFiles(modifiedConfFiles, successfulInstall);//write to a file time of replication and conf files.
-            reloadCore();
-          }
-        } else {
-          terminateAndWaitFsyncService();
-          if (isFullCopyNeeded) {
-            successfulInstall = modifyIndexProps(tmpIdxDirName);
-            deleteTmpIdxDir =  false;
-          } else {
-            solrCore.getUpdateHandler().getSolrCoreState().closeIndexWriter(core, true);
-            try {
+              successfulInstall = modifyIndexProps(tmpIdxDirName);
+              deleteTmpIdxDir = false;
+            } else {
               successfulInstall = moveIndexFiles(tmpIndexDir, indexDir);
-            } finally {
-              solrCore.getUpdateHandler().getSolrCoreState().openIndexWriter(core);
+            }
+            if (successfulInstall) {
+              if (isFullCopyNeeded) {
+                // let the system know we are changing dir's and the old one
+                // may be closed
+                if (indexDir != null) {
+                  LOG.info("removing old index directory " + indexDir);
+                  core.getDirectoryFactory().doneWithDirectory(indexDir);
+                  core.getDirectoryFactory().remove(indexDir);
+                }
+              }
+              
+              LOG.info("Configuration files are modified, core will be reloaded");
+              logReplicationTimeAndConfFiles(modifiedConfFiles,
+                  successfulInstall);// write to a file time of replication and
+                                     // conf files.
+              reloadCore = true;
+            }
+          } else {
+            terminateAndWaitFsyncService();
+            if (isFullCopyNeeded) {
+              successfulInstall = modifyIndexProps(tmpIdxDirName);
+              deleteTmpIdxDir = false;
+            } else {
+              successfulInstall = moveIndexFiles(tmpIndexDir, indexDir);
+            }
+            if (successfulInstall) {
+              logReplicationTimeAndConfFiles(modifiedConfFiles,
+                  successfulInstall);
             }
           }
-          if (successfulInstall) {
-            logReplicationTimeAndConfFiles(modifiedConfFiles, successfulInstall);
+        } finally {
+          if (!isFullCopyNeeded) {
+            solrCore.getUpdateHandler().getSolrCoreState().openIndexWriter(core);
           }
+        }
+        
+        // we must reload the core after we open the IW back up
+        if (reloadCore) {
+          reloadCore();
         }
 
         if (successfulInstall) {
@@ -681,6 +707,7 @@ public class SnapPuller {
   }
 
   private void reloadCore() {
+    final CountDownLatch latch = new CountDownLatch(1);
     new Thread() {
       @Override
       public void run() {
@@ -688,9 +715,17 @@ public class SnapPuller {
           solrCore.getCoreDescriptor().getCoreContainer().reload(solrCore.getName());
         } catch (Exception e) {
           LOG.error("Could not reload core ", e);
+        } finally {
+          latch.countDown();
         }
       }
     }.start();
+    try {
+      latch.await();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Interrupted while waiting for core reload to finish", e);
+    }
   }
 
   private void downloadConfFiles(List<Map<String, Object>> confFilesToDownload, long latestGeneration) throws Exception {
@@ -723,29 +758,28 @@ public class SnapPuller {
    * Download the index files. If a new index is needed, download all the files.
    *
    * @param downloadCompleteIndex is it a fresh index copy
-   * @param tmpIndexDir               the directory to which files need to be downloadeed to
+   * @param tmpIndexDir              the directory to which files need to be downloadeed to
+   * @param indexDir                 the indexDir to be merged to
    * @param latestGeneration         the version number
    */
   private void downloadIndexFiles(boolean downloadCompleteIndex,
-      Directory tmpIndexDir, long latestGeneration) throws Exception {
-    String indexDir = solrCore.getIndexDir();
-    
-    // it's okay to use null for lock factory since we know this dir will exist
-    Directory dir = solrCore.getDirectoryFactory().get(indexDir, DirContext.DEFAULT, solrCore.getSolrConfig().indexConfig.lockType);
-    try {
-      for (Map<String,Object> file : filesToDownload) {
-        if (!dir.fileExists((String) file.get(NAME)) || downloadCompleteIndex) {
-          dirFileFetcher = new DirectoryFileFetcher(tmpIndexDir, file,
-              (String) file.get(NAME), false, latestGeneration);
-          currentFile = file;
-          dirFileFetcher.fetchFile();
-          filesDownloaded.add(new HashMap<String,Object>(file));
-        } else {
-          LOG.info("Skipping download for " + file.get(NAME) + " because it already exists");
-        }
+      Directory indexDir, Directory tmpIndexDir, long latestGeneration)
+      throws Exception {
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Download files to dir: " + Arrays.asList(indexDir.listAll()));
+    }
+    for (Map<String,Object> file : filesToDownload) {
+      if (!indexDir.fileExists((String) file.get(NAME))
+          || downloadCompleteIndex) {
+        dirFileFetcher = new DirectoryFileFetcher(tmpIndexDir, file,
+            (String) file.get(NAME), false, latestGeneration);
+        currentFile = file;
+        dirFileFetcher.fetchFile();
+        filesDownloaded.add(new HashMap<String,Object>(file));
+      } else {
+        LOG.info("Skipping download for " + file.get(NAME)
+            + " because it already exists");
       }
-    } finally {
-      solrCore.getDirectoryFactory().release(dir);
     }
   }
 
@@ -773,6 +807,7 @@ public class SnapPuller {
    * <p/>
    */
   private boolean moveAFile(Directory tmpIdxDir, Directory indexDir, String fname, List<String> copiedfiles) {
+    LOG.debug("Moving file: {}", fname);
     boolean success = false;
     try {
       if (indexDir.fileExists(fname)) {
@@ -796,6 +831,14 @@ public class SnapPuller {
    * Copy all index files from the temp index dir to the actual index. The segments_N file is copied last.
    */
   private boolean moveIndexFiles(Directory tmpIdxDir, Directory indexDir) {
+    if (LOG.isDebugEnabled()) {
+      try {
+        LOG.info("From dir files:" + Arrays.asList(tmpIdxDir.listAll()));
+        LOG.info("To dir files:" + Arrays.asList(indexDir.listAll()));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
     String segmentsFile = null;
     List<String> movedfiles = new ArrayList<String>();
     for (Map<String, Object> f : filesDownloaded) {
@@ -1273,9 +1316,7 @@ public class SnapPuller {
      * Open a new stream using HttpClient
      */
     FastInputStream getStream() throws IOException {
-      HttpSolrServer s = new HttpSolrServer(masterUrl, myHttpClient, null);  //XXX use shardhandler
-      s.setSoTimeout(60000);
-      s.setConnectionTimeout(15000);
+
       ModifiableSolrParams params = new ModifiableSolrParams();
 
 //    //the method is command=filecontent
@@ -1307,7 +1348,11 @@ public class SnapPuller {
 
       NamedList response;
       InputStream is = null;
+      
+      HttpSolrServer s = new HttpSolrServer(masterUrl, myHttpClient, null);  //XXX use shardhandler
       try {
+        s.setSoTimeout(60000);
+        s.setConnectionTimeout(15000);
         QueryRequest req = new QueryRequest(params);
         response = s.request(req);
         is = (InputStream) response.get("stream");
@@ -1319,6 +1364,8 @@ public class SnapPuller {
         //close stream on error
         IOUtils.closeQuietly(is);
         throw new IOException("Could not download file '" + fileName + "'", t);
+      } finally {
+        s.shutdown();
       }
     }
   }
@@ -1534,9 +1581,7 @@ public class SnapPuller {
      * Open a new stream using HttpClient
      */
     FastInputStream getStream() throws IOException {
-      HttpSolrServer s = new HttpSolrServer(masterUrl, myHttpClient, null);  //XXX use shardhandler
-      s.setSoTimeout(60000);
-      s.setConnectionTimeout(15000);
+
       ModifiableSolrParams params = new ModifiableSolrParams();
 
 //    //the method is command=filecontent
@@ -1568,7 +1613,10 @@ public class SnapPuller {
 
       NamedList response;
       InputStream is = null;
+      HttpSolrServer s = new HttpSolrServer(masterUrl, myHttpClient, null);  //XXX use shardhandler
       try {
+        s.setSoTimeout(60000);
+        s.setConnectionTimeout(15000);
         QueryRequest req = new QueryRequest(params);
         response = s.request(req);
         is = (InputStream) response.get("stream");
@@ -1580,6 +1628,8 @@ public class SnapPuller {
         //close stream on error
         IOUtils.closeQuietly(is);
         throw new IOException("Could not download file '" + fileName + "'", t);
+      } finally {
+        s.shutdown();
       }
     }
   }
@@ -1590,10 +1640,16 @@ public class SnapPuller {
     params.set("slave", false);
     params.set(CommonParams.QT, "/replication");
     HttpSolrServer server = new HttpSolrServer(masterUrl, myHttpClient); //XXX use shardhandler
-    server.setSoTimeout(60000);
-    server.setConnectionTimeout(15000);
-    QueryRequest request = new QueryRequest(params);
-    return server.request(request);
+    NamedList rsp;
+    try {
+      server.setSoTimeout(60000);
+      server.setConnectionTimeout(15000);
+      QueryRequest request = new QueryRequest(params);
+      rsp = server.request(request);
+    } finally {
+      server.shutdown();
+    }
+    return rsp;
   }
 
   static Integer readInterval(String interval) {
