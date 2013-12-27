@@ -18,11 +18,14 @@ package org.apache.solr.sentry;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.handler.SecureRequestHandlerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.commons.codec.Charsets;
 
 /**
  * Provides SentryIndexAuthorizationSingleton instance for use with
@@ -63,7 +66,7 @@ public class SentrySingletonTestInstance {
     addPropertyToSentry(sentrySiteData, "sentry.solr.provider.resource",
        new File(authProviderDir.toString(), "test-authz-provider.ini").toURI().toURL().toString());
     sentrySiteData.append("</configuration>\n");
-    FileUtils.writeStringToFile(sentrySite,sentrySiteData.toString());
+    FileUtils.writeStringToFile(sentrySite,sentrySiteData.toString(), Charsets.UTF_8.toString());
   }
 
   private SentrySingletonTestInstance() {
