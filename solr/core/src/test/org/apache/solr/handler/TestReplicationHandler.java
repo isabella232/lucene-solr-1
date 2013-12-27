@@ -743,7 +743,7 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
   }
   
   
-  @Test
+  @Test 
   public void doTestStressReplication() throws Exception {
     // change solrconfig on slave
     // this has no entry for pollinginterval
