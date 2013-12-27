@@ -220,7 +220,7 @@ public final class ZkController {
               // we need to create all of our lost watches
               
               // seems we dont need to do this again...
-              //Overseer.createClientNodes(zkClient, getNodeName());
+              // Overseer.createClientNodes(zkClient, getNodeName());
               ShardHandler shardHandler;
               String adminPath;
               shardHandler = cc.getShardHandlerFactory().getShardHandler();
@@ -765,6 +765,8 @@ public final class ZkController {
    * @return the shardId for the SolrCore
    */
   public String register(String coreName, final CoreDescriptor desc, boolean recoverReloadedCores, boolean afterExpiration) throws Exception {  
+    // pre register has published our down state
+    
     final String baseUrl = getBaseUrl();
     
     final CloudDescriptor cloudDesc = desc.getCloudDescriptor();
@@ -822,9 +824,6 @@ public final class ZkController {
       // TODO: should this be moved to another thread? To recoveryStrat?
       // TODO: should this actually be done earlier, before (or as part of)
       // leader election perhaps?
-      // TODO: if I'm the leader, ensure that a replica that is trying to recover waits until I'm
-      // active (or don't make me the
-      // leader until my local replay is done.
 
       UpdateLog ulog = core.getUpdateHandler().getUpdateLog();
       if (!core.isReloaded() && ulog != null) {
