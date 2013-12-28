@@ -69,6 +69,9 @@ Commands:
                 [--reload name]
                 [--unload name]
                 [--status name]
+
+    cluster     [--get-solrxml path]
+                [--put-solrxml path]
   "
   exit 1
 }
@@ -428,6 +431,24 @@ while test $# != 0 ; do
       esac
       ;;
 
+    cluster)
+      [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $1"
+      case "$2" in
+        --get-solrxml)
+          eval $SOLR_ADMIN_ZK_CMD -cmd getfile /solr.xml $3  || die "Error: can't get solr.xml from ZK"
+          shift 3
+          ;;
+        --put-solrxml)
+          solrxmlcontents=$(cat $3)
+          eval $SOLR_ADMIN_ZK_CMD -cmd clear /solr.xml || die "Error: failed to clear solr.xml in ZK before put"
+          eval $SOLR_ADMIN_ZK_CMD -cmd put /solr.xml "'$solrxmlcontents'" || die "Error: can't put solr.xml to ZK"
+          shift 3
+          ;;
+        *)
+          shift 1
+          ;;
+        esac
+        ;;
     *)
       usage "Error: unrecognized command $1"
       ;;
