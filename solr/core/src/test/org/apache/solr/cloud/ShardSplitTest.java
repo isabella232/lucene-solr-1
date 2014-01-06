@@ -40,6 +40,7 @@ import org.apache.solr.common.params.CollectionParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -57,6 +58,7 @@ import static org.apache.solr.common.cloud.ZkStateReader.REPLICATION_FACTOR;
 import static org.apache.solr.common.cloud.ZkStateReader.MAX_SHARDS_PER_NODE;
 
 @Slow
+@Ignore("Cloudera: fails too commonly - fails easily upstream as well, so ignore for now")
 public class ShardSplitTest extends BasicDistributedZkTest {
 
   public static final String SHARD1_0 = SHARD1 + "_0";
