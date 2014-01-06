@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -498,8 +499,10 @@ public abstract class AbstractFullDistribZkTestBase extends AbstractDistribZkTes
       
       nextJetty:
       for (Slice slice : coll.getSlices()) {
-        for (Replica replica : slice.getReplicas()) {
-          if (replica.getNodeName().contains(":" + port + "_")) {
+        Set<Entry<String,Replica>> entries = slice.getReplicasMap().entrySet();
+        for (Entry<String,Replica> entry : entries) {
+          Replica replica = entry.getValue();
+          if (replica.getStr(ZkStateReader.BASE_URL_PROP).contains(":" + port)) {
             List<CloudJettyRunner> list = shardToJetty.get(slice.getName());
             if (list == null) {
               list = new ArrayList<CloudJettyRunner>();
@@ -510,7 +513,7 @@ public abstract class AbstractFullDistribZkTestBase extends AbstractDistribZkTes
             cjr.jetty = jetty;
             cjr.info = replica;
             cjr.nodeName = replica.getStr(ZkStateReader.NODE_NAME_PROP);
-            cjr.coreNodeName = replica.getNodeName();
+            cjr.coreNodeName = entry.getKey();
             cjr.url = replica.getStr(ZkStateReader.BASE_URL_PROP) + "/" + replica.getStr(ZkStateReader.CORE_NAME_PROP);
             cjr.client = findClientByPort(port, theClients);
             list.add(cjr);
