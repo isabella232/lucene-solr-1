@@ -43,7 +43,7 @@ public class SecureAdminHandlersTest extends SentryTestBase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    core = createCore("solrconfig-secureadmin.xml", "schema.xml");
+    core = createCore("solrconfig-secureadmin.xml", "schema-minimal.xml");
     // store the CloudDescriptor, because we will overwrite it with a mock
     // and restore it later
     cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();

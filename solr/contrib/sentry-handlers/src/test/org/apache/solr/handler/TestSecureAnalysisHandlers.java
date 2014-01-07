@@ -26,14 +26,14 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class TestSecureReplicationHandler extends SentryTestBase {
+public class TestSecureAnalysisHandlers extends SentryTestBase {
 
   private static SolrCore core;
   private static CloudDescriptor cloudDescriptor;
 
    @BeforeClass
   public static void beforeClass() throws Exception {
-    core = createCore("solrconfig-secureadmin.xml", "schema.xml");
+    core = createCore("solrconfig-secureadmin.xml", "schema-minimal.xml");
     // store the CloudDescriptor, because we will overwrite it with a mock
     // and restore it later
     cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
@@ -53,12 +53,29 @@ public class TestSecureReplicationHandler extends SentryTestBase {
     super.setUp(core);
   }
 
+  private SolrQueryRequest getAnalysisRequest(String collection, String user) {
+    SolrQueryRequest request = getRequest();
+    return prepareCollAndUser(core, request, collection, user);
+  }
+
+  private void verifyQueryAccess(SolrRequestHandler handler) throws Exception {
+    verifyAuthorized(handler, getAnalysisRequest("collection1", "junit"));
+    verifyAuthorized(handler, getAnalysisRequest("queryCollection", "junit"));
+    verifyUnauthorized(handler, getAnalysisRequest("bogusCollection", "junit"),
+      "bogusCollection", "junit");
+    verifyUnauthorized(handler, getAnalysisRequest("updateCollection", "junit"),
+      "updateCollection", "junit");
+  }
+
   @Test
-  public void testSecureReplicationHandler() throws Exception {
-    SolrRequestHandler handler = core.getRequestHandler("/replication");
-    verifyAuthorized(handler, prepareCollAndUser(core, getRequest(), "collection1", "junit", false));
-    verifyUnauthorized(handler, prepareCollAndUser(core, getRequest(), "queryCollection", "junit", false), "queryCollection", "junit");
-    verifyUnauthorized(handler, prepareCollAndUser(core, getRequest(), "bogusCollection", "junit", false), "bogusCollection", "junit");
-    verifyUnauthorized(handler, prepareCollAndUser(core, getRequest(), "updateCollection", "junit", false), "updateCollection", "junit");
+  public void testSecureFieldAnalysisRequestHandler() throws Exception {
+    SolrRequestHandler handler = core.getRequestHandler("/analysis/field");
+    verifyQueryAccess(handler);
+  }
+
+  @Test
+  public void testDocumentAnalysisRequestHandler() throws Exception {
+    SolrRequestHandler handler = core.getRequestHandler("/analysis/document");
+    verifyQueryAccess(handler);
   }
 }
