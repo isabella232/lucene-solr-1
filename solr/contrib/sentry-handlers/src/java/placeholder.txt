@@ -1,1 +1,0 @@
-ensure these directories are added to repository
