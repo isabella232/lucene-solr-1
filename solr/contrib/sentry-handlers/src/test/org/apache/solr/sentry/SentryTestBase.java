@@ -56,7 +56,7 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
   }
 
   public static SolrCore createCore(String solrconfig, String schema) throws Exception {
-    initCore(solrconfig, schema);
+    initCore(solrconfig, schema, "sentry-handlers/solr");
     return h.getCoreContainer().getCore("collection1");
   }
 

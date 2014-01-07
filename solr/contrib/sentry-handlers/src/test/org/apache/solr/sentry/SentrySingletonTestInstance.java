@@ -51,7 +51,7 @@ public class SentrySingletonTestInstance {
 
   public void setupSentry() throws Exception {
     sentrySite = File.createTempFile("sentry-site", "xml");
-    File authProviderDir = new File(SolrTestCaseJ4.TEST_HOME(), "sentry");
+    File authProviderDir = SolrTestCaseJ4.getFile("sentry-handlers/sentry");
     sentrySite.deleteOnExit();
 
     // need to write sentry-site at execution time because we don't know

@@ -40,7 +40,7 @@ public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    core = createCore("solrconfig.xml", "schema.xml");
+    core = createCore("solrconfig.xml", "schema-minimal.xml");
     // store the CloudDescriptor, because we will overwrite it with a mock
     // and restore it later
     cloudDescriptor = core.getCoreDescriptor().getCloudDescriptor();
