@@ -45,8 +45,6 @@ import org.apache.solr.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.sentry.binding.solr.authz.SolrAuthzBinding;
-
 public class HdfsDirectoryFactory extends CachingDirectoryFactory {
   public static Logger LOG = LoggerFactory
       .getLogger(HdfsDirectoryFactory.class);
@@ -309,6 +307,22 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
       throw new IllegalArgumentException(KERBEROS_PRINCIPAL
           + " required because " + KERBEROS_ENABLED + " set to true");
     }
-    SolrAuthzBinding.initKerberos(keytabFile, principal);
+    synchronized (HdfsDirectoryFactory.class) {
+      if (kerberosInit == null) {
+        kerberosInit = new Boolean(true);
+        Configuration conf = new Configuration();
+        conf.set("hadoop.security.authentication", "kerberos");
+        UserGroupInformation.setConfiguration(conf);
+        LOG.info(
+            "Attempting to acquire kerberos ticket with keytab: {}, principal: {} ",
+            keytabFile, principal);
+        try {
+          UserGroupInformation.loginUserFromKeytab(principal, keytabFile);
+        } catch (IOException ioe) {
+          throw new RuntimeException(ioe);
+        }
+        LOG.info("Got Kerberos ticket");
+      }
+    }
   }
 }

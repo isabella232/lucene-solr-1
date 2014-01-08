@@ -47,14 +47,6 @@
     <dependency org="log4j" name="log4j" rev="${/log4j/log4j}" conf="compile"/>
     <dependency org="org.slf4j" name="slf4j-log4j12" rev="${/org.slf4j/slf4j-log4j12}" conf="compile"/>
     <dependency org="org.codehaus.jackson" name="jackson-core-asl" rev="${/org.codehaus.jackson/jackson-core-asl}" conf="compile"/>
-    <dependency org="org.apache.sentry" name="sentry-binding-solr" rev="${/org.apache.sentry/sentry-binding-solr}" conf="compile"/>
-    <dependency org="org.apache.sentry" name="sentry-core-common" rev="${/org.apache.sentry/sentry-core-common}" conf="compile"/>
-    <dependency org="org.apache.sentry" name="sentry-core-model-search" rev="${/org.apache.sentry/sentry-core-model-search}" conf="compile"/>
-    <dependency org="org.apache.sentry" name="sentry-policy-common" rev="${/org.apache.sentry/sentry-policy-common}" conf="compile"/>
-    <dependency org="org.apache.sentry" name="sentry-policy-search" rev="${/org.apache.sentry/sentry-policy-search}" conf="compile"/>
-    <dependency org="org.apache.sentry" name="sentry-provider-common" rev="${/org.apache.sentry/sentry-provider-common}" conf="compile"/>
-    <dependency org="org.apache.sentry" name="sentry-provider-file" rev="${/org.apache.sentry/sentry-provider-file}" conf="compile"/>
-    <dependency org="org.apache.shiro" name="shiro-core" rev="${/org.apache.shiro/shiro-core}" conf="compile"/>
 
     <dependency org="javax.servlet" name="javax.servlet-api" rev="${/javax.servlet/javax.servlet-api}" conf="test"/>
     <dependency org="org.easymock" name="easymock" rev="${/org.easymock/easymock}" conf="test"/>
