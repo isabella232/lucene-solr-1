@@ -128,10 +128,7 @@ import org.apache.solr.util.RefCounted;
 import org.apache.solr.util.plugin.NamedListInitializedPlugin;
 import org.apache.solr.util.plugin.PluginInfoInitialized;
 import org.apache.solr.util.plugin.SolrCoreAware;
-import org.apache.sentry.core.model.search.SearchModelAction;
-import org.apache.solr.handler.admin.SecureAdminHandlers;
 import org.apache.solr.handler.RequestHandlerBase;
-import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
@@ -2220,6 +2217,9 @@ public final class SolrCore implements SolrInfoMBean {
       log.warn( 
           "solrconfig.xml uses deprecated <admin/gettableFiles>, Please "+
           "update your config to use the ShowFileRequestHandler." );
+      log.warn(
+          "The deprecated <admin/gettableFiles> does not support secure "+
+          "solr, please update your config");
       if( getRequestHandler( "/admin/file" ) == null ) {
         NamedList<String> invariants = new NamedList<String>();
         
@@ -2241,12 +2241,7 @@ public final class SolrCore implements SolrInfoMBean {
         
         NamedList<Object> args = new NamedList<Object>();
         args.add( "invariants", invariants );
-        RequestHandlerBase handler;
-        if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
-          handler = new SecureAdminHandlers.SecureShowFileRequestHandler();
-        } else {
-          handler = new ShowFileRequestHandler();
-        }
+        RequestHandlerBase handler = new ShowFileRequestHandler();
         handler.init( args );
         reqHandlers.register("/admin/file", handler);
 

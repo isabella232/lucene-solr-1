@@ -50,7 +50,6 @@ import org.apache.solr.request.SolrRequestInfo;
 import org.apache.solr.response.BinaryQueryResponseWriter;
 import org.apache.solr.response.QueryResponseWriter;
 import org.apache.solr.response.SolrQueryResponse;
-import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.servlet.cache.HttpCacheHeaderUtil;
 import org.apache.solr.servlet.cache.Method;
 import org.apache.solr.servlet.ProxyUserFilter;
@@ -503,7 +502,8 @@ public class SolrDispatchFilter implements Filter
       String urlstr = coreUrl;
       String queryString = req.getQueryString();
 
-      if (SentryIndexAuthorizationSingleton.getInstance().isEnabled()) {
+      String userName = (String)req.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
+      if (userName != null) {
         String doAsUserName = null;
         if (queryString != null) {
           final SolrParams params = SolrRequestParsers.parseQueryString(queryString);
@@ -512,11 +512,7 @@ public class SolrDispatchFilter implements Filter
         if (doAsUserName == null) {
           // doAsUserName is null, let's add it to the request so authorization
           // works properly
-          String userName = (String)req.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
-          if (userName == null) {
-            throw new IOException("Attempting to proxy secure request, but "
-              + SolrHadoopAuthenticationFilter.USER_NAME + " not found");
-          }
+          
           StringBuilder doAsParam = new StringBuilder("&").append(ProxyUserFilter.DO_AS_PARAM)
             .append("=").append(userName);
           queryString = queryString == null ? doAsParam.toString() : queryString + doAsParam.toString();
