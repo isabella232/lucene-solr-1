@@ -32,7 +32,6 @@ import java.util.Properties;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.cloud.CloudConfigSetService;
 import org.apache.solr.cloud.ZkController;
-import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.logging.LogWatcherConfig;
 import org.apache.solr.util.DOMUtil;
@@ -48,6 +47,8 @@ public abstract class ConfigSolr {
   protected static Logger log = LoggerFactory.getLogger(ConfigSolr.class);
   
   public final static String SOLR_XML_FILE = "solr.xml";
+
+  private final static String SENTRY_ENABLED = System.getProperty("solr.authorization.sentry.site");
 
   public static ConfigSolr fromFile(SolrResourceLoader loader, File configFile) {
     log.info("Loading container configuration from {}", configFile.getAbsolutePath());
@@ -227,19 +228,19 @@ public abstract class ConfigSolr {
   }
 
   public String getCoreAdminHandlerClass() {
-    return get(CfgProp.SOLR_ADMINHANDLER, SentryIndexAuthorizationSingleton.getInstance().isEnabled() ?
+    return get(CfgProp.SOLR_ADMINHANDLER, SENTRY_ENABLED != null ?
       "org.apache.solr.handler.admin.SecureCoreAdminHandler" :
       "org.apache.solr.handler.admin.CoreAdminHandler");
   }
 
   public String getCollectionsHandlerClass() {
-    return get(CfgProp.SOLR_COLLECTIONSHANDLER, SentryIndexAuthorizationSingleton.getInstance().isEnabled() ?
+    return get(CfgProp.SOLR_COLLECTIONSHANDLER, SENTRY_ENABLED != null ?
       "org.apache.solr.handler.admin.SecureCollectionsHandler" :
       "org.apache.solr.handler.admin.CollectionsHandler");
   }
 
   public String getInfoHandlerClass() {
-    return get(CfgProp.SOLR_INFOHANDLER, SentryIndexAuthorizationSingleton.getInstance().isEnabled() ?
+    return get(CfgProp.SOLR_INFOHANDLER, SENTRY_ENABLED != null ?
       "org.apache.solr.handler.admin.SecureInfoHandler":
       "org.apache.solr.handler.admin.InfoHandler");
   }
