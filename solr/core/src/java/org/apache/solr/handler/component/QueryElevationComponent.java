@@ -173,7 +173,7 @@ public class QueryElevationComponent extends SearchComponent implements SolrCore
 
     SchemaField sf = schema.getUniqueKeyField();
     if( sf == null) {
-      throw new SolrException( SolrException.ErrorCode.SERVER_ERROR, 
+      throw new SolrException( SolrException.ErrorCode.SERVER_ERROR,
           "QueryElevationComponent requires the schema to have a uniqueKeyField." );
     }
     idSchemaFT = sf.getType();
@@ -256,9 +256,9 @@ public class QueryElevationComponent extends SearchComponent implements SolrCore
               "QueryElevationComponent must specify argument: " + CONFIG_FILE);
         }
         log.info("Loading QueryElevation from data dir: " + f);
-        
+
         Config cfg;
-        
+
         ZkController zkController = core.getCoreDescriptor().getCoreContainer().getZkController();
         if (zkController != null) {
           cfg = new Config(core.getResourceLoader(), f, null, null);
@@ -266,7 +266,7 @@ public class QueryElevationComponent extends SearchComponent implements SolrCore
           InputStream is = VersionedFile.getLatestFile(core.getDataDir(), f);
           cfg = new Config(core.getResourceLoader(), f, new InputSource(is), null);
         }
-  
+
         map = loadElevationMap(cfg);
         elevationCache.put(reader, map);
       }
@@ -363,7 +363,7 @@ public class QueryElevationComponent extends SearchComponent implements SolrCore
   public void prepare(ResponseBuilder rb) throws IOException {
     SolrQueryRequest req = rb.req;
     SolrParams params = req.getParams();
-    // A runtime param can skip 
+    // A runtime param can skip
     if (!params.getBool(QueryElevationParams.ENABLE, true)) {
       return;
     }
@@ -414,8 +414,8 @@ public class QueryElevationComponent extends SearchComponent implements SolrCore
       }
 
       ElevationComparatorSource comparator = new ElevationComparatorSource(booster);
-      // if the sort is 'score desc' use a custom sorting method to 
-      // insert documents in their proper place 
+      // if the sort is 'score desc' use a custom sorting method to
+      // insert documents in their proper place
       SortSpec sortSpec = rb.getSortSpec();
       if (sortSpec.getSort() == null) {
         sortSpec.setSortAndFields(new Sort(new SortField[]{
@@ -430,7 +430,7 @@ public class QueryElevationComponent extends SearchComponent implements SolrCore
         if (null != modSortSpec) {
           rb.setSortSpec(modSortSpec);
         }
-        
+
       }
     }
 
@@ -527,9 +527,9 @@ public class QueryElevationComponent extends SearchComponent implements SolrCore
     }
   }
   class ElevationComparatorSource extends FieldComparatorSource {
-  private QueryElevationComponent.ElevationObj elevations;
-  private SentinelIntSet ordSet; //the key half of the map
-  private BytesRef[] termValues;//the value half of the map
+  private final QueryElevationComponent.ElevationObj elevations;
+  private final SentinelIntSet ordSet; //the key half of the map
+  private final BytesRef[] termValues;//the value half of the map
 
   public ElevationComparatorSource(final QueryElevationComponent.ElevationObj elevations) {
     this.elevations = elevations;

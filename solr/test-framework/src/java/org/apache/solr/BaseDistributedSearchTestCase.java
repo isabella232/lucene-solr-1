@@ -69,23 +69,23 @@ import org.slf4j.LoggerFactory;
 public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
   // TODO: this shouldn't be static. get the random when you need it to avoid sharing.
   public static Random r;
-  
-  private AtomicInteger nodeCnt = new AtomicInteger(0);
+
+  private final AtomicInteger nodeCnt = new AtomicInteger(0);
   protected boolean useExplicitNodeNames;
-  
+
   @BeforeClass
   public static void initialize() {
     assumeFalse("SOLR-4147: ibm 64bit has jvm bugs!", Constants.JRE_IS_64BIT && Constants.JAVA_VENDOR.startsWith("IBM"));
     r = new Random(random().nextLong());
   }
-  
+
   /**
-   * Set's the value of the "hostContext" system property to a random path 
-   * like string (which may or may not contain sub-paths).  This is used 
+   * Set's the value of the "hostContext" system property to a random path
+   * like string (which may or may not contain sub-paths).  This is used
    * in the default constructor for this test to help ensure no code paths have
    * hardcoded assumptions about the servlet context used to run solr.
    * <p>
-   * Test configs may use the <code>${hostContext}</code> variable to access 
+   * Test configs may use the <code>${hostContext}</code> variable to access
    * this system property.
    * </p>
    * @see #BaseDistributedSearchTestCase()
@@ -93,7 +93,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
    */
   @BeforeClass
   public static void initHostContext() {
-    // Can't use randomRealisticUnicodeString because unescaped unicode is 
+    // Can't use randomRealisticUnicodeString because unescaped unicode is
     // not allowed in URL paths
     // Can't use URLEncoder.encode(randomRealisticUnicodeString) because
     // Jetty freaks out and returns 404's when the context uses escapes
@@ -109,7 +109,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
       }
       hostContext.append(_TestUtil.randomSimpleString(random(), 3));
       if ( ! "/".equals(hostContext.toString())) {
-        // if our random string is empty, this might add a trailing slash, 
+        // if our random string is empty, this might add a trailing slash,
         // but our code should be ok with that
         hostContext.append("/").append(_TestUtil.randomSimpleString(random(), 2));
       } else {
@@ -142,20 +142,20 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
   }
 
   /**
-   * Constructs a test in which the jetty+solr instances as well as the 
+   * Constructs a test in which the jetty+solr instances as well as the
    * solr clients all use the value of the "hostContext" system property.
    * <p>
-   * If the system property is not set, or is set to the empty string 
-   * (neither of which should normally happen unless a subclass explicitly 
-   * modifies the property set by {@link #initHostContext} prior to calling 
-   * this constructor) a servlet context of "/solr" is used. (this is for 
-   * consistency with the default behavior of solr.xml parsing when using 
+   * If the system property is not set, or is set to the empty string
+   * (neither of which should normally happen unless a subclass explicitly
+   * modifies the property set by {@link #initHostContext} prior to calling
+   * this constructor) a servlet context of "/solr" is used. (this is for
+   * consistency with the default behavior of solr.xml parsing when using
    * <code>hostContext="${hostContext:}"</code>
    * </p>
    * <p>
-   * If the system property is set to a value which does not begin with a 
-   * "/" (which should normally happen unless a subclass explicitly 
-   * modifies the property set by {@link #initHostContext} prior to calling 
+   * If the system property is set to a value which does not begin with a
+   * "/" (which should normally happen unless a subclass explicitly
+   * modifies the property set by {@link #initHostContext} prior to calling
    * this constructor) a leading "/" will be prepended.
    * </p>
    *
@@ -170,8 +170,8 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
    */
   protected BaseDistributedSearchTestCase(final String context) {
     this.context = context;
-    this.deadServers = new String[] {"[ff01::114]:33332" + context, 
-                                     "[ff01::083]:33332" + context, 
+    this.deadServers = new String[] {"[ff01::114]:33332" + context,
+                                     "[ff01::083]:33332" + context,
                                      "[ff01::213]:33332" + context};
   }
 
@@ -189,7 +189,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
   protected JettySolrRunner controlJetty;
   protected List<SolrServer> clients = new ArrayList<SolrServer>();
   protected List<JettySolrRunner> jettys = new ArrayList<JettySolrRunner>();
-  
+
   protected String context;
   protected String[] deadServers;
   protected String shards;
@@ -215,7 +215,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
 
   protected String id = "id";
   public static Logger log = LoggerFactory.getLogger(BaseDistributedSearchTestCase.class);
-  
+
   public static RandVal rint = new RandVal() {
     @Override
     public Object val() {
@@ -271,7 +271,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
   public String getSolrHome() {
     return SolrTestCaseJ4.TEST_HOME();
   }
-  
+
   @Override
   public void setUp() throws Exception {
     SolrTestCaseJ4.resetExceptionIgnores();  // ignore anything with ignore_exception in it
@@ -322,7 +322,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
 
   protected String getShardsString() {
     if (deadServers == null) return shards;
-    
+
     StringBuilder sb = new StringBuilder();
     for (String shard : shardsArr) {
       if (sb.length() > 0) sb.append(',');
@@ -351,7 +351,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
     clients.clear();
     jettys.clear();
   }
-  
+
   public JettySolrRunner createJetty(File solrHome, String dataDir) throws Exception {
     return createJetty(solrHome, dataDir, null, null, null);
   }
@@ -359,11 +359,11 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
   public JettySolrRunner createJetty(File solrHome, String dataDir, String shardId) throws Exception {
     return createJetty(solrHome, dataDir, shardId, null, null);
   }
-  
+
   public JettySolrRunner createJetty(File solrHome, String dataDir, String shardList, String solrConfigOverride, String schemaOverride) throws Exception {
     return createJetty(solrHome, dataDir, shardList, solrConfigOverride, schemaOverride, useExplicitNodeNames);
   }
-  
+
   public JettySolrRunner createJetty(File solrHome, String dataDir, String shardList, String solrConfigOverride, String schemaOverride, boolean explicitCoreNodeName) throws Exception {
 
     boolean stopAtShutdown = true;
@@ -379,7 +379,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
 
     return jetty;
   }
-  
+
   /** Override this method to insert extra servlets into the JettySolrRunners that are created using createJetty() */
   public SortedMap<ServletHolder,String> getExtraServlets() {
     return null;
@@ -419,7 +419,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
     addRandFields(doc);
     indexDoc(doc);
   }
-  
+
   protected SolrInputDocument addRandFields(SolrInputDocument sdoc) {
     addFields(sdoc, getRandFields(getFieldNames(), getRandValues()));
     return sdoc;
@@ -441,7 +441,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
     SolrServer client = clients.get(which);
     client.add(doc);
   }
-  
+
   /**
    * Indexes the document in both the control client and the specified client asserting
    * that the respones are equivilent
@@ -530,10 +530,10 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
   }
 
   /**
-   * Returns the QueryResponse from {@link #queryServer}  
+   * Returns the QueryResponse from {@link #queryServer}
    */
   protected QueryResponse query(boolean setDistribParams, Object[] q) throws Exception {
-    
+
     final ModifiableSolrParams params = new ModifiableSolrParams();
 
     for (int i = 0; i < q.length; i += 2) {
@@ -543,10 +543,10 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
   }
 
   /**
-   * Returns the QueryResponse from {@link #queryServer}  
+   * Returns the QueryResponse from {@link #queryServer}
    */
   protected QueryResponse query(boolean setDistribParams, SolrParams p) throws Exception {
-    
+
     final ModifiableSolrParams params = new ModifiableSolrParams(p);
 
     // TODO: look into why passing true causes fails
@@ -591,7 +591,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
     }
     return rsp;
   }
-  
+
   public QueryResponse queryAndCompare(SolrParams params, SolrServer... servers) throws SolrServerException {
     return queryAndCompare(params, Arrays.<SolrServer>asList(servers));
   }
@@ -884,7 +884,7 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
     }
     return o;
   }
-  
+
   /**
    * Implementations can pre-test the control data for basic correctness before using it
    * as a check for the shard data.  This is useful, for instance, if a test bug is introduced
@@ -919,11 +919,11 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
       return df.toExternal(d);
     }
   }
-  
+
   protected String getSolrXml() {
     return null;
   }
-  
+
   protected void setupJettySolrHome(File jettyHome) throws IOException {
     FileUtils.copyDirectory(new File(getSolrHome()), jettyHome);
     String solrxml = getSolrXml();

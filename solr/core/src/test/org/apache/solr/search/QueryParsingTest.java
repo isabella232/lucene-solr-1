@@ -41,15 +41,15 @@ public class QueryParsingTest extends SolrTestCaseJ4 {
 
   /**
    * Test that the main QParserPlugins people are likely to use
-   * as defaults fail with a consistent exception when the query string 
+   * as defaults fail with a consistent exception when the query string
    * is either empty or null.
    * @see <a href="https://issues.apache.org/jira/browse/SOLR-435">SOLR-435</a>
    * @see <a href="https://issues.apache.org/jira/browse/SOLR-2001">SOLR-2001</a>
    */
   public void testQParserEmptyInput() throws Exception {
-    
+
     SolrQueryRequest req = req();
-    
+
     final String[] parsersTested = new String[] {
       OldLuceneQParserPlugin.NAME,
       LuceneQParserPlugin.NAME,
@@ -63,16 +63,16 @@ public class QueryParsingTest extends SolrTestCaseJ4 {
         try {
           parser = QParser.getParser(qstr, defType, req);
         } catch (Exception e) {
-          throw new RuntimeException("getParser excep using defType=" + 
+          throw new RuntimeException("getParser excep using defType=" +
                                      defType + " with qstr="+qstr, e);
         }
-        
+
         Query q = parser.parse();
         assertNull("expected no query",q);
       }
     }
   }
-  
+
   @Test
   public void testSort() throws Exception {
     Sort sort;
@@ -164,7 +164,7 @@ public class QueryParsingTest extends SolrTestCaseJ4 {
     //Not thrilled about the fragility of string matching here, but...
     //the value sources get wrapped, so the out field is different than the input
     assertEquals(flds[0].getField(), "pow(float(weight),const(2))");
-    
+
     //test functions (more deep)
     sort = QueryParsing.parseSort("sum(product(r_f1,sum(d_f1,t_f1,1.0)),a_f1) asc", req);
     flds = sort.getSort();
@@ -177,7 +177,7 @@ public class QueryParsingTest extends SolrTestCaseJ4 {
     //Not thrilled about the fragility of string matching here, but...
     //the value sources get wrapped, so the out field is different than the input
     assertEquals(flds[0].getField(), "pow(float(weight),const(2.0))");
-                 
+
 
     spec = QueryParsing.parseSortSpec("pow(weight, 2.0) desc, weight    desc,   bday    asc", req);
     flds = spec.getSort().getSort();
@@ -200,7 +200,7 @@ public class QueryParsingTest extends SolrTestCaseJ4 {
     assertEquals(flds[2].getType(), SortField.Type.LONG);
     assertNotNull(schemaFlds.get(2));
     assertEquals("bday", schemaFlds.get(2).getName());
-    
+
     //handles trailing commas
     sort = QueryParsing.parseSort("weight desc,", req);
     flds = sort.getSort();
@@ -273,11 +273,11 @@ public class QueryParsingTest extends SolrTestCaseJ4 {
   }
 
   public void testLiteralFunction() throws Exception {
-    
+
     final String NAME = FunctionQParserPlugin.NAME;
 
     SolrQueryRequest req = req("variable", "foobar");
-    
+
     assertNotNull(QParser.getParser
                   ("literal('a value')",
                    NAME, req).getQuery());

@@ -35,7 +35,7 @@ import static org.apache.solr.common.SolrException.ErrorCode.SERVER_ERROR;
 public class ShardDoc extends FieldDoc {
   public String shard;
   public String shardAddress;  // TODO
-  
+
   int orderInShard;
     // the position of this doc within the shard... this can be used
     // to short-circuit comparisons if the shard is equal, and can
@@ -58,7 +58,7 @@ public class ShardDoc extends FieldDoc {
   // retrieval stage.
 
   public int positionInResponse;
-  // the ordinal position in the merged response arraylist  
+  // the ordinal position in the merged response arraylist
 
   public ShardDoc(float score, Object[] fields, Object uniqueId, String shard) {
       super(-1, score, fields);
@@ -144,7 +144,7 @@ class ShardFieldSortedHitQueue extends PriorityQueue<ShardDoc> {
   @Override
   protected boolean lessThan(ShardDoc docA, ShardDoc docB) {
     // If these docs are from the same shard, then the relative order
-    // is how they appeared in the response from that shard.    
+    // is how they appeared in the response from that shard.
     if (docA.shard == docB.shard) {
       // if docA has a smaller position, it should be "larger" so it
       // comes before docB.

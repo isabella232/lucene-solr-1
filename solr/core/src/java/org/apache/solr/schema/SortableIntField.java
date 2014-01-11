@@ -37,18 +37,18 @@ import java.util.Map;
 import java.io.IOException;
 
 /**
- * A legacy numeric field type that encodes "Integer" values as Strings such 
- * that Term enumeration order matches the natural numeric order.  This class 
- * should not be used except by people with existing indexes that already 
+ * A legacy numeric field type that encodes "Integer" values as Strings such
+ * that Term enumeration order matches the natural numeric order.  This class
+ * should not be used except by people with existing indexes that already
  * contain fields of this type.  New schemas should use {@link TrieIntField}.
  *
  * <p>
- * The naming convention "Sortable" comes from the fact that both the numeric 
- * values and encoded String representations Sort identically (as opposed to 
- * a direct String representation where values such as "11" sort before values 
+ * The naming convention "Sortable" comes from the fact that both the numeric
+ * values and encoded String representations Sort identically (as opposed to
+ * a direct String representation where values such as "11" sort before values
  * such as "2").
  * </p>
- * 
+ *
  * @see TrieIntField
  * @deprecated use {@link IntField} or {@link TrieIntField} - will be removed in 5.x
  */
@@ -94,7 +94,7 @@ public class SortableIntField extends PrimitiveFieldType implements IntValueFiel
 
   @Override
   public Integer toObject(IndexableField f) {
-    return NumberUtils.SortableStr2int(f.stringValue(), 0, 3);    
+    return NumberUtils.SortableStr2int(f.stringValue(), 0, 3);
   }
 
   @Override
@@ -105,7 +105,7 @@ public class SortableIntField extends PrimitiveFieldType implements IntValueFiel
 
   @Override
   public Object marshalSortValue(Object value) {
-    if (null == value) { 
+    if (null == value) {
       return null;
     }
     CharsRef chars = new CharsRef();
@@ -158,7 +158,7 @@ class SortableIntFieldSource extends FieldCacheSource {
 
       @Override
       public float floatVal(int doc) {
-        return (float)intVal(doc);
+        return intVal(doc);
       }
 
       @Override
@@ -179,12 +179,12 @@ class SortableIntFieldSource extends FieldCacheSource {
 
       @Override
       public long longVal(int doc) {
-        return (long)intVal(doc);
+        return intVal(doc);
       }
 
       @Override
       public double doubleVal(int doc) {
-        return (double)intVal(doc);
+        return intVal(doc);
       }
 
       @Override

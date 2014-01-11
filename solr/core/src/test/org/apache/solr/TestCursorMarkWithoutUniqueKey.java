@@ -45,7 +45,7 @@ public class TestCursorMarkWithoutUniqueKey extends SolrTestCaseJ4 {
   public void afterDestroyCore() throws Exception {
     deleteCore();
   }
-  
+
 
   public void test() throws Exception {
 

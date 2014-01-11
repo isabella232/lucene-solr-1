@@ -151,7 +151,7 @@ public abstract class FieldType extends FieldProperties {
 
     this.args = Collections.unmodifiableMap(args);
     Map<String,String> initArgs = new HashMap<String,String>(args);
-    initArgs.remove(CLASS_NAME); // consume the class arg 
+    initArgs.remove(CLASS_NAME); // consume the class arg
 
     trueProperties = FieldProperties.parseProperties(initArgs,true,false);
     falseProperties = FieldProperties.parseProperties(initArgs,false,false);
@@ -251,7 +251,7 @@ public abstract class FieldType extends FieldProperties {
         log.trace("Ignoring unindexed/unstored field: " + field);
       return null;
     }
-    
+
     String val;
     try {
       val = toInternal(value.toString());
@@ -414,7 +414,7 @@ public abstract class FieldType extends FieldProperties {
   }
 
   /**
-   * @return the string used to specify the concrete class name in a serialized representation: the class arg.  
+   * @return the string used to specify the concrete class name in a serialized representation: the class arg.
    *         If the concrete class name was not specified via a class arg, returns {@code getClass().getName()}.
    */
   public String getClassArg() {
@@ -505,11 +505,11 @@ public abstract class FieldType extends FieldProperties {
    * Sets the Analyzer to be used when indexing fields of this type.
    *
    * <p>
-   * The default implementation throws a SolrException.  
-   * Subclasses that override this method need to ensure the behavior 
+   * The default implementation throws a SolrException.
+   * Subclasses that override this method need to ensure the behavior
    * of the analyzer is consistent with the implementation of toInternal.
    * </p>
-   * 
+   *
    * @see #toInternal
    * @see #setQueryAnalyzer
    * @see #getAnalyzer
@@ -517,7 +517,7 @@ public abstract class FieldType extends FieldProperties {
   public void setAnalyzer(Analyzer analyzer) {
     throw new SolrException
       (ErrorCode.SERVER_ERROR,
-       "FieldType: " + this.getClass().getSimpleName() + 
+       "FieldType: " + this.getClass().getSimpleName() +
        " (" + typeName + ") does not support specifying an analyzer");
   }
 
@@ -525,11 +525,11 @@ public abstract class FieldType extends FieldProperties {
    * Sets the Analyzer to be used when querying fields of this type.
    *
    * <p>
-   * The default implementation throws a SolrException.  
-   * Subclasses that override this method need to ensure the behavior 
+   * The default implementation throws a SolrException.
+   * Subclasses that override this method need to ensure the behavior
    * of the analyzer is consistent with the implementation of toInternal.
    * </p>
-   * 
+   *
    * @see #toInternal
    * @see #setAnalyzer
    * @see #getQueryAnalyzer
@@ -549,12 +549,12 @@ public abstract class FieldType extends FieldProperties {
 
   /**
    * Gets the Similarity used when scoring fields of this type
-   * 
+   *
    * <p>
    * The default implementation returns null, which means this type
    * has no custom similarity associated with it.
    * </p>
-   * 
+   *
    * @lucene.internal
    */
   public Similarity getSimilarity() {
@@ -590,12 +590,12 @@ public abstract class FieldType extends FieldProperties {
     this.similarityFactory = similarityFactory;
     this.similarity = similarityFactory.getSimilarity();
   }
-  
+
   /**
    * The postings format used for this field type
    */
   protected String postingsFormat;
-  
+
   public String getPostingsFormat() {
     return postingsFormat;
   }
@@ -669,7 +669,7 @@ public abstract class FieldType extends FieldProperties {
             minInclusive, maxInclusive));
       } else {
         return new ConstantScoreQuery(FieldCacheRangeFilter.newStringRange(
-            field.getName(), 
+            field.getName(),
             part1 == null ? null : toInternal(part1),
             part2 == null ? null : toInternal(part2),
             minInclusive, maxInclusive));
@@ -691,7 +691,7 @@ public abstract class FieldType extends FieldProperties {
    * @param field The {@link org.apache.solr.schema.SchemaField} of the field to search
    * @param externalVal The String representation of the value to search
    * @return The {@link org.apache.lucene.search.Query} instance.  This implementation returns a {@link org.apache.lucene.search.TermQuery} but overriding queries may not
-   * 
+   *
    */
   public Query getFieldQuery(QParser parser, SchemaField field, String externalVal) {
     BytesRef br = new BytesRef();
@@ -703,7 +703,7 @@ public abstract class FieldType extends FieldProperties {
       return new TermQuery(new Term(field.getName(), br));
     }
   }
-  
+
   /**
    * Expert: Returns the rewrite method for multiterm queries such as wildcards.
    * @param parser The {@link org.apache.solr.search.QParser} calling the method
@@ -719,14 +719,14 @@ public abstract class FieldType extends FieldProperties {
   }
 
   /**
-   * Check's {@link org.apache.solr.schema.SchemaField} instances constructed 
+   * Check's {@link org.apache.solr.schema.SchemaField} instances constructed
    * using this field type to ensure that they are valid.
    *
    * <p>
-   * This method is called by the <code>SchemaField</code> constructor to 
-   * check that it's initialization does not violate any fundemental 
-   * requirements of the <code>FieldType</code>.  The default implementation 
-   * does nothing, but subclasses may chose to throw a {@link SolrException}  
+   * This method is called by the <code>SchemaField</code> constructor to
+   * check that it's initialization does not violate any fundemental
+   * requirements of the <code>FieldType</code>.  The default implementation
+   * does nothing, but subclasses may chose to throw a {@link SolrException}
    * if invariants are violated by the <code>SchemaField.</code>
    * </p>
    */
@@ -761,7 +761,7 @@ public abstract class FieldType extends FieldProperties {
   private static final String POSITION_INCREMENT_GAP = "positionIncrementGap";
 
   /**
-   * Get a map of property name -> value for this field type. 
+   * Get a map of property name -> value for this field type.
    * @param showDefaults if true, include default properties.
    */
   public SimpleOrderedMap<Object> getNamedPropertyValues(boolean showDefaults) {
@@ -821,11 +821,11 @@ public abstract class FieldType extends FieldProperties {
         }
       }
     }
-    
+
     if (isExplicitAnalyzer()) {
       String analyzerProperty = isExplicitQueryAnalyzer() ? INDEX_ANALYZER : ANALYZER;
       namedPropertyValues.add(analyzerProperty, getAnalyzerProperties(getAnalyzer()));
-    } 
+    }
     if (isExplicitQueryAnalyzer()) {
       String analyzerProperty = isExplicitAnalyzer() ? QUERY_ANALYZER : ANALYZER;
       namedPropertyValues.add(analyzerProperty, getAnalyzerProperties(getQueryAnalyzer()));
@@ -848,7 +848,7 @@ public abstract class FieldType extends FieldProperties {
     return initArgs;
   }
 
-  /** 
+  /**
    * Returns a description of the given analyzer, by either reporting the Analyzer name
    * if it's not a TokenizerChain, or if it is, querying each analysis factory for its
    * name and args.
@@ -932,17 +932,17 @@ public abstract class FieldType extends FieldProperties {
     }
     return analyzerProps;
   }
-  
-  /** 
+
+  /**
    * Convert a value used by the FieldComparator for this FieldType's SortField
    * into a marshalable value for distributed sorting.
    */
   public Object marshalSortValue(Object value) {
     return value;
   }
-  
+
   /**
-   * Convert a value marshaled via {@link #marshalSortValue} back 
+   * Convert a value marshaled via {@link #marshalSortValue} back
    * into a value usable by the FieldComparator for this FieldType's SortField
    */
   public Object unmarshalSortValue(Object value) {

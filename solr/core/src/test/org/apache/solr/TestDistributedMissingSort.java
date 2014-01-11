@@ -29,7 +29,7 @@ public class TestDistributedMissingSort extends BaseDistributedSearchTestCase {
   public TestDistributedMissingSort() {
     schemaString = "schema-distributed-missing-sort.xml";
   }
-  
+
   String sint1_ml = "one_si_ml";    // SortableIntField, sortMissingLast=true, multiValued=false
   String sint1_mf = "two_si_mf";    // SortableIntField, sortMissingFirst=true, multiValued=false
   String long1_ml = "three_l1_ml";  // TrieLongField, sortMissingLast=true, multiValued=false
@@ -97,7 +97,7 @@ public class TestDistributedMissingSort extends BaseDistributedSearchTestCase {
     handle.put("timestamp", SKIPVAL);
     handle.put("_version_", SKIPVAL); // not a cloud test, but may use updateLog
   }
-  
+
   private void testSortMissingLast() throws Exception {
     // id field values:         1     2     3     4     5     6     7     8     9    10    11    12    13
     // sint1_ml field values: 100    50     2  -100   500  -600   123   876     7  4321  -987   379   232
@@ -165,7 +165,7 @@ public class TestDistributedMissingSort extends BaseDistributedSearchTestCase {
         109, 108, 107, 106, 105, 104, 103, 102, 101, 100,
         17, 16, 15, 14);
 
-    
+
     // id field values:           1     2     3     4     5     6     7     8     9    10    11    12    13
     // string1_ml field values:  DE   ABC  HIJK  L  M    YB    WX     N   QRS     P     O    YA   TUV   F G
     // string1_ml asc sort pos:   2     1     4     5    13    11     6     9     8     7    12    10     3
@@ -199,7 +199,7 @@ public class TestDistributedMissingSort extends BaseDistributedSearchTestCase {
         109, 108, 107, 106, 105, 104, 103, 102, 101, 100,
         17, 16, 15, 14);
   }
-  
+
   private void testSortMissingFirst() throws Exception {
     // id field values:         1     2     3     4     5     6     7     8     9    10    11    12    13
     // sint1_mf field values: 100    50     2  -100   500  -600   123   876     7  4321  -987   379   232
@@ -256,7 +256,7 @@ public class TestDistributedMissingSort extends BaseDistributedSearchTestCase {
         17, 16, 15, 14,
         11, 6, 4, 3, 9, 2, 1, 7, 13, 12, 5, 8, 10);
 
-    
+
     // id field values:           1     2     3     4     5     6     7     8     9    10    11    12    13
     // string1_mf field values:  DE   ABC  HIJK  L  M    YB    WX     N   QRS     P     O    YA   TUV   F G
     // string1_mf asc sort pos:   2     1     4     5    13    11     6     9     8     7    12    10     3

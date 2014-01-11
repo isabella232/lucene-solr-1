@@ -25,73 +25,73 @@ import java.util.Locale;
  */
 public interface CommonParams {
 
-  /** 
-   * Override for the concept of "NOW" to be used throughout this request, 
-   * expressed as milliseconds since epoch.  This is primarily used in 
-   * distributed search to ensure consistent time values are used across 
+  /**
+   * Override for the concept of "NOW" to be used throughout this request,
+   * expressed as milliseconds since epoch.  This is primarily used in
+   * distributed search to ensure consistent time values are used across
    * multiple sub-requests.
    */
   public static final String NOW = "NOW";
 
-  /** 
-   * Specifies the TimeZone used by the client for the purposes of 
+  /**
+   * Specifies the TimeZone used by the client for the purposes of
    * any DateMath rounding that may take place when executing the request
    */
   public static final String TZ = "TZ";
 
   /** the Request Handler (formerly known as the Query Type) - which Request Handler should handle the request */
   public static final String QT ="qt";
-  
+
   /** the response writer type - the format of the response */
   public static final String WT ="wt";
-  
+
   /** query string */
   public static final String Q ="q";
-  
+
   /** sort order */
   public static final String SORT ="sort";
-  
+
   /** Lucene query string(s) for filtering the results without affecting scoring */
   public static final String FQ ="fq";
-  
+
   /** zero based offset of matching documents to retrieve */
   public static final String START ="start";
-  
+
   /** number of documents to return starting at "start" */
   public static final String ROWS ="rows";
 
   // SOLR-4228 start
   /** handler value for SolrPing */
   public static final String PING_HANDLER = "/admin/ping";
-  
+
   /** "action" parameter for SolrPing */
   public static final String ACTION = "action";
-  
+
   /** "disable" value for SolrPing action */
   public static final String DISABLE = "disable";
-  
+
   /** "enable" value for SolrPing action */
   public static final String ENABLE = "enable";
-  
+
   /** "ping" value for SolrPing action */
   public static final String PING = "ping";
   // SOLR-4228 end
 
   /** stylesheet to apply to XML results */
   public static final String XSL ="xsl";
-  
+
   /** version parameter to check request-response compatibility */
   public static final String VERSION ="version";
-  
+
   /** query and init param for field list */
   public static final String FL = "fl";
-  
+
   /** default query field */
   public static final String DF = "df";
 
   /** Transformer param -- used with XSLT */
   public static final String TR = "tr";
-  
+
   /** whether to include debug data for all components pieces, including doing explains*/
   public static final String DEBUG_QUERY = "debugQuery";
 
@@ -114,41 +114,41 @@ public interface CommonParams {
    * {@link #DEBUG} value indicating an interest in debug output related to the Query (parsing, etc.)
    */
   public static final String QUERY = "query";
-  
-  /** 
-   * boolean indicating whether score explanations should structured (true), 
+
+  /**
+   * boolean indicating whether score explanations should structured (true),
    * or plain text (false)
    */
   public static final String EXPLAIN_STRUCT = "debug.explain.structured";
-  
+
   /** another query to explain against */
   public static final String EXPLAIN_OTHER = "explainOther";
-  
+
 
   /** If the content stream should come from a URL (using URLConnection) */
   public static final String STREAM_URL = "stream.url";
 
   /** If the content stream should come from a File (using FileReader) */
   public static final String STREAM_FILE = "stream.file";
-  
+
   /** If the content stream should come directly from a field */
   public static final String STREAM_BODY = "stream.body";
-  
-  /** 
+
+  /**
    * Explicitly set the content type for the input stream
    * If multiple streams are specified, the explicit contentType
-   * will be used for all of them.  
+   * will be used for all of them.
    */
   public static final String STREAM_CONTENTTYPE = "stream.contentType";
-  
+
   /**
    * Timeout value in milliseconds.  If not set, or the value is <= 0, there is no timeout.
    */
   public static final String TIME_ALLOWED = "timeAllowed";
-  
+
   /** 'true' if the header should include the handler name */
   public static final String HEADER_ECHO_HANDLER = "echoHandler";
-  
+
   /** include the parameters in the header **/
   public static final String HEADER_ECHO_PARAMS = "echoParams";
 
@@ -160,7 +160,7 @@ public interface CommonParams {
     EXPLICIT,
     ALL,
     NONE;
-    
+
     public static EchoParamStyle get( String v ) {
       if( v != null ) {
         v = v.toUpperCase(Locale.ROOT);

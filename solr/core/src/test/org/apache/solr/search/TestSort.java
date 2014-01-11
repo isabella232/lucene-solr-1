@@ -96,7 +96,7 @@ public class TestSort extends SolrTestCaseJ4 {
 
           // eliminate pesky problem chars
           names[j] = names[j].replaceAll("\\p{Cntrl}|\\p{javaWhitespace}","");
-          
+
           if (0 == names[j].length()) {
             names[j] = null;
           }
@@ -123,9 +123,9 @@ public class TestSort extends SolrTestCaseJ4 {
       } catch (RuntimeException e) {
         throw new RuntimeException("Failed to parse sort: " + input, e);
       }
-      assertEquals("parsed sorts had unexpected size", 
+      assertEquals("parsed sorts had unexpected size",
                    names.length, sorts.length);
-      assertEquals("parsed sort schema fields had unexpected size", 
+      assertEquals("parsed sort schema fields had unexpected size",
                    names.length, fields.size());
       for (int j = 0; j < names.length; j++) {
         assertEquals("sorts["+j+"] had unexpected reverse: " + input,
@@ -142,7 +142,7 @@ public class TestSort extends SolrTestCaseJ4 {
         } else if (Type.CUSTOM.equals(type) || Type.REWRITEABLE.equals(type)) {
 
           fail("sorts["+j+"] resulted in a '" + type.toString()
-               + "', either sort parsing code is broken, or func/query " 
+               + "', either sort parsing code is broken, or func/query "
                + "semantics have gotten broader and munging in this test "
                + "needs improved: " + input);
 
@@ -307,7 +307,7 @@ public class TestSort extends SolrTestCaseJ4 {
           if (id != collectedDocs.get(j).doc) {
             log.error("Error at pos " + j
             + "\n\tsortMissingFirst=" + sortMissingFirst + " sortMissingLast=" + sortMissingLast + " reverse=" + reverse
-            + "\n\tEXPECTED=" + collectedDocs 
+            + "\n\tEXPECTED=" + collectedDocs
             );
           }
           assertEquals(id, collectedDocs.get(j).doc);
@@ -326,7 +326,7 @@ public class TestSort extends SolrTestCaseJ4 {
       obs.fastSet(r.nextInt(sz));
     }
     return obs;
-  }  
-  
+  }
+
 
 }

@@ -86,7 +86,7 @@ import com.carrotsearch.randomizedtesting.rules.SystemPropertiesRestoreRule;
 /**
  * A junit4 Solr test harness that extends LuceneTestCaseJ4. To change which core is used when loading the schema and solrconfig.xml, simply
  * invoke the {@link #initCore(String, String, String, String)} method.
- * 
+ *
  * Unlike {@link AbstractSolrTestCase}, a new core is not created for each test method.
  */
 @ThreadLeakFilters(defaultFilters = true, filters = {
@@ -99,19 +99,19 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
 
   @ClassRule
-  public static TestRule solrClassRules = 
+  public static TestRule solrClassRules =
     RuleChain.outerRule(new SystemPropertiesRestoreRule())
              .around(new RevertDefaultThreadHandlerRule());
 
   @Rule
-  public TestRule solrTestRules = 
+  public TestRule solrTestRules =
     RuleChain.outerRule(new SystemPropertiesRestoreRule());
 
-  @BeforeClass 
+  @BeforeClass
   @SuppressWarnings("unused")
   private static void beforeClass() {
     System.setProperty("jetty.testMode", "true");
-    
+
     System.setProperty("useCompoundFile", Boolean.toString(random().nextBoolean()));
     System.setProperty("enable.update.log", usually() ? "true" : "false");
     System.setProperty("tests.shardhandler.randomSeed", Long.toString(random().nextLong()));
@@ -190,7 +190,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
   @Override
   public void tearDown() throws Exception {
-    log.info("###Ending " + getTestName());    
+    log.info("###Ending " + getTestName());
     super.tearDown();
   }
 
@@ -252,7 +252,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     coreName=pCoreName;
     initCore(config,schema,solrHome);
   }
-  
+
   static long numOpens;
   static long numCloses;
   public static void startTrackingSearchers() {
@@ -302,7 +302,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
        }
      }
   }
-  
+
   public static void endTrackingZkClients() {
     long endNumOpens = SolrZkClient.numOpens.get();
     long endNumCloses = SolrZkClient.numCloses.get();
@@ -316,7 +316,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       fail(msg);
     }
  }
-  
+
   /** Causes an exception matching the regex pattern to not be logged. */
   public static void ignoreException(String pattern) {
     if (SolrException.ignorePatterns == null)
@@ -332,7 +332,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
   public static void resetExceptionIgnores() {
     SolrException.ignorePatterns = null;
-    ignoreException("ignore_exception");  // always ignore "ignore_exception"    
+    ignoreException("ignore_exception");  // always ignore "ignore_exception"
   }
 
   protected static String getClassName() {
@@ -389,7 +389,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
    * The directory used to story the index managed by the TestHarness h
    */
   protected static File dataDir;
-  
+
   // hack due to File dataDir
   protected static String hdfsDataDir;
 
@@ -522,7 +522,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     if (factoryProp == null) {
       System.clearProperty("solr.directoryFactory");
     }
-    
+
     dataDir = null;
     solrConfig = null;
     h = null;
@@ -699,7 +699,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
           }
         } finally {
           if (failed) {
-            log.error("JSON query validation threw an exception." + 
+            log.error("JSON query validation threw an exception." +
                 "\n expected =" + testJSON +
                 "\n response = " + response +
                 "\n request = " + req.getParamString()
@@ -712,7 +712,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       // restore the params
       if (params != null && params != req.getParams()) req.setParams(params);
     }
-  }  
+  }
 
 
   /** Makes sure a query throws a SolrException with the listed response code */
@@ -908,7 +908,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     }
     return f.delete();
   }
-  
+
   public void clearIndex() {
     assertU(delQ("*:*"));
   }
@@ -1075,7 +1075,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
   /////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////// random document / index creation ///////////////////////
   /////////////////////////////////////////////////////////////////////////////////////
-  
+
   public abstract static class Vals {
     public abstract Comparable get();
     public String toJSON(Comparable val) {
@@ -1127,7 +1127,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     public Comparable get() {
       return getFloat();
     }
-  }  
+  }
 
   public static class SVal extends Vals {
     char start;
@@ -1238,7 +1238,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     public FldType(String fname, IRange numValues, Vals vals) {
       this.fname = fname;
       this.numValues = numValues;
-      this.vals = vals;      
+      this.vals = vals;
     }
 
     public Comparable createValue() {
@@ -1261,7 +1261,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       Fld fld = new Fld();
       fld.ftype = this;
       fld.vals = vals;
-      return fld;          
+      return fld;
     }
 
   }
@@ -1289,7 +1289,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       // duplicate 10% of the docs
       if (random().nextInt(10)==0) {
         updateJ(toJSON(doc), null);
-        model.put(doc.id, doc);        
+        model.put(doc.id, doc);
       }
     }
 
@@ -1369,7 +1369,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
     if (comparators.size() == 0) {
       // default sort is by score desc
-      comparators.add(createComparator("score", false, false, false, false));      
+      comparators.add(createComparator("score", false, false, false, false));
     }
 
     return createComparator(comparators);
@@ -1519,7 +1519,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       throw new RuntimeException("Cannot find resource: " + new File(name).getAbsolutePath());
     }
   }
-  
+
   public static String TEST_HOME() {
     return getFile("solr/collection1").getParent();
   }
@@ -1551,7 +1551,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
   // Creates a mininmal conf dir.
   public void copyMinConf(File dstRoot) throws IOException {
 ======= */
-                                                         
+
   /**
    * Fails if the number of documents in the given SolrDocumentList differs
    * from the given number of expected values, or if any of the values in the

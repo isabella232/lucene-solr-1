@@ -27,12 +27,12 @@ import org.apache.solr.common.params.CursorMarkParams;
 import java.util.*;
 
 /**
- * 
+ *
  *
  * @since solr 1.3
  */
 @SuppressWarnings("unchecked")
-public class QueryResponse extends SolrResponseBase 
+public class QueryResponse extends SolrResponseBase
 {
   // Direct pointers to known types
   private NamedList<Object> _header = null;
@@ -66,21 +66,21 @@ public class QueryResponse extends SolrResponseBase
 
   // Terms Response
   private TermsResponse _termsResponse = null;
-  
+
   // Field stats Response
   private Map<String,FieldStatsInfo> _fieldStatsInfo = null;
-  
+
   // Debug Info
   private Map<String,Object> _debugMap = null;
   private Map<String,String> _explainMap = null;
 
   // utility variable used for automatic binding -- it should not be serialized
   private transient final SolrServer solrServer;
-  
+
   public QueryResponse(){
     solrServer = null;
   }
-  
+
   /**
    * Utility constructor to set the solrServer and namedList
    */
@@ -93,7 +93,7 @@ public class QueryResponse extends SolrResponseBase
   public void setResponse( NamedList<Object> res )
   {
     super.setResponse( res );
-    
+
     // Look for known things
     for( int i=0; i<res.size(); i++ ) {
       String n = res.getName( i );
@@ -149,7 +149,7 @@ public class QueryResponse extends SolrResponseBase
   private void extractTermsInfo(NamedList<NamedList<Number>> termsInfo) {
     _termsResponse = new TermsResponse(termsInfo);
   }
-  
+
   private void extractStatsInfo(NamedList<Object> info) {
     if( info != null ) {
       _fieldStatsInfo = new HashMap<String, FieldStatsInfo>();
@@ -158,7 +158,7 @@ public class QueryResponse extends SolrResponseBase
         for( Map.Entry<String,NamedList<Object>> entry : ff ) {
           NamedList<Object> v = entry.getValue();
           if( v != null ) {
-            _fieldStatsInfo.put( entry.getKey(), 
+            _fieldStatsInfo.put( entry.getKey(),
                 new FieldStatsInfo( v, entry.getKey() ) );
           }
         }
@@ -238,7 +238,7 @@ public class QueryResponse extends SolrResponseBase
     for( Map.Entry<String, Object> doc : info ) {
       Map<String,List<String>> fieldMap = new HashMap<String, List<String>>();
       _highlighting.put( doc.getKey(), fieldMap );
-      
+
       NamedList<List<String>> fnl = (NamedList<List<String>>)doc.getValue();
       for( Map.Entry<String, List<String>> field : fnl ) {
         fieldMap.put( field.getKey(), field.getValue() );
@@ -256,21 +256,21 @@ public class QueryResponse extends SolrResponseBase
         _facetQuery.put( entry.getKey(), entry.getValue() );
       }
     }
-    
+
     // Parse the facet info into fields
     // TODO?? The list could be <int> or <long>?  If always <long> then we can switch to <Long>
     NamedList<NamedList<Number>> ff = (NamedList<NamedList<Number>>) info.get( "facet_fields" );
     if( ff != null ) {
       _facetFields = new ArrayList<FacetField>( ff.size() );
       _limitingFacets = new ArrayList<FacetField>( ff.size() );
-      
+
       long minsize = _results == null ? Long.MAX_VALUE :_results.getNumFound();
       for( Map.Entry<String,NamedList<Number>> facet : ff ) {
         FacetField f = new FacetField( facet.getKey() );
         for( Map.Entry<String, Number> entry : facet.getValue() ) {
           f.add( entry.getKey(), entry.getValue().longValue() );
         }
-        
+
         _facetFields.add( f );
         FacetField nl = f.getLimitingFields( minsize );
         if( nl.getValueCount() > 0 ) {
@@ -278,7 +278,7 @@ public class QueryResponse extends SolrResponseBase
         }
       }
     }
-    
+
     //Parse date facets
     NamedList<NamedList<Object>> df = (NamedList<NamedList<Object>>) info.get("facet_dates");
     if (df != null) {
@@ -290,7 +290,7 @@ public class QueryResponse extends SolrResponseBase
         String gap = (String) values.get("gap");
         Date end = (Date) values.get("end");
         FacetField f = new FacetField(facet.getKey(), gap, end);
-        
+
         for (Map.Entry<String, Object> entry : values)   {
           try {
             f.add(entry.getKey(), Long.parseLong(entry.getValue().toString()));
@@ -298,7 +298,7 @@ public class QueryResponse extends SolrResponseBase
             //Ignore for non-number responses which are already handled above
           }
         }
-        
+
         _facetDates.add(f);
       }
     }
@@ -342,7 +342,7 @@ public class QueryResponse extends SolrResponseBase
         _facetRanges.add(rangeFacet);
       }
     }
-    
+
     //Parse pivot facets
     NamedList pf = (NamedList) info.get("facet_pivot");
     if (pf != null) {
@@ -352,7 +352,7 @@ public class QueryResponse extends SolrResponseBase
       }
     }
   }
-  
+
   protected List<PivotField> readPivots( List<NamedList> list )
   {
     ArrayList<PivotField> values = new ArrayList<PivotField>( list.size() );
@@ -376,7 +376,7 @@ public class QueryResponse extends SolrResponseBase
   public void removeFacets() {
     _facetFields = new ArrayList<FacetField>();
   }
-  
+
   //------------------------------------------------------
   //------------------------------------------------------
 
@@ -387,7 +387,7 @@ public class QueryResponse extends SolrResponseBase
   public SolrDocumentList getResults() {
     return _results;
   }
- 
+
   public NamedList<ArrayList> getSortValues(){
     return _sortvalues;
   }
@@ -418,7 +418,7 @@ public class QueryResponse extends SolrResponseBase
   public GroupResponse getGroupResponse() {
     return _groupResponse;
   }
-  
+
   public Map<String, Map<String, List<String>>> getHighlighting() {
     return _highlighting;
   }
@@ -430,14 +430,14 @@ public class QueryResponse extends SolrResponseBase
   public TermsResponse getTermsResponse() {
     return _termsResponse;
   }
-  
+
   /**
    * See also: {@link #getLimitingFacets()}
    */
   public List<FacetField> getFacetFields() {
     return _facetFields;
   }
-  
+
   public List<FacetField> getFacetDates()   {
     return _facetDates;
   }
@@ -449,9 +449,9 @@ public class QueryResponse extends SolrResponseBase
   public NamedList<List<PivotField>> getFacetPivot()   {
     return _facetPivot;
   }
-  
+
   /** get
-   * 
+   *
    * @param name the name of the
    * @return the FacetField by name or null if it does not exist
    */
@@ -462,7 +462,7 @@ public class QueryResponse extends SolrResponseBase
     }
     return null;
   }
-  
+
   public FacetField getFacetDate(String name)   {
     if (_facetDates == null)
       return null;
@@ -471,20 +471,20 @@ public class QueryResponse extends SolrResponseBase
         return f;
     return null;
   }
-  
+
   /**
    * @return a list of FacetFields where the count is less then
    * then #getResults() {@link SolrDocumentList#getNumFound()}
-   * 
+   *
    * If you want all results exactly as returned by solr, use:
    * {@link #getFacetFields()}
    */
   public List<FacetField> getLimitingFacets() {
     return _limitingFacets;
   }
-  
+
   public <T> List<T> getBeans(Class<T> type){
-    return solrServer == null ? 
+    return solrServer == null ?
       new DocumentObjectBinder().getBeans(type,_results):
       solrServer.getBinder().getBeans(type, _results);
   }

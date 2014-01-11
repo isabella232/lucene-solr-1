@@ -47,10 +47,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 /**
- * An object that encapsulates the basic information about the current Mark Point of a 
- * "Cursor" based request.  <code>CursorMark</code> objects track the sort values of 
- * the last document returned to a user, so that {@link SolrIndexSearcher} can then 
- * be asked to find all documents "after" the values represented by this 
+ * An object that encapsulates the basic information about the current Mark Point of a
+ * "Cursor" based request.  <code>CursorMark</code> objects track the sort values of
+ * the last document returned to a user, so that {@link SolrIndexSearcher} can then
+ * be asked to find all documents "after" the values represented by this
  * <code>CursorMark</code>.
  *
  */
@@ -62,10 +62,10 @@ public final class CursorMark {
   private final SortSpec sortSpec;
 
   /**
-   * The raw, unmarshalled, sort values (that corrispond with the SortField's in the 
-   * SortSpec) for knowing which docs this cursor should "search after".  If this 
-   * list is null, then we have no specific values to "search after" and we 
-   * should start from the very begining of the sorted list of documents matching 
+   * The raw, unmarshalled, sort values (that corrispond with the SortField's in the
+   * SortSpec) for knowing which docs this cursor should "search after".  If this
+   * list is null, then we have no specific values to "search after" and we
+   * should start from the very begining of the sorted list of documents matching
    * the query.
    */
   private List<Object> values = null;
@@ -76,7 +76,7 @@ public final class CursorMark {
   private final JavaBinCodec codec = new JavaBinCodec();
 
   /**
-   * Generates an empty CursorMark bound for use with the 
+   * Generates an empty CursorMark bound for use with the
    * specified schema and {@link SortSpec}.
    *
    * @param schema used for basic validation
@@ -96,7 +96,7 @@ public final class CursorMark {
       throw new SolrException(ErrorCode.BAD_REQUEST,
                               "Cursor functionality requires a sort containing a uniqueKey field tie breaker");
     }
-    
+
     if (!sortSpec.getSchemaFields().contains(uniqueKey)) {
       throw new SolrException(ErrorCode.BAD_REQUEST,
                               "Cursor functionality requires a sort containing a uniqueKey field tie breaker");
@@ -116,8 +116,8 @@ public final class CursorMark {
 
     if (sort.getSort().length != sortSpec.getSchemaFields().size()) {
         throw new SolrException(ErrorCode.SERVER_ERROR,
-                                "Cursor SortSpec failure: sort length != SchemaFields: " 
-                                + sort.getSort().length + " != " + 
+                                "Cursor SortSpec failure: sort length != SchemaFields: "
+                                + sort.getSort().length + " != " +
                                 sortSpec.getSchemaFields().size());
     }
 
@@ -150,8 +150,8 @@ public final class CursorMark {
 
 
   /**
-   * Sets the (raw, unmarshalled) sort values (which must conform to the existing 
-   * sortSpec) to populate this object.  If null, then there is nothing to 
+   * Sets the (raw, unmarshalled) sort values (which must conform to the existing
+   * sortSpec) to populate this object.  If null, then there is nothing to
    * "search after" and the "first page" of results should be returned.
    */
   public void setSortValues(List<Object> input) {
@@ -165,7 +165,7 @@ public final class CursorMark {
   }
 
   /**
-   * Returns a copy of the (raw, unmarshalled) sort values used by this object, or 
+   * Returns a copy of the (raw, unmarshalled) sort values used by this object, or
    * null if first page of docs should be returned (ie: no sort after)
    */
   public List<Object> getSortValues() {
@@ -181,7 +181,7 @@ public final class CursorMark {
   }
 
   /**
-   * Parses the serialized version of a CursorMark from a client 
+   * Parses the serialized version of a CursorMark from a client
    * (which must conform to the existing sortSpec) and populates this object.
    *
    * @see #getSerializedTotem
@@ -205,8 +205,8 @@ public final class CursorMark {
       }
     } catch (Exception ex) {
       throw new SolrException(ErrorCode.BAD_REQUEST,
-                              "Unable to parse '"+CURSOR_MARK_PARAM+"' after totem: " + 
-                              "value must either be '"+CURSOR_MARK_START+"' or the " + 
+                              "Unable to parse '"+CURSOR_MARK_PARAM+"' after totem: " +
+                              "value must either be '"+CURSOR_MARK_START+"' or the " +
                               "'"+CURSOR_MARK_NEXT+"' returned by a previous search: "
                               + serialized, ex);
     }
@@ -230,14 +230,14 @@ public final class CursorMark {
       if (null != curField) {
         FieldType curType = curField.getType();
         rawValue = curType.unmarshalSortValue(rawValue);
-      } 
+      }
 
       this.values.add(rawValue);
     }
   }
-  
+
   /**
-   * Generates a Base64 encoded serialized representation of the sort values 
+   * Generates a Base64 encoded serialized representation of the sort values
    * encapsulated by this object, for use in cursor requests.
    *
    * @see #parseSerializedTotem
@@ -260,7 +260,7 @@ public final class CursorMark {
     }
 
     // TODO: we could also encode info about the SortSpec for error checking:
-    // the type/name/dir from the SortFields (or a hashCode to act as a checksum) 
+    // the type/name/dir from the SortFields (or a hashCode to act as a checksum)
     // could help provide more validation beyond just the number of clauses.
 
     try {
@@ -275,29 +275,29 @@ public final class CursorMark {
     } catch (Exception ex) {
       throw new SolrException(ErrorCode.SERVER_ERROR,
                               "Unable to format search after totem", ex);
-      
+
     }
   }
 
   /**
-   * Returns a synthetically constructed {@link FieldDoc} whose {@link FieldDoc#fields} 
-   * match the values of this object.  
+   * Returns a synthetically constructed {@link FieldDoc} whose {@link FieldDoc#fields}
+   * match the values of this object.
    * <p>
    * Important Notes:
    * </p>
    * <ul>
-   *  <li>{@link FieldDoc#doc} will always be set to {@link Integer#MAX_VALUE} so 
-   *    that the tie breaking logic used by <code>IndexSearcher</code> won't select 
-   *    the same doc again based on the internal lucene docId when the Solr 
+   *  <li>{@link FieldDoc#doc} will always be set to {@link Integer#MAX_VALUE} so
+   *    that the tie breaking logic used by <code>IndexSearcher</code> won't select
+   *    the same doc again based on the internal lucene docId when the Solr
    *    <code>uniqueKey</code> value is the same.
    *  </li>
    *  <li>{@link FieldDoc#score} will always be set to 0.0F since it is not used
-   *    when applying <code>searchAfter</code> logic. (Even if the sort values themselves 
+   *    when applying <code>searchAfter</code> logic. (Even if the sort values themselves
    *    contain scores which are used in the sort)
    *  </li>
    * </ul>
    *
-   * @return a {@link FieldDoc} to "search after" or null if the initial 
+   * @return a {@link FieldDoc} to "search after" or null if the initial
    *         page of results is requested.
    */
   public FieldDoc getSearchAfterFieldDoc() {

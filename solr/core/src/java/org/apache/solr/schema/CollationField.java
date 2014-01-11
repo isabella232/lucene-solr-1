@@ -44,10 +44,10 @@ import org.apache.solr.response.TextResponseWriter;
 import org.apache.solr.search.QParser;
 
 /**
- * Field for collated sort keys. 
+ * Field for collated sort keys.
  * These can be used for locale-sensitive sort and range queries.
  * <p>
- * This field can be created in two ways: 
+ * This field can be created in two ways:
  * <ul>
  *  <li>Based upon a system collator associated with a Locale.
  *  <li>Based upon a tailored ruleset.
@@ -68,7 +68,7 @@ import org.apache.solr.search.QParser;
  *  <li>strength: 'primary','secondary','tertiary', or 'identical' (optional)
  *  <li>decomposition: 'no','canonical', or 'full' (optional)
  * </ul>
- * 
+ *
  * @see Collator
  * @see Locale
  * @see RuleBasedCollator
@@ -83,7 +83,7 @@ public class CollationField extends FieldType {
     setup(schema.getResourceLoader(), args);
     super.init(schema, args);
   }
-  
+
   /**
    * Setup the field according to the provided parameters
    */
@@ -94,26 +94,26 @@ public class CollationField extends FieldType {
     String variant = args.remove("variant");
     String strength = args.remove("strength");
     String decomposition = args.remove("decomposition");
-    
+
     final Collator collator;
 
     if (custom == null && language == null)
       throw new SolrException(ErrorCode.SERVER_ERROR, "Either custom or language is required.");
-    
-    if (custom != null && 
+
+    if (custom != null &&
         (language != null || country != null || variant != null))
       throw new SolrException(ErrorCode.SERVER_ERROR, "Cannot specify both language and custom. "
           + "To tailor rules for a built-in language, see the javadocs for RuleBasedCollator. "
           + "Then save the entire customized ruleset to a file, and use with the custom parameter");
-    
-    if (language != null) { 
+
+    if (language != null) {
       // create from a system collator, based on Locale.
       collator = createFromLocale(language, country, variant);
-    } else { 
+    } else {
       // create from a custom ruleset
       collator = createFromRules(custom, loader);
     }
-    
+
     // set the strength flag, otherwise it will be the default.
     if (strength != null) {
       if (strength.equalsIgnoreCase("primary"))
@@ -127,7 +127,7 @@ public class CollationField extends FieldType {
       else
         throw new SolrException(ErrorCode.SERVER_ERROR, "Invalid strength: " + strength);
     }
-    
+
     // set the decomposition flag, otherwise it will be the default.
     if (decomposition != null) {
       if (decomposition.equalsIgnoreCase("no"))
@@ -142,27 +142,27 @@ public class CollationField extends FieldType {
     // we use 4.0 because it ensures we just encode the pure byte[] keys.
     analyzer = new CollationKeyAnalyzer(Version.LUCENE_40, collator);
   }
-  
+
   /**
    * Create a locale from language, with optional country and variant.
    * Then return the appropriate collator for the locale.
    */
   private Collator createFromLocale(String language, String country, String variant) {
     Locale locale;
-    
+
     if (language != null && country == null && variant != null)
-      throw new SolrException(ErrorCode.SERVER_ERROR, 
+      throw new SolrException(ErrorCode.SERVER_ERROR,
           "To specify variant, country is required");
     else if (language != null && country != null && variant != null)
       locale = new Locale(language, country, variant);
     else if (language != null && country != null)
       locale = new Locale(language, country);
-    else 
+    else
       locale = new Locale(language);
-    
+
     return Collator.getInstance(locale);
   }
-  
+
   /**
    * Read custom rules from a file, and create a RuleBasedCollator
    * The file cannot support comments, as # might be in the rules!
@@ -207,19 +207,19 @@ public class CollationField extends FieldType {
   /**
    * analyze the range with the analyzer, instead of the collator.
    * because jdk collators might not be thread safe (when they are
-   * its just that all methods are synced), this keeps things 
+   * its just that all methods are synced), this keeps things
    * simple (we already have a threadlocal clone in the reused TS)
    */
   private BytesRef analyzeRangePart(String field, String part) {
     TokenStream source;
-      
+
     try {
       source = analyzer.tokenStream(field, part);
       source.reset();
     } catch (IOException e) {
       throw new RuntimeException("Unable to initialize TokenStream to analyze range part: " + part, e);
     }
-      
+
     TermToBytesRefAttribute termAtt = source.getAttribute(TermToBytesRefAttribute.class);
     BytesRef bytes = termAtt.getBytesRef();
 
@@ -232,17 +232,17 @@ public class CollationField extends FieldType {
     } catch (IOException e) {
       throw new RuntimeException("error analyzing range part: " + part, e);
     }
-      
+
     try {
       source.end();
       source.close();
     } catch (IOException e) {
       throw new RuntimeException("Unable to end & close TokenStream after analyzing range part: " + part, e);
     }
-      
+
     return BytesRef.deepCopyOf(bytes);
   }
-  
+
   @Override
   public Query getRangeQuery(QParser parser, SchemaField field, String part1, String part2, boolean minInclusive, boolean maxInclusive) {
     String f = field.getName();

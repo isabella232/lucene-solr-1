@@ -79,7 +79,7 @@ public class SortableBinaryField extends BinaryField {
         }}, reverse);
     }
   }
-  
+
   @Override
   public Object marshalSortValue(Object value) {
     if (null == value) {
@@ -88,7 +88,7 @@ public class SortableBinaryField extends BinaryField {
     final BytesRef val = (BytesRef)value;
     return Base64.byteArrayToBase64(val.bytes, val.offset, val.length);
   }
-  
+
   @Override
   public Object unmarshalSortValue(Object value) {
     if (null == value) {

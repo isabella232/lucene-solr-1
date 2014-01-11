@@ -72,7 +72,7 @@ public class QueryParsing {
 
   /**
    * Returns the "preferred" default operator for use by Query Parsers,
-   * based on the settings in the IndexSchema which may be overridden using 
+   * based on the settings in the IndexSchema which may be overridden using
    * an optional String override value.
    *
    * @see IndexSchema#getQueryParserDefaultOperator()
@@ -196,7 +196,7 @@ public class QueryParsing {
     sb.append('\'');
     return sb.toString();
   }
-  
+
 
   /**
    * "foo" returns null
@@ -220,11 +220,11 @@ public class QueryParsing {
     return new MapSolrParams(localParams);
   }
 
-  /** 
-   * Returns the Sort object represented by the string, or null if default sort 
+  /**
+   * Returns the Sort object represented by the string, or null if default sort
    * by score descending should be used.
    * @see #parseSortSpec
-   * @deprecated use {@link #parseSortSpec} 
+   * @deprecated use {@link #parseSortSpec}
    */
   @Deprecated
   public static Sort parseSort(String sortSpec, SolrQueryRequest req) {
@@ -248,8 +248,8 @@ public class QueryParsing {
    *   height desc,weight desc  #sort by height descending, and use weight descending to break any ties
    *   height desc,weight asc   #sort by height descending, using weight ascending as a tiebreaker
    * </pre>
-   * @return a SortSpec object populated with the appropriate Sort (which may be null if 
-   *         default score sort is used) and SchemaFields (where applicable) using 
+   * @return a SortSpec object populated with the appropriate Sort (which may be null if
+   *         default score sort is used) and SchemaFields (where applicable) using
    *         hardcoded default count &amp; offset values.
    */
   public static SortSpec parseSortSpec(String sortSpec, SolrQueryRequest req) {
@@ -282,9 +282,9 @@ public class QueryParsing {
               FunctionQParser fparser = (FunctionQParser)parser;
               fparser.setParseMultipleSources(false);
               fparser.setParseToEnd(false);
-              
+
               q = fparser.getQuery();
-              
+
               if (fparser.localParams != null) {
                 if (fparser.valFollowedParams) {
                   // need to find the end of the function query via the string parser
@@ -336,10 +336,10 @@ public class QueryParsing {
         }
         Boolean top = sp.getSortDirection();
         if (null == top) {
-            throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, 
+            throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
                                     "Can't determine a Sort Order (asc or desc) in sort spec " + sp);
         }
-        
+
         if (SCORE.equals(field)) {
           if (top) {
             sorts.add(SortField.FIELD_SCORE);
@@ -795,7 +795,7 @@ public class QueryParsing {
     }
 
     /**
-     * Skips leading whitespace and returns whatever sequence of non 
+     * Skips leading whitespace and returns whatever sequence of non
      * whitespace it can find (or hte empty string)
      */
     String getSimpleString() {
@@ -811,9 +811,9 @@ public class QueryParsing {
     }
 
     /**
-     * Sort direction or null if current position does not indicate a 
-     * sort direction. (True is desc, False is asc).  
-     * Position is advanced to after the comma (or end) when result is non null 
+     * Sort direction or null if current position does not indicate a
+     * sort direction. (True is desc, False is asc).
+     * Position is advanced to after the comma (or end) when result is non null
      */
     Boolean getSortDirection() throws SyntaxError {
       final int startPos = pos;

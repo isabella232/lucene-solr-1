@@ -221,7 +221,7 @@ public class ResponseBuilder
   public boolean isDebugAll(){
     return debugQuery && debugTimings && debugResults;
   }
-  
+
   public void setDebug(boolean dbg){
     debugQuery = dbg;
     debugTimings = dbg;
@@ -402,7 +402,7 @@ public class ResponseBuilder
       this.setNextCursorMark(result.getNextCursorMark());
     }
   }
-  
+
   public long getNumberDocumentsFound() {
     if (_responseDocs == null) {
       return 0;

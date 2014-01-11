@@ -17,6 +17,7 @@
 package org.apache.solr.cloud;
 
 import org.apache.lucene.util.LuceneTestCase.Slow;
+import org.apache.lucene.util.LuceneTestCase.SuppressCodecs;
 import org.apache.lucene.util._TestUtil;
 import org.apache.lucene.util.SentinelIntSet;
 import org.apache.solr.CursorPagingTest;
@@ -46,12 +47,13 @@ import java.util.Map;
 
 /**
  * Distributed tests of deep paging using {@link CursorMark} and {@link #CURSOR_MARK_PARAM}.
- * 
+ *
  * NOTE: this class Reuses some utilities from {@link CursorPagingTest} that assume the same schema and configs.
  *
- * @see CursorPagingTest 
+ * @see CursorPagingTest
  */
 @Slow
+@SuppressCodecs("Lucene3x")
 public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
 
   public DistribCursorPagingTest() {
@@ -105,33 +107,33 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
 
     // empty, blank, or bogus cursor
     for (String c : new String[] { "", "   ", "all the docs please!"}) {
-      assertFail(params("q", "*:*", 
-                        "sort", "id desc", 
+      assertFail(params("q", "*:*",
+                        "sort", "id desc",
                         CURSOR_MARK_PARAM, c),
                  ErrorCode.BAD_REQUEST, "Unable to parse");
     }
 
     // no id in sort
-    assertFail(params("q", "*:*", 
-                      "sort", "score desc", 
+    assertFail(params("q", "*:*",
+                      "sort", "score desc",
                       CURSOR_MARK_PARAM, CURSOR_MARK_START),
                ErrorCode.BAD_REQUEST, "uniqueKey field");
     // _docid_
-    assertFail(params("q", "*:*", 
-                      "sort", "_docid_ asc, id desc", 
+    assertFail(params("q", "*:*",
+                      "sort", "_docid_ asc, id desc",
                       CURSOR_MARK_PARAM, CURSOR_MARK_START),
                ErrorCode.BAD_REQUEST, "_docid_");
 
     // using cursor w/ timeAllowed
-    assertFail(params("q", "*:*", 
-                      "sort", "id desc", 
+    assertFail(params("q", "*:*",
+                      "sort", "id desc",
                       CommonParams.TIME_ALLOWED, "1000",
                       CURSOR_MARK_PARAM, CURSOR_MARK_START),
                ErrorCode.BAD_REQUEST, CommonParams.TIME_ALLOWED);
 
     // using cursor w/ grouping
-    assertFail(params("q", "*:*", 
-                      "sort", "id desc", 
+    assertFail(params("q", "*:*",
+                      "sort", "id desc",
                       GroupParams.GROUP, "true",
                       GroupParams.GROUP_FIELD, "str",
                       CURSOR_MARK_PARAM, CURSOR_MARK_START),
@@ -142,10 +144,10 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     String cursorMark = CURSOR_MARK_START;
     SolrParams params = null;
     QueryResponse rsp = null;
-    
+
     // trivial base case: ensure cursorMark against an empty index doesn't blow up
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "*:*", 
+    params = params("q", "*:*",
                     "rows","4",
                     "fl", "id",
                     "sort", "id desc");
@@ -155,7 +157,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     assertDocList(rsp);
     assertEquals(cursorMark, assertHashNextCursorMark(rsp));
 
-    // don't add in order of either field to ensure we aren't inadvertantly 
+    // don't add in order of either field to ensure we aren't inadvertantly
     // counting on internal docid ordering
     indexDoc(sdoc("id", "9", "str", "c", "float", "-3.2", "int", "42"));
     indexDoc(sdoc("id", "7", "str", "c", "float", "-3.2", "int", "-1976"));
@@ -171,7 +173,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
 
     // base case: ensure cursorMark that matches no docs doesn't blow up
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "id:9999999", 
+    params = params("q", "id:9999999",
                     "rows","4",
                     "fl", "id",
                     "sort", "id desc");
@@ -183,7 +185,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
 
     // edge case: ensure rows=0 doesn't blow up and gives back same cursor for next
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "*:*", 
+    params = params("q", "*:*",
                     "rows","0",
                     "fl", "id",
                     "sort", "id desc");
@@ -195,7 +197,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
 
     // simple id sort
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "-int:6", 
+    params = params("q", "-int:6",
                     "rows","4",
                     "fl", "id",
                     "sort", "id desc");
@@ -212,7 +214,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     cursorMark = assertHashNextCursorMark(rsp);
     //
     rsp = query(p(params, CURSOR_MARK_PARAM, cursorMark));
-    assertNumFound(9, rsp); 
+    assertNumFound(9, rsp);
     assertStartsAt(0, rsp);
     assertDocList(rsp, 0);
     cursorMark = assertHashNextCursorMark(rsp);
@@ -221,21 +223,21 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     assertNumFound(9, rsp);
     assertStartsAt(0, rsp);
     assertDocList(rsp);
-    assertEquals("no more docs, but cursorMark has changed", 
+    assertEquals("no more docs, but cursorMark has changed",
                  cursorMark, assertHashNextCursorMark(rsp));
-    
+
     // NOTE: because field stats and queryNorms can vary amongst shards,
     //       not all "obvious" score based sorts can be iterated cleanly.
-    //       queries that seem like they should result in an obvious "tie" score 
+    //       queries that seem like they should result in an obvious "tie" score
     //       between two documents (and would tie in a single node case) may actually
     //       get diff scores for diff docs if they are on diff shards
     //
-    //       so here, in this test, we can't assert a hardcoded score ordering -- we trust 
+    //       so here, in this test, we can't assert a hardcoded score ordering -- we trust
     //       the full walk testing (below)
 
     // int sort with dups, id tie breaker ... and some faceting
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "-int:2001 -int:4055", 
+    params = params("q", "-int:2001 -int:4055",
                     "rows","3",
                     "fl", "id",
                     "facet", "true",
@@ -272,12 +274,12 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     assertDocList(rsp);
     assertEquals("a", rsp.getFacetField("str").getValues().get(0).getName());
     assertEquals(4, rsp.getFacetField("str").getValues().get(0).getCount());
-    assertEquals("no more docs, but cursorMark has changed", 
+    assertEquals("no more docs, but cursorMark has changed",
                  cursorMark, assertHashNextCursorMark(rsp));
-  
+
     // string sort with dups, id tie breaker
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "*:*", 
+    params = params("q", "*:*",
                     "rows","6",
                     "fl", "id",
                     "sort", "str asc, id desc");
@@ -297,12 +299,12 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     assertNumFound(10, rsp);
     assertStartsAt(0, rsp);
     assertDocList(rsp);
-    assertEquals("no more docs, but cursorMark has changed", 
+    assertEquals("no more docs, but cursorMark has changed",
                  cursorMark, assertHashNextCursorMark(rsp));
 
     // tri-level sort with more dups of primary then fit on a page
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "*:*", 
+    params = params("q", "*:*",
                     "rows","2",
                     "fl", "id",
                     "sort", "float asc, int desc, id desc");
@@ -313,19 +315,19 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     cursorMark = assertHashNextCursorMark(rsp);
     //
     rsp = query(p(params, CURSOR_MARK_PARAM, cursorMark));
-    assertNumFound(10, rsp); 
+    assertNumFound(10, rsp);
     assertStartsAt(0, rsp);
     assertDocList(rsp, 7, 4);
     cursorMark = assertHashNextCursorMark(rsp);
     //
     rsp = query(p(params, CURSOR_MARK_PARAM, cursorMark));
-    assertNumFound(10, rsp); 
+    assertNumFound(10, rsp);
     assertStartsAt(0, rsp);
     assertDocList(rsp, 3, 8);
     cursorMark = assertHashNextCursorMark(rsp);
     //
     rsp = query(p(params, CURSOR_MARK_PARAM, cursorMark));
-    assertNumFound(10, rsp); 
+    assertNumFound(10, rsp);
     assertStartsAt(0, rsp);
     assertDocList(rsp, 5, 6);
     cursorMark = assertHashNextCursorMark(rsp);
@@ -338,15 +340,15 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     // we've exactly exhausted all the results, but solr had no way of know that
     //
     rsp = query(p(params, CURSOR_MARK_PARAM, cursorMark));
-    assertNumFound(10, rsp); 
+    assertNumFound(10, rsp);
     assertStartsAt(0, rsp);
     assertDocList(rsp);
-    assertEquals("no more docs, but cursorMark has changed", 
+    assertEquals("no more docs, but cursorMark has changed",
                  cursorMark, assertHashNextCursorMark(rsp));
 
     // trivial base case: rows bigger then number of matches
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "id:3 id:7", 
+    params = params("q", "id:3 id:7",
                     "rows","111",
                     "fl", "id",
                     "sort", "int asc, id asc");
@@ -360,28 +362,28 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     assertNumFound(2, rsp);
     assertStartsAt(0, rsp);
     assertDocList(rsp);
-    assertEquals("no more docs, but cursorMark has changed", 
+    assertEquals("no more docs, but cursorMark has changed",
                  cursorMark, assertHashNextCursorMark(rsp));
 
     // sanity check our full walk method
     SentinelIntSet ids;
-    ids = assertFullWalkNoDups(10, params("q", "*:*", 
+    ids = assertFullWalkNoDups(10, params("q", "*:*",
                                           "rows", "4",
                                           "sort", "id desc"));
     assertEquals(10, ids.size());
-    ids = assertFullWalkNoDups(9, params("q", "*:*", 
+    ids = assertFullWalkNoDups(9, params("q", "*:*",
                                          "rows", "1",
                                          "fq", "-id:4",
                                          "sort", "id asc"));
     assertEquals(9, ids.size());
     assertFalse("matched on id:4 unexpectedly", ids.exists(4));
-    ids = assertFullWalkNoDups(9, params("q", "*:*", 
+    ids = assertFullWalkNoDups(9, params("q", "*:*",
                                          "rows", "3",
                                          "fq", "-id:6",
                                          "sort", "float desc, id asc, int asc"));
     assertEquals(9, ids.size());
     assertFalse("matched on id:6 unexpectedly", ids.exists(6));
-    ids = assertFullWalkNoDups(9, params("q", "float:[0 TO *] int:7 id:6", 
+    ids = assertFullWalkNoDups(9, params("q", "float:[0 TO *] int:7 id:6",
                                          "rows", "3",
                                          "sort", "score desc, id desc"));
     assertEquals(7, ids.size());
@@ -391,7 +393,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
 
     // strategically delete/add some docs in the middle of walking the cursor
     cursorMark = CURSOR_MARK_START;
-    params = params("q", "*:*", 
+    params = params("q", "*:*",
                     "rows","2",
                     "fl", "id",
                     "sort", "str asc, id asc");
@@ -409,7 +411,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     assertDocList(rsp, 4, 6);
     cursorMark = assertHashNextCursorMark(rsp);
     // delete the next guy we expect
-    del("id:0"); 
+    del("id:0");
     commit();
     rsp = query(p(params, CURSOR_MARK_PARAM, cursorMark));
     assertNumFound(8, rsp);
@@ -433,13 +435,13 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     //
     rsp = query(p(params, CURSOR_MARK_PARAM, cursorMark));
     assertDocList(rsp);
-    assertEquals("no more docs, but cursorMark has changed", 
+    assertEquals("no more docs, but cursorMark has changed",
                  cursorMark, assertHashNextCursorMark(rsp));
 
 
   }
 
-  /** randomized testing of a non-trivial number of docs using assertFullWalkNoDups 
+  /** randomized testing of a non-trivial number of docs using assertFullWalkNoDups
    */
   public void doRandomSortsOnLargeIndex() throws Exception {
     final Collection<String> allFieldNames = getAllFieldNames();
@@ -447,7 +449,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     final int initialDocs = _TestUtil.nextInt(random(),100,200);
     final int totalDocs = atLeast(5000);
 
-    // start with a smallish number of documents, and test that we can do a full walk using a 
+    // start with a smallish number of documents, and test that we can do a full walk using a
     // sort on *every* field in the schema...
 
     for (int i = 1; i <= initialDocs; i++) {
@@ -460,7 +462,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
       for (String order : new String[] {" asc", " desc"}) {
         String sort = f + order + ("id".equals(f) ? "" : ", id" + order);
         String rows = "" + _TestUtil.nextInt(random(),13,50);
-        SentinelIntSet ids = assertFullWalkNoDups(initialDocs, 
+        SentinelIntSet ids = assertFullWalkNoDups(initialDocs,
                                                   params("q", "*:*",
                                                          "fl","id",
                                                          "rows",rows,
@@ -484,7 +486,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
       final boolean matchAll = random().nextBoolean();
       final String q = matchAll ? "*:*" : CursorPagingTest.buildRandomQuery();
 
-      SentinelIntSet ids = assertFullWalkNoDups(totalDocs, 
+      SentinelIntSet ids = assertFullWalkNoDups(totalDocs,
                                                 params("q", q,
                                                        "fl",fl,
                                                        "rows",rows,
@@ -496,13 +498,13 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
     }
 
   }
-  
+
   /**
    * Asks the LukeRequestHandler on the control client for a list of the fields in the schema - excluding _version_
    */
   private Collection<String> getAllFieldNames() throws SolrServerException, IOException {
     LukeRequest req = new LukeRequest("/admin/luke");
-    req.setShowSchema(true); 
+    req.setShowSchema(true);
     NamedList<Object> rsp = controlClient.request(req);
     NamedList<Object> fields = (NamedList) ((NamedList)rsp.get("schema")).get("fields");
     ArrayList<String> names = new ArrayList<String>(fields.size());
@@ -518,7 +520,7 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
   /**
    * execute a request, verify that we get an expected error
    */
-  public void assertFail(SolrParams p, ErrorCode expCode, String expSubstr) 
+  public void assertFail(SolrParams p, ErrorCode expCode, String expSubstr)
     throws Exception {
 
     try {
@@ -587,19 +589,19 @@ public class DistribCursorPagingTest extends AbstractFullDistribZkTestBase {
 
   /**
    * <p>
-   * Given a set of params, executes a cursor query using {@link #CURSOR_MARK_START} 
-   * and then continuously walks the results using {@link #CURSOR_MARK_START} as long 
+   * Given a set of params, executes a cursor query using {@link #CURSOR_MARK_START}
+   * and then continuously walks the results using {@link #CURSOR_MARK_START} as long
    * as a non-0 number of docs ar returned.  This method records the the set of all id's
-   * (must be postive ints) encountered and throws an assertion failure if any id is 
+   * (must be postive ints) encountered and throws an assertion failure if any id is
    * encountered more then once, or if the set grows above maxSize
    * </p>
    *
    * <p>
-   * Note that this method explicily uses the "cloudClient" for executing the queries, 
+   * Note that this method explicily uses the "cloudClient" for executing the queries,
    * instead of relying on the test infrastructure to execute the queries redundently
-   * aainst both the cloud client as well as a control client.  This is because term stat 
-   * differences in a sharded setup can result in differnent scores for documents compared 
-   * to the control index -- which can affect the sorting in some cases and cause false 
+   * aainst both the cloud client as well as a control client.  This is because term stat
+   * differences in a sharded setup can result in differnent scores for documents compared
+   * to the control index -- which can affect the sorting in some cases and cause false
    * negatives in the response comparisons (even if we don't include "score" in the "fl")
    * </p>
    */

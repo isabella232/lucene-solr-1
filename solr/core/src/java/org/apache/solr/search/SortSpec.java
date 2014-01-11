@@ -30,7 +30,7 @@ import java.util.Collections;
  * SortSpec encapsulates a Lucene Sort and a count of the number of documents
  * to return.
  */
-public class SortSpec 
+public class SortSpec
 {
   private Sort sort;
   private List<SchemaField> fields;
@@ -57,7 +57,7 @@ public class SortSpec
     this.offset=offset;
     this.num=num;
   }
-  
+
   /** @deprecated use {@link #setSortAndFields} */
   @Deprecated
   public void setSort( Sort s )
@@ -66,14 +66,14 @@ public class SortSpec
     fields = Collections.unmodifiableList(Arrays.asList(new SchemaField[s.getSort().length]));
   }
 
-  /** 
-   * the specified SchemaFields must correspond one to one with the Sort's SortFields, 
+  /**
+   * the specified SchemaFields must correspond one to one with the Sort's SortFields,
    * using null where appropriate.
    */
   public void setSortAndFields( Sort s, List<SchemaField> fields )
   {
-    
-    assert null == s || s.getSort().length == fields.size() 
+
+    assert null == s || s.getSort().length == fields.size()
       : "SortFields and SchemaFields do not have equal lengths";
     this.sort = s;
     this.fields = Collections.unmodifiableList(fields);
@@ -99,7 +99,7 @@ public class SortSpec
 
   /**
    * Gets the Solr SchemaFields that correspond to each of the SortFields used
-   * in this sort.  The array may contain null if a SortField doesn't correspond directly 
+   * in this sort.  The array may contain null if a SortField doesn't correspond directly
    * to a SchemaField (ie: score, lucene docid, custom function sorting, etc...)
    *
    * @return an immutable list, may be empty if getSort is null
@@ -122,6 +122,6 @@ public class SortSpec
 
   @Override
   public String toString() {
-    return "start="+offset+ "&rows="+num + (sort==null ? "" : "&sort="+sort); 
+    return "start="+offset+ "&rows="+num + (sort==null ? "" : "&sort="+sort);
   }
 }

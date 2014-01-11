@@ -49,46 +49,46 @@ public class DistributedQueryComponentCustomSortTest extends BaseDistributedSear
   public void doTest() throws Exception {
     del("*:*");
 
-    index(id, "1", "text", "a", "payload", ByteBuffer.wrap(new byte[] { 0x12, 0x62, 0x15 }),                     //  2 
+    index(id, "1", "text", "a", "payload", ByteBuffer.wrap(new byte[] { 0x12, 0x62, 0x15 }),                     //  2
           // quick check to prove "*" dynamicField hasn't been broken by somebody mucking with schema
           "asdfasdf_field_should_match_catchall_dynamic_field_adsfasdf", "value");
-    index(id, "2", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x25, 0x21, 0x16 }));                    //  5 
-    index(id, "3", "text", "a", "payload", ByteBuffer.wrap(new byte[] { 0x35, 0x32, 0x58 }));                    //  8 
-    index(id, "4", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x25, 0x21, 0x15 }));                    //  4 
-    index(id, "5", "text", "a", "payload", ByteBuffer.wrap(new byte[] { 0x35, 0x35, 0x10, 0x00 }));              //  9 
-    index(id, "6", "text", "c", "payload", ByteBuffer.wrap(new byte[] { 0x1a, 0x2b, 0x3c, 0x00, 0x00, 0x03 }));  //  3 
-    index(id, "7", "text", "c", "payload", ByteBuffer.wrap(new byte[] { 0x00, 0x3c, 0x73 }));                    //  1 
-    index(id, "8", "text", "c", "payload", ByteBuffer.wrap(new byte[] { 0x59, 0x2d, 0x4d }));                    // 11 
-    index(id, "9", "text", "a", "payload", ByteBuffer.wrap(new byte[] { 0x39, 0x79, 0x7a }));                    // 10 
-    index(id, "10", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x31, 0x39, 0x7c }));                   //  6 
-    index(id, "11", "text", "d", "payload", ByteBuffer.wrap(new byte[] { (byte)0xff, (byte)0xaf, (byte)0x9c })); // 13 
-    index(id, "12", "text", "d", "payload", ByteBuffer.wrap(new byte[] { 0x34, (byte)0xdd, 0x4d }));             //  7 
-    index(id, "13", "text", "d", "payload", ByteBuffer.wrap(new byte[] { (byte)0x80, 0x11, 0x33 }));             // 12 
+    index(id, "2", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x25, 0x21, 0x16 }));                    //  5
+    index(id, "3", "text", "a", "payload", ByteBuffer.wrap(new byte[] { 0x35, 0x32, 0x58 }));                    //  8
+    index(id, "4", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x25, 0x21, 0x15 }));                    //  4
+    index(id, "5", "text", "a", "payload", ByteBuffer.wrap(new byte[] { 0x35, 0x35, 0x10, 0x00 }));              //  9
+    index(id, "6", "text", "c", "payload", ByteBuffer.wrap(new byte[] { 0x1a, 0x2b, 0x3c, 0x00, 0x00, 0x03 }));  //  3
+    index(id, "7", "text", "c", "payload", ByteBuffer.wrap(new byte[] { 0x00, 0x3c, 0x73 }));                    //  1
+    index(id, "8", "text", "c", "payload", ByteBuffer.wrap(new byte[] { 0x59, 0x2d, 0x4d }));                    // 11
+    index(id, "9", "text", "a", "payload", ByteBuffer.wrap(new byte[] { 0x39, 0x79, 0x7a }));                    // 10
+    index(id, "10", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x31, 0x39, 0x7c }));                   //  6
+    index(id, "11", "text", "d", "payload", ByteBuffer.wrap(new byte[] { (byte)0xff, (byte)0xaf, (byte)0x9c })); // 13
+    index(id, "12", "text", "d", "payload", ByteBuffer.wrap(new byte[] { 0x34, (byte)0xdd, 0x4d }));             //  7
+    index(id, "13", "text", "d", "payload", ByteBuffer.wrap(new byte[] { (byte)0x80, 0x11, 0x33 }));             // 12
     commit();
-                                                                                          
+
     handle.put("QTime", SKIPVAL);
 
     QueryResponse rsp;
     rsp = query("q", "*:*", "fl", "id", "sort", "payload asc", "rows", "20");
-    assertFieldValues(rsp.getResults(), id, 7, 1, 6, 4, 2, 10, 12, 3, 5, 9, 8, 13, 11); 
+    assertFieldValues(rsp.getResults(), id, 7, 1, 6, 4, 2, 10, 12, 3, 5, 9, 8, 13, 11);
     rsp = query("q", "*:*", "fl", "id", "sort", "payload desc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 11, 13, 8, 9, 5, 3, 12, 10, 2, 4, 6, 1, 7);
-    
+
     rsp = query("q", "text:a", "fl", "id", "sort", "payload asc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 1, 3, 5, 9);
     rsp = query("q", "text:a", "fl", "id", "sort", "payload desc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 9, 5, 3, 1);
-    
+
     rsp = query("q", "text:b", "fl", "id", "sort", "payload asc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 4, 2, 10);
     rsp = query("q", "text:b", "fl", "id", "sort", "payload desc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 10, 2, 4);
-    
+
     rsp = query("q", "text:c", "fl", "id", "sort", "payload asc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 7, 6, 8);
     rsp = query("q", "text:c", "fl", "id", "sort", "payload desc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 8, 6, 7);
-    
+
     rsp = query("q", "text:d", "fl", "id", "sort", "payload asc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 12, 13, 11);
     rsp = query("q", "text:d", "fl", "id", "sort", "payload desc", "rows", "20");
@@ -99,17 +99,17 @@ public class DistributedQueryComponentCustomSortTest extends BaseDistributedSear
                 "sort", "abs(sub(5,id)) asc, id desc");
     assertFieldValues(rsp.getResults(), id, 5 , 6,4 , 7,3 , 8,2 , 9,1 , 10 );
 
-    // Add two more docs with same payload as in doc #4 
-    index(id, "14", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x25, 0x21, 0x15 })); 
-    index(id, "15", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x25, 0x21, 0x15 })); 
+    // Add two more docs with same payload as in doc #4
+    index(id, "14", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x25, 0x21, 0x15 }));
+    index(id, "15", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x25, 0x21, 0x15 }));
 
     // Add three more docs with same payload as in doc #10
-    index(id, "16", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x31, 0x39, 0x7c })); 
-    index(id, "17", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x31, 0x39, 0x7c })); 
+    index(id, "16", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x31, 0x39, 0x7c }));
+    index(id, "17", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x31, 0x39, 0x7c }));
     index(id, "18", "text", "b", "payload", ByteBuffer.wrap(new byte[] { 0x31, 0x39, 0x7c }));
-    
+
     commit();
-    
+
     rsp = query("q", "*:*", "fl", "id", "sort", "payload asc, id desc", "rows", "20");
     assertFieldValues(rsp.getResults(), id, 7, 1, 6,   15,14,4,   2,   18,17,16,10,   12, 3, 5, 9, 8, 13, 11);
     rsp = query("q", "*:*", "fl", "id", "sort", "payload desc, id asc", "rows", "20");

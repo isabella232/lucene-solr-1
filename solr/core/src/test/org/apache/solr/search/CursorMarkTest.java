@@ -41,7 +41,7 @@ import org.junit.BeforeClass;
  *
  * NOTE: this class Reuses some utilities from {@link CursorPagingTest} that assume the same schema and configs.
  *
- * @see CursorPagingTest 
+ * @see CursorPagingTest
  */
 public class CursorMarkTest extends SolrTestCaseJ4 {
 
@@ -100,7 +100,7 @@ public class CursorMarkTest extends SolrTestCaseJ4 {
         assertEquals(ErrorCode.BAD_REQUEST.code, e.code());
         assertTrue(0 < e.getMessage().indexOf("uniqueKey"));
       }
-      
+
       try {
         final SortSpec ss = QueryParsing.parseSortSpec("_docid_ "+dir+", id desc", req);
         final CursorMark totem = new CursorMark(schema, ss);
@@ -151,7 +151,7 @@ public class CursorMarkTest extends SolrTestCaseJ4 {
       final SortSpec otherSort = QueryParsing.parseSortSpec("double desc, id asc", req);
       final CursorMark otherTotem = new CursorMark(schema, otherSort);
       otherTotem.setSortValues(Arrays.<Object>asList(buildRandomSortObjects(otherSort)));
-      
+
       totem.parseSerializedTotem(otherTotem.getSerializedTotem());
       fail("didn't fail on totem from incorrect sort (num clauses)");
     } catch (SolrException e) {
@@ -162,7 +162,7 @@ public class CursorMarkTest extends SolrTestCaseJ4 {
 
   public void testRoundTripParsing() {
 
-    // for any valid SortSpec, and any legal values, we should be able to round 
+    // for any valid SortSpec, and any legal values, we should be able to round
     // trip serialize the totem and get the same values back.
 
     final Collection<String> allFieldNames = getAllFieldNames();
@@ -204,7 +204,7 @@ public class CursorMarkTest extends SolrTestCaseJ4 {
       SchemaField sf = fields.get(i);
       if (null == sf) {
         // score or function
-        results[i] = (Float) random().nextFloat() * random().nextInt(); break;
+        results[i] = random().nextFloat() * random().nextInt(); break;
       } else if (0 == _TestUtil.nextInt(random(), 0, 7)) {
         // emulate missing value for doc
         results[i] = null;
@@ -212,7 +212,7 @@ public class CursorMarkTest extends SolrTestCaseJ4 {
         final String fieldName = sf.getName();
         assertNotNull(fieldName);
 
-        // Note: In some cases we build a human readable version of the sort value and then 
+        // Note: In some cases we build a human readable version of the sort value and then
         // unmarshall it into the raw, real, sort values that are expected by the FieldTypes.
         // In other cases we just build the raw value to begin with because it's easier
 
@@ -226,24 +226,24 @@ public class CursorMarkTest extends SolrTestCaseJ4 {
           random().nextBytes(randBytes);
           val = new BytesRef(randBytes);
         } else if (fieldName.startsWith("int")) {
-          val = (Integer) random().nextInt();
+          val = random().nextInt();
         } else if (fieldName.startsWith("long")) {
-          val = (Long) random().nextLong();
+          val = random().nextLong();
         } else if (fieldName.startsWith("float")) {
-          val = (Float) random().nextFloat() * random().nextInt(); break;
+          val = random().nextFloat() * random().nextInt(); break;
         } else if (fieldName.startsWith("double")) {
-          val = (Double) random().nextDouble() * random().nextInt(); break;
+          val = random().nextDouble() * random().nextInt(); break;
         } else {
           fail("fell through the rabbit hole, new field in schema? = " + fieldName);
         }
-        
+
         results[i] = val;
 
       }
     }
     return results;
   }
-  
+
   /**
    * a list of the fields in the schema - excluding _version_
    */
