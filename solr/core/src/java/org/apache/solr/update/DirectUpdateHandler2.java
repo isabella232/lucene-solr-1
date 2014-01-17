@@ -742,6 +742,9 @@ public class DirectUpdateHandler2 extends UpdateHandler implements SolrCoreState
         }
       } catch (Throwable th) {
         log.error("Error in final commit", th);
+        if (th instanceof OutOfMemoryError) {
+          throw (OutOfMemoryError) th;
+        }
       }
 
       // we went through the normal process to commit, so we don't have to artificially
@@ -750,6 +753,9 @@ public class DirectUpdateHandler2 extends UpdateHandler implements SolrCoreState
         if (ulog != null) ulog.close(false);
       }  catch (Throwable th) {
         log.error("Error closing log files", th);
+        if (th instanceof OutOfMemoryError) {
+          throw (OutOfMemoryError) th;
+        }
       }
 
       if (writer != null) writer.close();

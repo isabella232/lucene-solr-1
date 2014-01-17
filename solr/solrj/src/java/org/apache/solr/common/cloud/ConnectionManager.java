@@ -108,7 +108,7 @@ class ConnectionManager implements Watcher {
                     Thread.currentThread().interrupt();
                     // we must have been asked to stop
                     throw new RuntimeException(e);
-                  } catch(Throwable t) {
+                  } catch(Exception t) {
                     closeKeeper(keeper);
                     throw new RuntimeException(t);
                   }

@@ -220,7 +220,7 @@ public abstract class ConfigSolr {
     try {
       return readProperties(((NodeList) config.evaluate(
           path, XPathConstants.NODESET)).item(0));
-    } catch (Throwable e) {
+    } catch (Exception e) {
       SolrException.log(log, null, e);
     }
     return null;

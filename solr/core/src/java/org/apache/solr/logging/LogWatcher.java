@@ -162,6 +162,9 @@ public abstract class LogWatcher<E> {
     }
     catch (Throwable e) {
       log.warn("Unable to read SLF4J version.  LogWatcher will be disabled: " + e);
+      if (e instanceof OutOfMemoryError) {
+        throw (OutOfMemoryError) e;
+      }
       return null;
     }
 
@@ -180,6 +183,9 @@ public abstract class LogWatcher<E> {
     }
     catch (Throwable e) {
       log.warn("Unable to load LogWatcher {}: {}", fname, e);
+      if (e instanceof OutOfMemoryError) {
+        throw (OutOfMemoryError) e;
+      }
     }
 
     return null;
