@@ -118,14 +118,14 @@ public class SolrZkClient {
               }
             }
           });
-    } catch (Throwable e) {
+    } catch (Exception e) {
       connManager.close();
       throw new RuntimeException(e);
     }
     
     try {
       connManager.waitForConnected(clientConnectTimeout);
-    } catch (Throwable e) {
+    } catch (Exception e) {
       connManager.close();
       throw new RuntimeException(e);
     }

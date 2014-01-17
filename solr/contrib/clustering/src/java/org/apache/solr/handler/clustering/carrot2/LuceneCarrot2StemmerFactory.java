@@ -222,7 +222,7 @@ public class LuceneCarrot2StemmerFactory implements IStemmerFactory {
     public static IStemmer createStemmer() {
       try {
         return new LuceneStemmerAdapter();
-      } catch (Throwable e) {
+      } catch (Exception e) {
         return IdentityStemmer.INSTANCE;
       }
     }

@@ -55,7 +55,6 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.RequestWriter;
-import org.apache.solr.client.solrj.request.SolrPing;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.client.solrj.util.ClientUtils;
@@ -382,7 +381,7 @@ public class HttpSolrServer extends SolrServer {
     
     InputStream respBody = null;
     boolean shouldClose = true;
-    
+    boolean success = false;
     try {
       // Execute the method.
       final HttpResponse response = httpClient.execute(method);
@@ -449,6 +448,7 @@ public class HttpSolrServer extends SolrServer {
         }
         throw new RemoteSolrException(httpStatus, reason, null);
       }
+      success = true;
       return rsp;
     } catch (ConnectException e) {
       throw new SolrServerException("Server refused connection at: "
@@ -464,8 +464,12 @@ public class HttpSolrServer extends SolrServer {
       if (respBody != null && shouldClose) {
         try {
           respBody.close();
-        } catch (Throwable t) { //ignore
-          log.warn("Throwable: " + t + " when closing response body");
+        } catch (IOException e) {
+          log.error("", e);
+        } finally {
+          if (!success) {
+            method.abort();
+          }
         }
       }
     }

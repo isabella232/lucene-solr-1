@@ -80,6 +80,9 @@ public class LuceneCarrot2TokenizerFactory implements ITokenizerFactory {
             .warn("Could not instantiate Smart Chinese Analyzer, clustering quality "
                 + "of Chinese content may be degraded. For best quality clusters, "
                 + "make sure Lucene's Smart Chinese Analyzer JAR is in the classpath");
+        if (e instanceof Error) {
+          throw (Error) e;
+        }
       }
     }
 
@@ -87,6 +90,9 @@ public class LuceneCarrot2TokenizerFactory implements ITokenizerFactory {
       try {
         return new ChineseTokenizer();
       } catch (Throwable e) {
+        if (e instanceof OutOfMemoryError) {
+          throw (OutOfMemoryError) e;
+        }
         return new ExtendedWhitespaceTokenizer();
       }
     }
