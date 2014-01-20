@@ -16,26 +16,22 @@ package org.apache.solr.sentry;
  * limitations under the License.
  */
 
-import java.io.File;
 import javax.servlet.http.HttpServletRequest;
-import org.apache.commons.io.FileUtils;
-import org.apache.solr.common.params.ModifiableSolrParams;
+
+import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.common.SolrException;
-import org.apache.solr.common.util.NamedList;
+import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.handler.RequestHandlerBase;
-import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequestBase;
-import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.request.SolrRequestHandler;
+import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.easymock.EasyMock;
 import org.easymock.IExpectationSetters;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 
 /**
  * Base class for Sentry tests
@@ -80,7 +76,9 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
       String collection, String user, boolean onlyOnce) {
     CloudDescriptor mCloudDescriptor = EasyMock.createMock(CloudDescriptor.class);
     IExpectationSetters getCollNameExpect = EasyMock.expect(mCloudDescriptor.getCollectionName()).andReturn(collection);
-    if (!onlyOnce) getCollNameExpect.anyTimes();
+    getCollNameExpect.anyTimes();
+    IExpectationSetters getShardIdExpect = EasyMock.expect(mCloudDescriptor.getShardId()).andReturn("shard1");
+    getShardIdExpect.anyTimes();
     EasyMock.replay(mCloudDescriptor);
     core.getCoreDescriptor().setCloudDescriptor(mCloudDescriptor);
 
