@@ -17,16 +17,16 @@
 
 package org.apache.solr.servlet;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ByteArrayOutputStream;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -34,8 +34,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -51,10 +49,12 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.ContentStream;
 import org.apache.solr.common.util.ContentStreamBase;
 import org.apache.solr.common.util.FastInputStream;
-import org.apache.solr.core.Config;
+import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequestBase;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class SolrRequestParsers 
@@ -82,7 +82,7 @@ public class SolrRequestParsers
    * Pass in an xml configuration.  A null configuration will enable
    * everything with maximum values.
    */
-  public SolrRequestParsers( Config globalConfig ) {
+  public SolrRequestParsers( SolrConfig globalConfig ) {
     final int multipartUploadLimitKB, formUploadLimitKB;
     if( globalConfig == null ) {
       multipartUploadLimitKB = formUploadLimitKB = Integer.MAX_VALUE; 
@@ -90,21 +90,16 @@ public class SolrRequestParsers
       handleSelect = true;
       addHttpRequestToContext = false;
     } else {
-      multipartUploadLimitKB = globalConfig.getInt( 
-          "requestDispatcher/requestParsers/@multipartUploadLimitInKB", 2048 );
+      multipartUploadLimitKB = globalConfig.getMultipartUploadLimitKB();
       
-      formUploadLimitKB = globalConfig.getInt( 
-          "requestDispatcher/requestParsers/@formdataUploadLimitInKB", 2048 );
+      formUploadLimitKB = globalConfig.getFormUploadLimitKB();
       
-      enableRemoteStreams = globalConfig.getBool( 
-          "requestDispatcher/requestParsers/@enableRemoteStreaming", false ); 
+      enableRemoteStreams = globalConfig.isEnableRemoteStreams();
   
       // Let this filter take care of /select?xxx format
-      handleSelect = globalConfig.getBool( 
-          "requestDispatcher/@handleSelect", true ); 
+      handleSelect = globalConfig.isHandleSelect();
       
-      addHttpRequestToContext = globalConfig.getBool( 
-          "requestDispatcher/requestParsers/@addHttpRequestToContext", false );
+      addHttpRequestToContext = globalConfig.isAddHttpRequestToContext();
     }
     init(multipartUploadLimitKB, formUploadLimitKB);
   }
