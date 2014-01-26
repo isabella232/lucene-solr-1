@@ -63,7 +63,8 @@
     </dependency>
     <dependency org="org.mortbay.jetty" name="jetty" rev="6.1.26" conf="test.DfsMiniCluster->*"/>
     <dependency org="org.mortbay.jetty" name="jetty-util" rev="6.1.26" conf="test.DfsMiniCluster->*"/>
-    <dependency org="com.sun.jersey" name="jersey-core" rev="1.16" conf="test.DfsMiniCluster->*"/>
+    <dependency org="com.sun.jersey" name="jersey-core" rev="1.9" conf="test.DfsMiniCluster->*"/>
+    <dependency org="com.sun.jersey" name="jersey-server" rev="1.9" conf="test.DfsMiniCluster->*"/>
     <dependency org="commons-collections" name="commons-collections" rev="3.2.1" conf="test.DfsMiniCluster->*"/>
 
     <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/> 
