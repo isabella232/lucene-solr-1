@@ -31,11 +31,13 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.ipc.RemoteException;
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.core.PluginInfo;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.store.hdfs.HdfsDirectory;
 import org.apache.solr.util.HdfsUtil;
 import org.apache.solr.util.IOUtils;
 
@@ -142,17 +144,7 @@ public class HdfsUpdateLog extends UpdateLog {
     }
     lastDataDir = dataDir;
     tlogDir = new Path(dataDir, TLOG_NAME);
-    
-    try {
-      if (!fs.exists(tlogDir)) {
-        boolean success = fs.mkdirs(tlogDir);
-        if (!success) {
-          throw new RuntimeException("Could not create directory:" + tlogDir);
-        }
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    HdfsUtil.mkDirIfNeededAndWaitForSafeMode(fs, tlogDir);
     
     tlogFiles = getLogList(fs, tlogDir);
     id = getLastLogId() + 1; // add 1 since we will create a new log for the
