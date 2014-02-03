@@ -43,9 +43,11 @@
 
     <!-- Typical version patterns. -->
     <replaceregex pattern="\.rc[0-9]+" replace="" flags="gi" />
-    <replaceregex pattern="\-(r)?([0-9\-\_\.])+((b(eta)?)|((a(lpha)?)|(cdh([0-9\-\.])*(\-beta)([0-9\-\.])?)|(RC))([0-9\-\.])*)?" replace="" flags="gi" />
-    
-    <replaceregex pattern="tests$" replace="-tests" flags="gi" />
+    <replaceregex pattern="\-(r)?([0-9\-\_\.])+((b(eta)?)|((a(lpha)?)|(cdh([0-9\.]*(\-beta\-)?([0-9\.])?))|(RC\-))([0-9\.])*)?" replace="" flags="gi" />
+
+    <replaceregex pattern="-tests$" replace="" flags="gi" />
+    <replaceregex pattern="tests$" replace="" flags="gi" />
+    <replaceregex pattern="-$" replace="" flags="gi" />
 
     <!-- git hashcode pattern: its always 40 chars right? -->
     <replaceregex pattern="\-[a-z0-9]{40,40}$" replace="" flags="gi" />
