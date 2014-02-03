@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.ipc.RemoteException;
 import org.apache.lucene.store.BufferedIndexOutput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
@@ -35,11 +36,15 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.NoLockFactory;
 import org.apache.lucene.util.IOUtils;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.store.blockcache.CustomBufferedIndexInput;
+import org.apache.solr.util.HdfsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class HdfsDirectory extends Directory {
+
   public static Logger LOG = LoggerFactory.getLogger(HdfsDirectory.class);
   
   public static final int BUFFER_SIZE = 8192;
@@ -53,19 +58,15 @@ public class HdfsDirectory extends Directory {
   
   public HdfsDirectory(Path hdfsDirPath, Configuration configuration)
       throws IOException {
-    assert hdfsDirPath.toString().startsWith("hdfs:/") : hdfsDirPath.toString();
     setLockFactory(NoLockFactory.getNoLockFactory());
     this.hdfsDirPath = hdfsDirPath;
     this.configuration = configuration;
     fileSystem = FileSystem.newInstance(hdfsDirPath.toUri(), configuration);
+    
     try {
-      if (!fileSystem.exists(hdfsDirPath)) {
-        fileSystem.mkdirs(hdfsDirPath);
-      }
+      HdfsUtil.mkDirIfNeededAndWaitForSafeMode(fileSystem, hdfsDirPath);
     } catch (Exception e) {
       org.apache.solr.util.IOUtils.closeQuietly(fileSystem);
-      throw new RuntimeException("Problem creating directory: " + hdfsDirPath,
-          e);
     }
   }
   

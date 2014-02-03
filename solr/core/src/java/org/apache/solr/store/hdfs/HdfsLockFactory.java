@@ -24,9 +24,11 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.ipc.RemoteException;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockFactory;
 import org.apache.lucene.store.LockReleaseFailedException;
+import org.apache.solr.util.HdfsUtil;
 import org.apache.solr.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,17 +62,18 @@ public class HdfsLockFactory extends LockFactory {
     try {
       fs = FileSystem.newInstance(lockPath.toUri(), configuration);
       
-      if (fs.exists(lockPath)) {
-        if (lockPrefix != null) {
-          lockName = lockPrefix + "-" + lockName;
-        }
-        
-        Path lockFile = new Path(lockPath, lockName);
-
-        if (fs.exists(lockFile) && !fs.delete(lockFile, false)) {
-          throw new IOException("Cannot delete " + lockFile);
-        }
+      HdfsUtil.mkDirIfNeededAndWaitForSafeMode(fs, lockPath);
+      
+      if (lockPrefix != null) {
+        lockName = lockPrefix + "-" + lockName;
       }
+      
+      Path lockFile = new Path(lockPath, lockName);
+      
+      if (fs.exists(lockFile) && !fs.delete(lockFile, false)) {
+        throw new IOException("Cannot delete " + lockFile);
+      }
+      
     } finally {
       IOUtils.closeQuietly(fs);
     }
@@ -99,20 +102,24 @@ public class HdfsLockFactory extends LockFactory {
     @Override
     public boolean obtain() throws IOException {
       FSDataOutputStream file = null;
-      FileSystem fs = null;
+      FileSystem fs = FileSystem.newInstance(lockPath.toUri(), conf);
       try {
-        fs = FileSystem.newInstance(lockPath.toUri(), conf);
-        if (!fs.exists(lockPath)) {
-          fs.mkdirs(lockPath);
+        
+        try {
+          HdfsUtil.mkDirIfNeededAndWaitForSafeMode(fs, lockPath);
+          
+          file = fs.create(new Path(lockPath, lockName), false);
+          
+        } catch (FileAlreadyExistsException e) {
+          return false;
+        } catch (IOException e) {
+          log.error("Error creating lock file", e);
+          return false;
+        } finally {
+          IOUtils.closeQuietly(file);
         }
-        file = fs.create(new Path(lockPath, lockName), false);
-      } catch (FileAlreadyExistsException e) { 
-        return false;
-      }catch (IOException e) {
-        log.error("Error creating lock file", e);
-        return false;
+        
       } finally {
-        IOUtils.closeQuietly(file);
         IOUtils.closeQuietly(fs);
       }
       return true;
