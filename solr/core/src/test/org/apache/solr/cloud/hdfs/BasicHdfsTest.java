@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
+import org.apache.hadoop.hdfs.server.namenode.SafeModeException;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -128,7 +129,11 @@ public class BasicHdfsTest extends BasicDistributedZkTest {
         
         @Override
         public void run() {
-          NameNodeAdapter.leaveSafeMode(dfsCluster.getNameNode());
+          try {
+            NameNodeAdapter.leaveSafeMode(dfsCluster.getNameNode(), false);
+          } catch (SafeModeException e) {
+            throw new RuntimeException();
+          }
         }
       }, rnd);
       

@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
+import org.apache.hadoop.hdfs.server.namenode.SafeModeException;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.SolrTestCaseJ4;
 
@@ -75,7 +76,11 @@ public class HdfsTestUtil {
       
       @Override
       public void run() {
-        NameNodeAdapter.leaveSafeMode(dfsCluster.getNameNode());
+        try {
+          NameNodeAdapter.leaveSafeMode(dfsCluster.getNameNode(), false);
+        } catch (SafeModeException e) {
+          throw new RuntimeException(e);
+        }
       }
     }, rnd);
     
