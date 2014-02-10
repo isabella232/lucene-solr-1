@@ -1335,7 +1335,7 @@
       -->
   </searchComponent>
 
-    <searchComponent name="queryIndexAuthorization" class="org.apache.solr.handler.component.QueryIndexAuthorizationComponent" >
+  <searchComponent name="queryIndexAuthorization" class="org.apache.solr.handler.component.QueryIndexAuthorizationComponent" >
   </searchComponent>
 
   <!-- A request handler for demonstrating the spellcheck component.  
