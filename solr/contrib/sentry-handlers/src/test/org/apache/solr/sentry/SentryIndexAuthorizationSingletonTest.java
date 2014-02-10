@@ -17,18 +17,23 @@ package org.apache.solr.sentry;
  */
 
 import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
+import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.request.SolrQueryRequestBase;
 import org.easymock.EasyMock;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -96,6 +101,17 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
     SentryIndexAuthorizationSingleton nonSingleton =
       (SentryIndexAuthorizationSingleton)ctor.newInstance("");
     doExpectUnauthorized(nonSingleton, null, null, "binding");
+
+    // test getUserName
+    try {
+      nonSingleton.getUserName(null);
+      Assert.fail("Expected Solr exception");
+    } catch (SolrException ex) {
+      assertEquals(ex.code(), SolrException.ErrorCode.UNAUTHORIZED.code);
+    }
+
+    List<String> groups = nonSingleton.getGroups("junit");
+    assertEquals(null, groups);
   }
 
   @Test
@@ -145,5 +161,74 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
 
     sentryInstance.authorizeCollectionAction(
       request, EnumSet.of(SearchModelAction.ALL));
+  }
+
+  /**
+   * Test getting the user name.
+   */
+  @Test
+  public void testUserName() throws Exception {
+    SolrQueryRequest request = null;
+    try {
+      // no http request
+      request = new SolrQueryRequestBase( core, new ModifiableSolrParams() ) {};
+      try {
+        sentryInstance.getUserName(request);
+        Assert.fail("Expected SolrException");
+      } catch (SolrException ex) {
+        assertEquals(ex.code(), SolrException.ErrorCode.UNAUTHORIZED.code);
+      }
+
+      // no http request, but LocalSolrQueryRequest
+      LocalSolrQueryRequest localRequest = null;
+      try {
+        localRequest = new LocalSolrQueryRequest(null, new ModifiableSolrParams());
+        String superUser = (System.getProperty("solr.authorization.superuser", "solr"));
+        String localName = sentryInstance.getUserName(localRequest);
+        assertEquals(superUser, localName);
+      } finally {
+        if (localRequest != null) localRequest.close();
+      }
+
+      // null userName
+      SolrQueryRequest sqr = getRequest();
+      prepareCollAndUser(core, sqr, "collection", null, true);
+      String nullName = sentryInstance.getUserName(sqr);
+      assertEquals(null, nullName);
+
+      // standard userName
+      String userName = "foobar";
+      prepareCollAndUser(core, sqr, "collection", userName, true);
+      String returnedName = sentryInstance.getUserName(sqr);
+      assertEquals(userName, returnedName);
+    } finally {
+      if (request != null) request.close();
+    }
+  }
+
+  /**
+   * Test getting the groups from user name
+   */
+  @Test
+  public void testGetGroups() throws Exception {
+    List<String> emptyList = Arrays.asList();
+
+    // null user
+    List<String> groups = sentryInstance.getGroups(null);
+    assertEquals(emptyList, groups);
+
+    // no group
+    groups = sentryInstance.getGroups("bogusUser");
+    assertEquals(emptyList, groups);
+
+    // single member
+    List<String> singleMember = Arrays.asList("junit");
+    groups = sentryInstance.getGroups("junit");
+    assertEquals(singleMember, groups);
+
+    // multiple members
+    List<String> multipleMember = Arrays.asList("user1", "user2", "user3");
+    groups = sentryInstance.getGroups("multipleMemberGroup");
+    assertEquals(multipleMember, groups);
   }
 }

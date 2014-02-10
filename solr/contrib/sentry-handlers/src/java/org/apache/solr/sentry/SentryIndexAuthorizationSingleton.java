@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.net.URL;
@@ -118,57 +119,78 @@ public class SentryIndexAuthorizationSingleton {
    *   cannot be located
    */
   public void authorizeCollectionAction(SolrQueryRequest req,
-      Set<SearchModelAction> actions, String collectionName, boolean errorIfNoCollection) {
-    String exMsg = null;
+      Set<SearchModelAction> actions, String collectionName, boolean errorIfNoCollection)
+      throws SolrException {
 
-    if (binding == null) {
-      exMsg = "Solr binding was not created successfully.  Defaulting to no access";
-    }
-    else {
+    Subject superUser = new Subject(System.getProperty("solr.authorization.superuser", "solr"));
+    Subject userName = new Subject(getUserName(req));
+    if (collectionName == null) {
       SolrCore solrCore = req.getCore();
-      HttpServletRequest httpServletRequest = (HttpServletRequest)req.getContext().get("httpRequest");
-      // LocalSolrQueryRequests won't have the HttpServletRequest because there is no
-      // http request associated with it.
-      if (httpServletRequest == null && !(req instanceof LocalSolrQueryRequest)) {
-        StringBuilder builder = new StringBuilder("Unable to locate HttpServletRequest");
-        if (solrCore != null && solrCore.getSolrConfig().getBool(
-          "requestDispatcher/requestParsers/@addHttpRequestToContext", true) == false) {
-          builder.append(", ensure requestDispatcher/requestParsers/@addHttpRequestToContext is set to true");
-        }
-        exMsg = builder.toString();
-      }
-      else {
-        Subject superUser = new Subject(System.getProperty("solr.authorization.superuser", "solr"));
-        // If a local request, treat it like a super user request; i.e. it is equivalent to an
-        // http request from the same process.
-        String userName = req instanceof LocalSolrQueryRequest?
-          superUser.getName():(String)httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
-        Subject subject = new Subject(userName);
-        if (collectionName == null) {
-          if (solrCore == null) {
-            String msg = "Unable to locate collection for sentry to authorize because "
-              + "no SolrCore attached to request";
-            if (errorIfNoCollection) {
-              throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, msg);
-            } else { // just warn
-              log.warn(msg);
-              return;
-            }
-          }
-          collectionName = solrCore.getCoreDescriptor().getCloudDescriptor().getCollectionName();
-        }
-        Collection collection = new Collection(collectionName);
-        try {
-          if (!superUser.getName().equals(subject.getName())) {
-            binding.authorizeCollection(subject, collection, actions);
-          }
-        } catch (SentrySolrAuthorizationException ex) {
-          throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, ex);
+      if (solrCore == null) {
+        String msg = "Unable to locate collection for sentry to authorize because "
+          + "no SolrCore attached to request";
+        if (errorIfNoCollection) {
+          throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, msg);
+        } else { // just warn
+          log.warn(msg);
+          return;
         }
       }
+      collectionName = solrCore.getCoreDescriptor().getCloudDescriptor().getCollectionName();
     }
-    if (exMsg != null) {
-      throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, exMsg);
+    Collection collection = new Collection(collectionName);
+    try {
+      if (!superUser.getName().equals(userName.getName())) {
+        binding.authorizeCollection(userName, collection, actions);
+      }
+    } catch (SentrySolrAuthorizationException ex) {
+      throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, ex);
     }
+
+  }
+
+  /**
+   * Get the list of groups the user belongs to
+   *
+   * @param userName
+   * @return list of groups the user belongs to
+   */
+  public List<String> getGroups(String userName) {
+    if (binding == null) {
+      return null;
+    }
+    return binding.getGroups(userName);
+  }
+
+  /**
+   * Get the user name associated with the request
+   *
+   * @param req the request
+   * @returns the user name associated with the request
+   */
+  public String getUserName(SolrQueryRequest req) throws SolrException {
+    if (binding == null) {
+      throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED,
+        "Solr binding was not created successfully.  Defaulting to no access");
+    }
+    SolrCore solrCore = req.getCore();
+    HttpServletRequest httpServletRequest = (HttpServletRequest)req.getContext().get("httpRequest");
+
+    // LocalSolrQueryRequests won't have the HttpServletRequest because there is no
+    // http request associated with it.
+    if (httpServletRequest == null && !(req instanceof LocalSolrQueryRequest)) {
+      StringBuilder builder = new StringBuilder("Unable to locate HttpServletRequest");
+      if (solrCore != null && solrCore.getSolrConfig().getBool(
+        "requestDispatcher/requestParsers/@addHttpRequestToContext", true) == false) {
+        builder.append(", ensure requestDispatcher/requestParsers/@addHttpRequestToContext is set to true");
+      }
+      throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, builder.toString());
+    }
+
+    String superUser = (System.getProperty("solr.authorization.superuser", "solr"));
+    // If a local request, treat it like a super user request; i.e. it is equivalent to an
+    // http request from the same process.
+    return req instanceof LocalSolrQueryRequest?
+      superUser:(String)httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME);
   }
 }
