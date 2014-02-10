@@ -3230,6 +3230,16 @@ public class IndexWriter implements Closeable, TwoPhaseCommit {
       if (infoStream.isEnabled("IW")) {
         infoStream.message("IW", "commitMerge: skip: it was aborted");
       }
+      // In case we opened and pooled a reader for this
+      // segment, drop it now.  This ensures that we close
+      // the reader before trying to delete any of its
+      // files.  This is not a very big deal, since this
+      // reader will never be used by any NRT reader, and
+      // another thread is currently running close(false)
+      // so it will be dropped shortly anyway, but not
+      // doing this  makes  MockDirWrapper angry in
+      // TestNRTThreads (LUCENE-5434):
+      readerPool.drop(merge.info);
       deleter.deleteNewFiles(merge.info.files());
       return false;
     }
@@ -3905,7 +3915,8 @@ public class IndexWriter implements Closeable, TwoPhaseCommit {
       // Force READ context because we merge deletes onto
       // this reader:
       if (!commitMerge(merge, mergeState)) {
-        // commitMerge will return false if this merge was aborted
+        // commitMerge will return false if this merge was
+        // aborted
         return 0;
       }
 
@@ -4339,4 +4350,13 @@ public class IndexWriter implements Closeable, TwoPhaseCommit {
   synchronized final void flushFailed(SegmentInfo info) throws IOException {
     deleter.refresh(info.name);
   }
+
+  synchronized void incRefDeleter(SegmentInfos segmentInfos) throws IOException {
+    deleter.incRef(segmentInfos, false);
+  }
+  
+  synchronized void decRefDeleter(SegmentInfos segmentInfos) throws IOException {
+    deleter.decRef(segmentInfos);
+  }
+  
 }
