@@ -100,7 +100,7 @@ public class SolrZkClient {
     // we must retry at least as long as the session timeout
     zkCmdExecutor = new ZkCmdExecutor(zkClientTimeout);
     connManager = new ConnectionManager("ZooKeeperConnection Watcher:"
-        + zkServerAddress, this, zkServerAddress, zkClientTimeout, strat, onReconnect);
+        + zkServerAddress, this, zkServerAddress, strat, onReconnect);
     try {
       strat.connect(zkServerAddress, zkClientTimeout, connManager,
           new ZkUpdate() {
