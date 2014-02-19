@@ -18,10 +18,21 @@
 package org.apache.solr.servlet;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.security.authentication.client.AuthenticatedURL;
-import org.apache.hadoop.security.authentication.client.AuthenticationException;
-import org.apache.hadoop.security.authentication.client.Authenticator;
-import org.apache.hadoop.security.authentication.client.KerberosAuthenticator;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpOptions;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.entity.InputStreamEntity;
+import org.apache.http.util.EntityUtils;
+import org.apache.http.Header;
+import org.apache.http.HeaderIterator;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpEntityEnclosingRequest;
+import org.apache.http.HttpResponse;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.Aliases;
@@ -42,6 +53,7 @@ import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.handler.ContentStreamHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequestBase;
@@ -73,7 +85,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -97,6 +108,7 @@ public class SolrDispatchFilter implements Filter
 {
   private static final String CONNECTION_HEADER = "Connection";
   private static final String TRANSFER_ENCODING_HEADER = "Transfer-Encoding";
+  private static final String CONTENT_LENGTH_HEADER = "Content-Length";
 
   final Logger log;
 
@@ -104,6 +116,8 @@ public class SolrDispatchFilter implements Filter
 
   protected String pathPrefix = null; // strip this from the beginning of a path
   protected String abortErrorMessage = null;
+  protected final HttpClient httpClient = HttpClientUtil.createClient(new ModifiableSolrParams());
+
   protected final Map<SolrConfig, SolrRequestParsers> parsers = new WeakHashMap<SolrConfig, SolrRequestParsers>();
   
   private static final Charset UTF8 = Charset.forName("UTF-8");
@@ -466,50 +480,11 @@ public class SolrDispatchFilter implements Filter
     }
   }
 
-  /**
-   * Return the Hadoop-auth KerberosAuthenticator to use.
-   */
-  protected Authenticator getAuthenticator() throws IOException {
-    return new KerberosAuthenticator();
-  }
-
-  /**
-   * Get HttpURLConnection to use.  Handles authenticated vs non-authenticated.
-   */
-  protected HttpURLConnection createConnection(URL url, String method) throws IOException {
-    if (!isSecure) {
-      return (HttpURLConnection) url.openConnection();
-    }
-    AuthenticatedURL.Token readToken = new AuthenticatedURL.Token();
-    AuthenticatedURL.Token currentToken = new AuthenticatedURL.Token();
-
-    if (currentToken.isSet()) {
-      HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-      conn.setRequestMethod("OPTIONS");
-      AuthenticatedURL.injectToken(conn, currentToken);
-      if (conn.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED) {
-        currentToken = new AuthenticatedURL.Token();
-      }
-    }
-
-    if (!currentToken.isSet()) {
-      Authenticator authenticator = getAuthenticator();
-      try {
-        new AuthenticatedURL(authenticator).openConnection(url, currentToken);
-      }
-      catch (AuthenticationException ex) {
-        throw new SolrException(ErrorCode.SERVER_ERROR,
-          "Could not authenticate, " + ex.getMessage(), ex);
-      }
-    }
-    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-    AuthenticatedURL.injectToken(conn, currentToken);
-
-    return conn;
-  }
-
   private void remoteQuery(String coreUrl, HttpServletRequest req,
       SolrQueryRequest solrReq, HttpServletResponse resp) throws IOException {
+    HttpRequestBase method = null;
+    HttpEntity httpEntity = null;
+    boolean success = false;
     try {
       String urlstr = coreUrl;
       String queryString = req.getQueryString();
@@ -536,56 +511,64 @@ public class SolrDispatchFilter implements Filter
       urlstr += queryString == null ? "" : "?" + queryString;
       
       URL url = new URL(urlstr);
-      HttpURLConnection con = createConnection(url, req.getMethod());
-      con.setRequestMethod(req.getMethod());
-      con.setUseCaches(false);
-      
-      con.setDoOutput(true);
-      con.setDoInput(true);
+
+      boolean isPostOrPutRequest = "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod());
+      if (isSecure) {
+        // Required for SPNego authentication
+        HttpOptions options = new HttpOptions(urlstr);
+        httpClient.execute(options);
+      }
+
+      if ("GET".equals(req.getMethod())) {
+        method = new HttpGet(urlstr);
+      }
+      else if ("HEAD".equals(req.getMethod())) {
+        method = new HttpHead(urlstr);
+      }
+      else if (isPostOrPutRequest) {
+        HttpEntityEnclosingRequestBase entityRequest =
+          "POST".equals(req.getMethod()) ? new HttpPost(urlstr) : new HttpPut(urlstr);
+        HttpEntity entity = new InputStreamEntity(req.getInputStream(), req.getContentLength());
+        entityRequest.setEntity(entity);
+        method = entityRequest;
+      }
+      else {
+        throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
+          "Unexpected method type: " + req.getMethod());
+      }
+
       for (Enumeration<String> e = req.getHeaderNames(); e.hasMoreElements();) {
         String headerName = e.nextElement();
-        con.setRequestProperty(headerName, req.getHeader(headerName));
+        method.addHeader(headerName, req.getHeader(headerName));
       }
-      try {
-        con.connect();
+      // These headers not supported for HttpEntityEnclosingRequests
+      if (method instanceof HttpEntityEnclosingRequest) {
+        method.removeHeaders(TRANSFER_ENCODING_HEADER);
+        method.removeHeaders(CONTENT_LENGTH_HEADER);
+      }
 
-        InputStream is;
-        OutputStream os;
-        if ("POST".equals(req.getMethod())) {
-          is = req.getInputStream();
-          os = con.getOutputStream(); // side effect: method is switched to POST
-          try {
-            IOUtils.copyLarge(is, os);
-            os.flush();
-          } finally {
-            IOUtils.closeQuietly(os);
-            IOUtils.closeQuietly(is);  // TODO: I thought we weren't supposed to explicitly close servlet streams
-          }
+      final HttpResponse response = httpClient.execute(method);
+      int httpStatus = response.getStatusLine().getStatusCode();
+      httpEntity = response.getEntity();
+
+      resp.setStatus(httpStatus);
+      for (HeaderIterator responseHeaders = response.headerIterator(); responseHeaders.hasNext();) {
+        Header header = responseHeaders.nextHeader();
+
+        // We pull out these two headers below because they can cause chunked
+        // encoding issues with Tomcat
+        if (header != null && !header.getName().equals(TRANSFER_ENCODING_HEADER)
+          && !header.getName().equals(CONNECTION_HEADER)) {
+            resp.addHeader(header.getName(), header.getValue());
         }
+      }
         
-        resp.setStatus(con.getResponseCode());
-        
-        for (Iterator<Entry<String,List<String>>> i = con.getHeaderFields().entrySet().iterator(); i.hasNext();) {
-          Map.Entry<String,List<String>> mapEntry = i.next();
-          String header = mapEntry.getKey();
-          
-          // We pull out these two headers below because they can cause chunked
-          // encoding issues with Tomcat
-          if (header != null && !header.equals(TRANSFER_ENCODING_HEADER)
-              && !header.equals(CONNECTION_HEADER)) {
-            for (String value : mapEntry.getValue()) {
-              resp.addHeader(mapEntry.getKey(), value);
-            }
-          }
-        }
-        
-        
-        
-        resp.setCharacterEncoding(con.getContentEncoding());
-        resp.setContentType(con.getContentType());
-        
-        is = con.getInputStream();
-        os = resp.getOutputStream();
+      if (httpEntity != null) {
+        if (httpEntity.getContentEncoding() != null) resp.setCharacterEncoding(httpEntity.getContentEncoding().getValue());
+        if (httpEntity.getContentType() != null) resp.setContentType(httpEntity.getContentType().getValue());
+
+        InputStream is = httpEntity.getContent();
+        OutputStream os = resp.getOutputStream();
         try {
           IOUtils.copyLarge(is, os);
           os.flush();
@@ -593,15 +576,19 @@ public class SolrDispatchFilter implements Filter
           IOUtils.closeQuietly(os);   // TODO: I thought we weren't supposed to explicitly close servlet streams
           IOUtils.closeQuietly(is);
         }
-      } finally {
-        con.disconnect();
       }
+      success = true;
     } catch (IOException e) {
       sendError(null, solrReq, req, resp, new SolrException(
           SolrException.ErrorCode.SERVER_ERROR,
           "Error trying to proxy request for url: " + coreUrl, e));
+    } finally {
+      if (method != null && !success) {
+        EntityUtils.consumeQuietly(httpEntity);
+        method.abort();
+      }
     }
-    
+
   }
   
   private String getRemotCoreUrl(CoreContainer cores, String collectionName, String origCorename) {
