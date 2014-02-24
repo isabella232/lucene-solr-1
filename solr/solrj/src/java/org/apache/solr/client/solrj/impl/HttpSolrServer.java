@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.io.IOUtils;
@@ -41,6 +42,7 @@ import org.apache.http.client.methods.HttpOptions;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.entity.mime.FormBodyPart;
 import org.apache.http.entity.mime.HttpMultipartMode;
@@ -434,11 +436,24 @@ public class HttpSolrServer extends SolrServer {
       
       String procCt = processor.getContentType();
       if (procCt != null) {
-        if (!contentType.equals(procCt)) {
-          // unexpected content type
-          String msg = "Expected content type " + procCt + " but got " + contentType + ".";
-          RemoteSolrException e = new RemoteSolrException(httpStatus, msg + " " +
-              IOUtils.toString(respBody), null);
+        String procMimeType = ContentType.parse(procCt).getMimeType().trim().toLowerCase(Locale.ROOT);
+        String mimeType = ContentType.parse(contentType).getMimeType().trim().toLowerCase(Locale.ROOT);
+        if (!procMimeType.equals(mimeType)) {
+          // unexpected mime type
+          String msg = "Expected mime type " + procMimeType + " but got " + mimeType + ".";
+          Header encodingHeader = response.getEntity().getContentEncoding();
+          String encoding;
+          if (encodingHeader != null) {
+            encoding = encodingHeader.getValue();
+          } else {
+            encoding = "UTF-8"; // try UTF-8
+          }
+          try {
+            msg = msg + " " + IOUtils.toString(respBody, encoding);
+          } catch (IOException e) {
+            throw new RemoteSolrException(httpStatus, "Could not parse response with encoding " + encoding, e);
+          }
+          RemoteSolrException e = new RemoteSolrException(httpStatus, msg, null);
           throw e;
         }
       }
