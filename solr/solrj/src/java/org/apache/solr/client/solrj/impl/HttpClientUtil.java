@@ -18,14 +18,8 @@ package org.apache.solr.client.solrj.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.Principal;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
-import javax.security.auth.login.AppConfigurationEntry;
 
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
@@ -36,13 +30,10 @@ import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpResponseInterceptor;
 import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.Credentials;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.params.AuthPolicy;
 import org.apache.http.client.params.ClientParamBean;
 import org.apache.http.entity.HttpEntityWrapper;
-import org.apache.http.impl.auth.SPNegoSchemeFactory;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.client.SystemDefaultHttpClient;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
@@ -52,7 +43,6 @@ import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.protocol.HttpContext;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
-import org.apache.zookeeper.client.ZooKeeperSaslClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +80,7 @@ public class HttpClientUtil {
   static final DefaultHttpRequestRetryHandler NO_RETRY = new DefaultHttpRequestRetryHandler(
       0, false);
 
-  private static HttpClientConfigurer configurer = new HttpClientConfigurer();
+  private static HttpClientConfigurer configurer = new Krb5HttpClientConfigurer();
   
   private HttpClientUtil(){}
   
@@ -159,56 +149,6 @@ public class HttpClientUtil {
     } else {
       httpClient.getCredentialsProvider().clear();
     }
-  }
-
-  /**
-   * Set the http SPNego auth information.  If the java System prop
-   * "java.security.auth.login.config" is null the auth information
-   * is cleared.
-   *
-   * @return true if the SPNego credentials were set, false otherwise.
-   */
-  public static boolean setSPNegoAuth(DefaultHttpClient httpClient) {
-    final String configProp = "java.security.auth.login.config";
-    String configValue = System.getProperty(configProp);
-    if (configValue != null) {
-      logger.info("Setting up SPNego auth with config: " + configValue);
-      final String useSubjectCredsProp = "javax.security.auth.useSubjectCredsOnly";
-      String useSubjectCredsVal = System.getProperty(useSubjectCredsProp);
-
-      // "javax.security.auth.useSubjectCredsOnly" should be false so that the underlying
-      // authentication mechanism can load the credentials from the JAAS configuration.
-      if (useSubjectCredsVal == null) {
-        System.setProperty(useSubjectCredsProp, "false");
-      }
-      else if (!useSubjectCredsVal.toLowerCase(Locale.ROOT).equals("false")) {
-        // Don't overwrite the prop value if it's already been written to something else,
-        // but log because it is likely the Credentials won't be loaded correctly.
-        logger.warn("System Property: " + useSubjectCredsProp + " set to: " + useSubjectCredsVal
-          + " not false.  SPNego authentication may not be successful.");
-      }
-
-      ZKJaasConfiguration jaasConf = new ZKJaasConfiguration();
-      javax.security.auth.login.Configuration.setConfiguration(jaasConf);
-      httpClient.getAuthSchemes().register(AuthPolicy.SPNEGO, new SPNegoSchemeFactory(true));
-      // Get the credentials from the JAAS configuration rather than here
-      Credentials use_jaas_creds = new Credentials() {
-        public String getPassword() {
-          return null;
-        }
-
-        public Principal getUserPrincipal() {
-          return null;
-        }
-      };
-
-      httpClient.getCredentialsProvider().setCredentials(
-        AuthScope.ANY, use_jaas_creds);
-      return true;
-    } else {
-      httpClient.getCredentialsProvider().clear();
-    }
-    return false;
   }
 
   /**
@@ -357,46 +297,6 @@ public class HttpClientUtil {
     @Override
     public InputStream getContent() throws IOException, IllegalStateException {
       return new InflaterInputStream(wrappedEntity.getContent());
-    }
-  }
-
-  /**
-   * Use the ZK JAAS Client appName rather than the default com.sun.security.jgss appName.
-   * This simplifies client configuration; rather than requiring an appName in the JAAS conf
-   * for ZooKeeper's client (default "Client") and one for the default com.sun.security.jgss
-   * appName, only a single unified appName is needed.
-   */
-  private static class ZKJaasConfiguration extends javax.security.auth.login.Configuration {
-
-    private javax.security.auth.login.Configuration baseConfig;
-    private String zkClientLoginContext;
-
-    // the com.sun.security.jgss appNames
-    private Set<String> initiateAppNames = new HashSet<String>(
-      Arrays.asList("com.sun.security.jgss.krb5.initiate", "com.sun.security.jgss.initiate"));
-
-    public ZKJaasConfiguration() {
-      try {
-        this.baseConfig = javax.security.auth.login.Configuration.getConfiguration();
-      } catch (SecurityException e) {
-        this.baseConfig = null;
-      }
-
-      // Get the app name for the ZooKeeperClient
-      zkClientLoginContext = System.getProperty(ZooKeeperSaslClient.LOGIN_CONTEXT_NAME_KEY, "Client");
-      logger.debug("ZK client login context is: " + zkClientLoginContext);
-    }
-
-    @Override
-    public AppConfigurationEntry[] getAppConfigurationEntry(String appName) {
-      if (baseConfig == null) return null;
-
-      if (initiateAppNames.contains(appName)) {
-        logger.debug("Using AppConfigurationEntry for appName: " + zkClientLoginContext
-          + " instead of: " + appName);
-        return baseConfig.getAppConfigurationEntry(zkClientLoginContext);
-      }
-      return baseConfig.getAppConfigurationEntry(appName);
     }
   }
 }
