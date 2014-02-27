@@ -43,6 +43,10 @@ import org.apache.solr.handler.component.HttpShardHandlerFactory;
 import org.apache.solr.handler.component.ShardHandler;
 import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
+import org.apache.solr.request.LocalSolrQueryRequest;
+import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.request.SolrRequestInfo;
+import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.update.PeerSync;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.slf4j.Logger;
@@ -82,31 +86,39 @@ public class SyncStrategy {
     public String baseUrl;
   }
   
-  public boolean sync(ZkController zkController, SolrCore core,
-      ZkNodeProps leaderProps) {
+  public boolean sync(ZkController zkController, SolrCore core, ZkNodeProps leaderProps) {
+    return sync(zkController, core, leaderProps, false);
+  }
+  
+  public boolean sync(ZkController zkController, SolrCore core, ZkNodeProps leaderProps, boolean peerSyncOnlyWithActive) {
     if (SKIP_AUTO_RECOVERY) {
       return true;
     }
-    if (isClosed) {
-      log.warn("Closed, skipping sync up.");
-      return false;
+    boolean success;
+    SolrQueryRequest req = new LocalSolrQueryRequest(core, new ModifiableSolrParams());
+    SolrQueryResponse rsp = new SolrQueryResponse();
+    SolrRequestInfo.setRequestInfo(new SolrRequestInfo(req, rsp));
+    try {
+      if (isClosed) {
+        log.warn("Closed, skipping sync up.");
+        return false;
+      }
+      log.info("Sync replicas to " + ZkCoreNodeProps.getCoreUrl(leaderProps));
+      
+      if (core.getUpdateHandler().getUpdateLog() == null) {
+        log.error("No UpdateLog found - cannot sync");
+        return false;
+      }
+
+      success = syncReplicas(zkController, core, leaderProps, peerSyncOnlyWithActive);
+    } finally {
+      SolrRequestInfo.clearRequestInfo();
     }
-    log.info("Sync replicas to " + ZkCoreNodeProps.getCoreUrl(leaderProps));
-    // TODO: look at our state usage of sync
-    // zkController.publish(core, ZkStateReader.SYNC);
-    
-    // solrcloud_debug
-    // System.out.println("SYNC UP");
-    if (core.getUpdateHandler().getUpdateLog() == null) {
-      log.error("No UpdateLog found - cannot sync");
-      return false;
-    }
-    boolean success = syncReplicas(zkController, core, leaderProps);
     return success;
   }
   
   private boolean syncReplicas(ZkController zkController, SolrCore core,
-      ZkNodeProps leaderProps) {
+      ZkNodeProps leaderProps, boolean peerSyncOnlyWithActive) {
     boolean success = false;
     CloudDescriptor cloudDesc = core.getCoreDescriptor().getCloudDescriptor();
     String collection = cloudDesc.getCollectionName();
@@ -120,7 +132,7 @@ public class SyncStrategy {
     // first sync ourselves - we are the potential leader after all
     try {
       success = syncWithReplicas(zkController, core, leaderProps, collection,
-          shardId);
+          shardId, peerSyncOnlyWithActive);
     } catch (Exception e) {
       SolrException.log(log, "Sync Failed", e);
     }
@@ -148,7 +160,7 @@ public class SyncStrategy {
   }
   
   private boolean syncWithReplicas(ZkController zkController, SolrCore core,
-      ZkNodeProps props, String collection, String shardId) {
+      ZkNodeProps props, String collection, String shardId, boolean peerSyncOnlyWithActive) {
     List<ZkCoreNodeProps> nodes = zkController.getZkStateReader()
         .getReplicaProps(collection, shardId,core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName(),
             props.getStr(ZkStateReader.CORE_NAME_PROP));
@@ -166,7 +178,7 @@ public class SyncStrategy {
     // if we can't reach a replica for sync, we still consider the overall sync a success
     // TODO: as an assurance, we should still try and tell the sync nodes that we couldn't reach
     // to recover once more?
-    PeerSync peerSync = new PeerSync(core, syncWith, core.getUpdateHandler().getUpdateLog().numRecordsToKeep, true, true);
+    PeerSync peerSync = new PeerSync(core, syncWith, core.getUpdateHandler().getUpdateLog().numRecordsToKeep, true, true, peerSyncOnlyWithActive);
     return peerSync.sync();
   }
   

@@ -22,10 +22,12 @@ import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.io.IOUtils;
@@ -103,26 +105,27 @@ public class HttpSolrServer extends SolrServer {
    * 
    * @see org.apache.solr.client.solrj.impl.BinaryResponseParser
    */
-  protected ResponseParser parser;
+  protected volatile ResponseParser parser;
   
   /**
    * The RequestWriter used to write all requests to Solr
    * 
    * @see org.apache.solr.client.solrj.request.RequestWriter
    */
-  protected RequestWriter requestWriter = new RequestWriter();
+  protected volatile RequestWriter requestWriter = new RequestWriter();
   
   private final HttpClient httpClient;
   
-  private boolean followRedirects = false;
+  private volatile boolean followRedirects = false;
   
-  private int maxRetries = 0;
+  private volatile int maxRetries = 0;
   
-  private boolean useMultiPartPost;
+  private volatile boolean useMultiPartPost;
   private final boolean internalClient;
   private final AtomicBoolean needsAuthenticatingRequest;
 
-  
+  private volatile Set<String> queryParams = Collections.emptySet();
+
   /**
    * @param baseURL
    *          The URL of the Solr server. For example, "
@@ -162,6 +165,18 @@ public class HttpSolrServer extends SolrServer {
     
     this.parser = parser;
     this.needsAuthenticatingRequest = (isSecure()) ? new AtomicBoolean(true) : null;
+  }
+  
+  public Set<String> getQueryParams() {
+    return queryParams;
+  }
+
+  /**
+   * Expert Method.
+   * @param queryParams set of param keys to only send via the query string
+   */
+  public void setQueryParams(Set<String> queryParams) {
+    this.queryParams = queryParams;
   }
   
   /**
@@ -259,10 +274,22 @@ public class HttpSolrServer extends SolrServer {
               }
             }
             boolean isMultipart = (this.useMultiPartPost || ( streams != null && streams.size() > 1 )) && !hasNullStreamName;
-
+            
+            // only send this list of params as query string params
+            ModifiableSolrParams queryParams = new ModifiableSolrParams();
+            for (String param : this.queryParams) {
+              String[] value = wparams.getParams(param) ;
+              if (value != null) {
+                for (String v : value) {
+                  queryParams.add(param, v);
+                }
+                wparams.remove(param);
+              }
+            }
+            
             LinkedList<NameValuePair> postParams = new LinkedList<NameValuePair>();
             if (streams == null || isMultipart) {
-              HttpPost post = new HttpPost(url);
+              HttpPost post = new HttpPost(url + ClientUtils.toQueryString( queryParams, false ));
               post.setHeader("Content-Charset", "UTF-8");
               if (!isMultipart) {
                 post.addHeader("Content-Type",
@@ -592,7 +619,7 @@ public class HttpSolrServer extends SolrServer {
    * </p>
    */
   public void setFollowRedirects(boolean followRedirects) {
-    this.followRedirects = true;
+    this.followRedirects = followRedirects;
     HttpClientUtil.setFollowRedirects(httpClient,  followRedirects);
   }
   

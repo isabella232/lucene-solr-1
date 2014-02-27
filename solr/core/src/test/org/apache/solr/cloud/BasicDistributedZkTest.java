@@ -65,7 +65,6 @@ import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.UpdateParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.update.DirectUpdateHandler2;
-import org.apache.solr.update.SolrCmdDistributor.Request;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -105,8 +104,8 @@ public class BasicDistributedZkTest extends AbstractFullDistribZkTestBase {
       Integer.MAX_VALUE, 5, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(),
       new DefaultSolrThreadFactory("testExecutor"));
   
-  CompletionService<Request> completionService;
-  Set<Future<Request>> pending;
+  CompletionService<Object> completionService;
+  Set<Future<Object>> pending;
   
   @BeforeClass
   public static void beforeThisClass2() throws Exception {
@@ -126,8 +125,8 @@ public class BasicDistributedZkTest extends AbstractFullDistribZkTestBase {
     
     sliceCount = 2;
     shardCount = 4;
-    completionService = new ExecutorCompletionService<Request>(executor);
-    pending = new HashSet<Future<Request>>();
+    completionService = new ExecutorCompletionService<Object>(executor);
+    pending = new HashSet<Future<Object>>();
     
   }
   
@@ -333,6 +332,24 @@ public class BasicDistributedZkTest extends AbstractFullDistribZkTestBase {
     query(false, new Object[] {"q", "id:[1 TO 5]", CommonParams.DEBUG, CommonParams.RESULTS});
     query(false, new Object[] {"q", "id:[1 TO 5]", CommonParams.DEBUG, CommonParams.QUERY});
 
+    // try commitWithin
+    long before = cloudClient.query(new SolrQuery("*:*")).getResults().getNumFound();
+    ModifiableSolrParams params = new ModifiableSolrParams();
+    params.set("commitWithin", 10);
+    add(cloudClient, params , getDoc("id", 300));
+    
+    long timeout = System.currentTimeMillis() + 15000;
+    while (cloudClient.query(new SolrQuery("*:*")).getResults().getNumFound() != before + 1) {
+      if (timeout <= System.currentTimeMillis()) {
+        fail("commitWithin did not work");
+      }
+      Thread.sleep(100);
+    }
+    
+    for (SolrServer client : clients) {
+      assertEquals("commitWithin did not work", before + 1, client.query(new SolrQuery("*:*")).getResults().getNumFound());
+    }
+    
     // TODO: This test currently fails because debug info is obtained only
     // on shards with matches.
     // query("q","matchesnothing","fl","*,score", "debugQuery", "true");
@@ -749,7 +766,7 @@ public class BasicDistributedZkTest extends AbstractFullDistribZkTestBase {
     
    while (pending != null && pending.size() > 0) {
       
-      Future<Request> future = completionService.take();
+      Future<Object> future = completionService.take();
       pending.remove(future);
     }
     
@@ -875,7 +892,7 @@ public class BasicDistributedZkTest extends AbstractFullDistribZkTestBase {
     
    while (pending != null && pending.size() > 0) {
       
-      Future<Request> future = completionService.take();
+      Future<Object> future = completionService.take();
       if (future == null) return;
       pending.remove(future);
     }
@@ -964,7 +981,7 @@ public class BasicDistributedZkTest extends AbstractFullDistribZkTestBase {
     
     while (pending != null && pending.size() > 0) {
       
-      Future<Request> future = completionService.take();
+      Future<Object> future = completionService.take();
       if (future == null) return;
       pending.remove(future);
     }
@@ -1077,7 +1094,7 @@ public class BasicDistributedZkTest extends AbstractFullDistribZkTestBase {
       pending.add(completionService.submit(call));
       while (pending != null && pending.size() > 0) {
         
-        Future<Request> future = completionService.take();
+        Future<Object> future = completionService.take();
         if (future == null) return;
         pending.remove(future);
       }

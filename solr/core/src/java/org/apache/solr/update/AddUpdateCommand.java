@@ -103,17 +103,20 @@ public class AddUpdateCommand extends UpdateCommand {
      this.indexedId = indexedId;
    }
 
-   public String getPrintableId() {
-     IndexSchema schema = req.getSchema();
-     SchemaField sf = schema.getUniqueKeyField();
-     if (solrDoc != null && sf != null) {
-       SolrInputField field = solrDoc.getField(sf.getName());
-       if (field != null) {
-         return field.getFirstValue().toString();
-       }
-     }
-     return "(null)";
-   }
+  public String getPrintableId() {
+    if (req != null) {
+      IndexSchema schema = req.getSchema();
+      SchemaField sf = schema.getUniqueKeyField();
+      if (solrDoc != null && sf != null) {
+        SolrInputField field = solrDoc.getField(sf.getName());
+        if (field != null) {
+          return field.getFirstValue().toString();
+        }
+      }
+    }
+    
+    return "(null)";
+  }
 
   /**
    * @return String id to hash
