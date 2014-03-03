@@ -47,6 +47,7 @@ import org.apache.lucene.util._TestUtil;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.impl.HttpSolrServer.RemoteSolrException;
@@ -121,6 +122,12 @@ public class CollectionsAPIDistributedZkTest extends AbstractFullDistribZkTestBa
     pending = new HashSet<Future<Object>>();
     checkCreatedVsState = false;
     
+  }
+  
+  
+  @Override
+  protected String getDataDir(String dataDir) throws IOException {
+    return null;
   }
   
   @Override
@@ -492,6 +499,40 @@ public class CollectionsAPIDistributedZkTest extends AbstractFullDistribZkTestBa
       // poll for a second - it can take a moment before we are ready to serve
       waitForNon403or404or503(collectionClient);
     }
+    
+    // sometimes we restart one of the jetty nodes
+    if (random().nextBoolean()) {
+      JettySolrRunner jetty = jettys.get(random().nextInt(jettys.size()));
+      ChaosMonkey.stop(jetty);
+      ChaosMonkey.start(jetty);
+      
+      for (Entry<String,List<Integer>> entry : collectionInfosEntrySet) {
+        String collection = entry.getKey();
+        List<Integer> list = entry.getValue();
+        checkForCollection(collection, list, null);
+        
+        String url = getUrlFromZk(collection);
+        
+        HttpSolrServer collectionClient = new HttpSolrServer(url);
+        
+        // poll for a second - it can take a moment before we are ready to serve
+        waitForNon403or404or503(collectionClient);
+      }
+    }
+
+    // sometimes we restart zookeeper
+    if (random().nextBoolean()) {
+      zkServer.shutdown();
+      zkServer = new ZkTestServer(zkServer.getZkDir(), zkServer.getPort());
+      zkServer.run();
+    }
+    
+    // sometimes we cause a connection loss - sometimes it will hit the overseer
+    if (random().nextBoolean()) {
+      JettySolrRunner jetty = jettys.get(random().nextInt(jettys.size()));
+      ChaosMonkey.causeConnectionLoss(jetty);
+    }
+    
     ZkStateReader zkStateReader = getCommonCloudSolrServer().getZkStateReader();
     for (int j = 0; j < cnt; j++) {
       waitForRecoveriesToFinish("awholynewcollection_" + j, zkStateReader, false);
