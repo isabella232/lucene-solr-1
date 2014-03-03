@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.cloudera.cdh</groupId>
     <artifactId>cdh-root</artifactId>
-    <version>5.0.0-SNAPSHOT</version>
+    <version>5.1.0-SNAPSHOT</version>
   </parent>
   <groupId>org.apache.lucene</groupId>
   <artifactId>lucene-solr-grandparent</artifactId>
@@ -51,7 +51,7 @@
     <commons-io.version>2.1</commons-io.version>
     <restlet.version>2.1.1</restlet.version>
     <hadoop.version>${cdh.hadoop.version}</hadoop.version>
-    <sentry.version>1.2.0-cdh5.0.0-SNAPSHOT</sentry.version>
+    <sentry.version>1.2.0-cdh5.1.0-SNAPSHOT</sentry.version>
 
     <!-- RandomizedTesting library system properties -->
     <tests.iters>1</tests.iters>
