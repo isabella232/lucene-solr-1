@@ -17,6 +17,9 @@
 
 package org.apache.solr.update;
 
+import static org.apache.solr.update.processor.DistributedUpdateProcessor.DistribPhase.FROMLEADER;
+import static org.apache.solr.update.processor.DistributingUpdateProcessorFactory.DISTRIB_UPDATE_PARAM;
+
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketException;
@@ -37,7 +40,6 @@ import org.apache.solr.cloud.ZkController;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.handler.component.HttpShardHandlerFactory;
@@ -48,15 +50,10 @@ import org.apache.solr.handler.component.ShardResponse;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
-import org.apache.solr.update.processor.DistributedUpdateProcessorFactory;
-import org.apache.solr.update.processor.RunUpdateProcessorFactory;
 import org.apache.solr.update.processor.UpdateRequestProcessor;
 import org.apache.solr.update.processor.UpdateRequestProcessorChain;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.solr.update.processor.DistributingUpdateProcessorFactory.DISTRIB_UPDATE_PARAM;
-import static org.apache.solr.update.processor.DistributedUpdateProcessor.DistribPhase.FROMLEADER;
 
 /** @lucene.experimental */
 public class PeerSync  {
@@ -82,6 +79,7 @@ public class PeerSync  {
   private long ourHighThreshold; // 80th percentile
   private boolean cantReachIsSuccess;
   private boolean getNoVersionsIsSuccess;
+  private final boolean onlyIfActive;
   private static final HttpClient client;
   static {
     ModifiableSolrParams params = new ModifiableSolrParams();
@@ -136,12 +134,16 @@ public class PeerSync  {
   }
   
   public PeerSync(SolrCore core, List<String> replicas, int nUpdates, boolean cantReachIsSuccess, boolean getNoVersionsIsSuccess) {
+    this(core, replicas, nUpdates, cantReachIsSuccess, getNoVersionsIsSuccess, false);
+  }
+  
+  public PeerSync(SolrCore core, List<String> replicas, int nUpdates, boolean cantReachIsSuccess, boolean getNoVersionsIsSuccess, boolean onlyIfActive) {
     this.replicas = replicas;
     this.nUpdates = nUpdates;
     this.maxUpdates = nUpdates;
     this.cantReachIsSuccess = cantReachIsSuccess;
     this.getNoVersionsIsSuccess = getNoVersionsIsSuccess;
-
+    this.onlyIfActive = onlyIfActive;
     
     uhandler = core.getUpdateHandler();
     ulog = uhandler.getUpdateLog();
@@ -216,7 +218,7 @@ public class PeerSync  {
     if (startingVersions != null) {
       if (startingVersions.size() == 0) {
         // no frame of reference to tell of we've missed updates
-        log.warn("no frame of reference to tell of we've missed updates");
+        log.warn("no frame of reference to tell if we've missed updates");
         return false;
       }
       Collections.sort(startingVersions, absComparator);
@@ -304,7 +306,8 @@ public class PeerSync  {
       if (cantReachIsSuccess && sreq.purpose == 1 && srsp.getException() instanceof SolrServerException) {
         Throwable solrException = ((SolrServerException) srsp.getException())
             .getRootCause();
-        if (solrException instanceof ConnectException || solrException instanceof ConnectTimeoutException
+        boolean connectTimeoutExceptionInChain = connectTimeoutExceptionInChain(srsp.getException());
+        if (connectTimeoutExceptionInChain || solrException instanceof ConnectException || solrException instanceof ConnectTimeoutException
             || solrException instanceof NoHttpResponseException || solrException instanceof SocketException) {
           log.warn(msg() + " couldn't connect to " + srsp.getShardAddress() + ", counting as success");
 
@@ -318,9 +321,14 @@ public class PeerSync  {
       }
       
       if (cantReachIsSuccess && sreq.purpose == 1 && srsp.getException() instanceof SolrException && ((SolrException) srsp.getException()).code() == 404) {
-        log.warn(msg() + " got a 404 from " + srsp.getShardAddress() + ", counting as success");
+        log.warn(msg() + " got a 404 from " + srsp.getShardAddress() + ", counting as success. " +
+            "Perhaps /get is not registered?");
         return true;
       }
+      
+      // TODO: we should return the above information so that when we can request a recovery through zookeeper, we do
+      // that for these nodes
+      
       // TODO: at least log???
       // srsp.getException().printStackTrace(System.out);
      
@@ -336,6 +344,23 @@ public class PeerSync  {
     }
   }
   
+  // sometimes the root exception is a SocketTimeoutException, but ConnectTimeoutException
+  // is in the chain
+  private boolean connectTimeoutExceptionInChain(Throwable exception) {
+    Throwable t = exception;
+    while (true) {
+      if (t instanceof ConnectTimeoutException) {
+        return true;
+      }
+      Throwable cause = t.getCause();
+      if (cause != null) {
+        t = cause;
+      } else {
+        return false;
+      }
+    }
+  }
+
   private boolean handleVersions(ShardResponse srsp) {
     // we retrieved the last N updates from the replica
     List<Long> otherVersions = (List<Long>)srsp.getSolrResponse().getResponse().get("versions");
@@ -424,6 +449,7 @@ public class PeerSync  {
     sreq.params.set("qt","/get");
     sreq.params.set("distrib",false);
     sreq.params.set("getUpdates", StrUtils.join(toRequest, ','));
+    sreq.params.set("onlyIfActive", onlyIfActive);
     sreq.responses.clear();  // needs to be zeroed for correct correlation to occur
 
     shardHandler.submit(sreq, sreq.shards[0], sreq.params);

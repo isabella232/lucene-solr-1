@@ -169,17 +169,20 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
     
   }
 
-  private void commitOnLeader(String leaderUrl) throws SolrServerException, IOException {
+  private void commitOnLeader(String leaderUrl) throws SolrServerException,
+      IOException {
     HttpSolrServer server = new HttpSolrServer(leaderUrl);
-    server.setConnectionTimeout(30000);
-    server.setSoTimeout(60000);
-    UpdateRequest ureq = new UpdateRequest();
-    ureq.setParams(new ModifiableSolrParams());
-    ureq.getParams().set(DistributedUpdateProcessor.COMMIT_END_POINT, true);
-    ureq.getParams().set(UpdateParams.OPEN_SEARCHER, false);
-    ureq.setAction(AbstractUpdateRequest.ACTION.COMMIT, false, true).process(
-        server);
-    server.shutdown();
+    try {
+      server.setConnectionTimeout(30000);
+      UpdateRequest ureq = new UpdateRequest();
+      ureq.setParams(new ModifiableSolrParams());
+      ureq.getParams().set(DistributedUpdateProcessor.COMMIT_END_POINT, true);
+      ureq.getParams().set(UpdateParams.OPEN_SEARCHER, false);
+      ureq.setAction(AbstractUpdateRequest.ACTION.COMMIT, false, true).process(
+          server);
+    } finally {
+      server.shutdown();
+    }
   }
 
   private void sendPrepRecoveryCmd(String leaderBaseUrl, String leaderCoreName, Slice slice)
