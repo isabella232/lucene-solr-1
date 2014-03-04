@@ -23,6 +23,9 @@ import java.io.IOException;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 
+/**
+ * @lucene.experimental
+ */
 public abstract class CustomBufferedIndexInput extends IndexInput {
   
   // safety override mechanism - you should not need to tune this

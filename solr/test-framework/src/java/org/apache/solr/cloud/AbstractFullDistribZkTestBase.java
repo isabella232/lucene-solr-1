@@ -1262,108 +1262,12 @@ public abstract class AbstractFullDistribZkTestBase extends AbstractDistribZkTes
     return rsp;
   }
   
-  abstract class StopableThread extends Thread {
+  static abstract class StopableThread extends Thread {
     public StopableThread(String name) {
       super(name);
     }
     public abstract void safeStop();
   }
-  
-  class StopableIndexingThread extends StopableThread {
-    private volatile boolean stop = false;
-    protected final int startI;
-    protected final List<Integer> deletes = new ArrayList<Integer>();
-    protected final AtomicInteger fails = new AtomicInteger();
-    protected boolean doDeletes;
-    private int numCycles;
-    
-    public StopableIndexingThread(int startI, boolean doDeletes) {
-      this(startI, doDeletes, -1);
-    }
-    
-    public StopableIndexingThread(int startI, boolean doDeletes, int numCycles) {
-      super("StopableIndexingThread");
-      this.startI = startI;
-      this.doDeletes = doDeletes;
-      this.numCycles = numCycles;
-      setDaemon(true);
-    }
-    
-    @Override
-    public void run() {
-      int i = startI;
-      int numDone = 0;
-      int numDeletes = 0;
-      int numAdds = 0;
-      
-      while (true && !stop) {
-        if (numCycles != -1) {
-          if (numDone > numCycles) {
-            break;
-          }
-        }
-        ++numDone;
-        ++i;
-        boolean addFailed = false;
-        
-        if (doDeletes && random().nextBoolean() && deletes.size() > 0) {
-          Integer delete = deletes.remove(0);
-          try {
-            numDeletes++;
-            controlClient.deleteById(Integer.toString(delete));
-            cloudClient.deleteById(Integer.toString(delete));
-          } catch (Exception e) {
-            System.err.println("REQUEST FAILED:");
-            e.printStackTrace();
-            if (e instanceof SolrServerException) {
-              System.err.println("ROOT CAUSE:");
-              ((SolrServerException) e).getRootCause().printStackTrace();
-            }
-            fails.incrementAndGet();
-          }
-        }
-        
-        try {
-          numAdds++;
-          indexr(id, i, i1, 50, tlong, 50, t1,
-              "to come to the aid of their country.");
-        } catch (Exception e) {
-          addFailed = true;
-          System.err.println("REQUEST FAILED:");
-          e.printStackTrace();
-          if (e instanceof SolrServerException) {
-            System.err.println("ROOT CAUSE:");
-            ((SolrServerException) e).getRootCause().printStackTrace();
-          }
-          fails.incrementAndGet();
-        }
-        
-        if (!addFailed && doDeletes && random().nextBoolean()) {
-          deletes.add(i);
-        }
-        
-        try {
-          Thread.currentThread().sleep(random().nextInt(100));
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-      }
-      
-      System.err.println("added docs:" + numAdds + " with " + fails + " fails"
-          + " deletes:" + numDeletes);
-    }
-    
-    @Override
-    public void safeStop() {
-      System.out.println("safe stop:");
-      stop = true;
-    }
-    
-    public int getFails() {
-      return fails.get();
-    }
-    
-  };
   
   class StopableSearchThread extends StopableThread {
     private volatile boolean stop = false;
