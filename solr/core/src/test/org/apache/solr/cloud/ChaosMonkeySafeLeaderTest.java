@@ -41,6 +41,7 @@ public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
 
   @BeforeClass
   public static void beforeSuperClass() {
+    schemaString = "schema15.xml";      // we need a string id
     SolrCmdDistributor.testing_errorHook = new Diagnostics.Callable() {
       @Override
       public void call(Object... data) {
@@ -97,7 +98,7 @@ public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
     List<StopableIndexingThread> threads = new ArrayList<StopableIndexingThread>();
     int threadCount = 2;
     for (int i = 0; i < threadCount; i++) {
-      StopableIndexingThread indexThread = new StopableIndexingThread(10000 + i*50000, true);
+      StopableIndexingThread indexThread = new StopableIndexingThread(controlClient, cloudClient, Integer.toString(i), true);
       threads.add(indexThread);
       indexThread.start();
     }
@@ -126,7 +127,7 @@ public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
     }
     
     for (StopableIndexingThread indexThread : threads) {
-      assertEquals(0, indexThread.getFails());
+      assertEquals(0, indexThread.getFailCount());
     }
     
     // try and wait for any replications and what not to finish...

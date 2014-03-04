@@ -65,6 +65,8 @@ public class HdfsTestUtil {
     
     System.setProperty("solr.hdfs.home", "/solr_hdfs_home");
     
+    System.setProperty("solr.hdfs.blockcache.global", Boolean.toString(LuceneTestCase.random().nextBoolean()));
+    
     final MiniDFSCluster dfsCluster = new MiniDFSCluster(conf, dataNodes, true, null);
     dfsCluster.waitActive();
     
@@ -96,6 +98,8 @@ public class HdfsTestUtil {
     System.clearProperty("solr.lock.type");
     System.clearProperty("test.build.data");
     System.clearProperty("test.cache.data");
+    System.clearProperty("solr.hdfs.home");
+    System.clearProperty("solr.hdfs.blockcache.global");
     if (dfsCluster != null) {
       timers.remove(dfsCluster);
       dfsCluster.shutdown();

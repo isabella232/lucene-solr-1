@@ -26,7 +26,6 @@ import org.apache.solr.cloud.RecoveryZkTest;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
-import com.carrotsearch.randomizedtesting.annotations.Nightly;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 
@@ -37,6 +36,7 @@ public class HdfsRecoveryZkTest extends RecoveryZkTest {
   
   @BeforeClass
   public static void setupClass() throws Exception {
+    schemaString = "schema15.xml";      // we need a string id
     dfsCluster = HdfsTestUtil.setupClass(new File(TEMP_DIR,
         HdfsBasicDistributedZk2Test.class.getName() + "_"
             + System.currentTimeMillis()).getAbsolutePath());
