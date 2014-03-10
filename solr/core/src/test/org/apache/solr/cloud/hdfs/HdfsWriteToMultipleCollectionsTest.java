@@ -22,8 +22,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NRTCachingDirectory;
 import org.apache.lucene.util.LuceneTestCase.Nightly;
 import org.apache.lucene.util.LuceneTestCase.Slow;
@@ -87,7 +91,6 @@ public class HdfsWriteToMultipleCollectionsTest extends BasicDistributedZkTest {
   
   @Override
   public void doTest() throws Exception {
-    int docCount = random().nextInt(1313) + 1;
     int cnt = random().nextInt(4) + 1;
     for (int i = 0; i < cnt; i++) {
       createCollection(ACOLLECTION + i, 2, 2, 9);
@@ -101,7 +104,7 @@ public class HdfsWriteToMultipleCollectionsTest extends BasicDistributedZkTest {
       CloudSolrServer server = new CloudSolrServer(zkServer.getZkAddress());
       server.setDefaultCollection(ACOLLECTION + i);
       cloudServers.add(server);
-      StopableIndexingThread indexThread = new StopableIndexingThread(null, server, "1", true, docCount);
+      StopableIndexingThread indexThread = new StopableIndexingThread(null, server, "1", true, random().nextInt(1313) + 1);
       threads.add(indexThread);
       indexThread.start();
     }
@@ -134,6 +137,20 @@ public class HdfsWriteToMultipleCollectionsTest extends BasicDistributedZkTest {
         if (core.getCoreDescriptor().getCloudDescriptor().getCollectionName()
             .startsWith(ACOLLECTION)) {
           assertTrue(core.getDirectoryFactory() instanceof HdfsDirectoryFactory);
+          Directory dir = core.getDirectoryFactory().get(core.getDataDir(), null, null);
+          try {
+            long dataDirSize = core.getDirectoryFactory().size(dir);
+            FileSystem fileSystem = null;
+            
+            fileSystem = FileSystem.newInstance(
+                new Path(core.getDataDir()).toUri(), new Configuration());
+            long size = fileSystem.getContentSummary(
+                new Path(core.getDataDir())).getLength();
+            assertEquals(size, dataDirSize);
+          } finally {
+            core.getDirectoryFactory().release(dir);
+          }
+          
           RefCounted<IndexWriter> iwRef = core.getUpdateHandler()
               .getSolrCoreState().getIndexWriter(core);
           try {

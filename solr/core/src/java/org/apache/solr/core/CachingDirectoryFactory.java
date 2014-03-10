@@ -565,4 +565,8 @@ public abstract class CachingDirectoryFactory extends DirectoryFactory {
     }
     return livePaths;
   }
+  
+  protected synchronized String getPath(Directory directory) {
+    return byDirectoryCache.get(directory).path;
+  }
 }
