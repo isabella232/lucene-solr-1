@@ -16,6 +16,8 @@
  */
 package org.apache.solr.handler;
 
+import static org.apache.lucene.util.IOUtils.CHARSET_UTF_8;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -42,16 +44,13 @@ import java.util.zip.Checksum;
 import java.util.zip.DeflaterOutputStream;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexDeletionPolicy;
-import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
-
-import static org.apache.lucene.util.IOUtils.CHARSET_UTF_8;
-
 import org.apache.solr.client.solrj.impl.BinaryResponseParser;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
@@ -63,12 +62,11 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.core.CloseHook;
-import org.apache.solr.core.DirectoryFactory;
+import org.apache.solr.core.DirectoryFactory.DirContext;
 import org.apache.solr.core.IndexDeletionPolicyWrapper;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrDeletionPolicy;
 import org.apache.solr.core.SolrEventListener;
-import org.apache.solr.core.DirectoryFactory.DirContext;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.BinaryQueryResponseWriter;
 import org.apache.solr.response.SolrQueryResponse;
@@ -77,6 +75,7 @@ import org.apache.solr.update.SolrIndexWriter;
 import org.apache.solr.util.NumberUtils;
 import org.apache.solr.util.PropertiesInputStream;
 import org.apache.solr.util.RefCounted;
+import org.apache.solr.util.SafetyValveConstants;
 import org.apache.solr.util.plugin.SolrCoreAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -513,6 +512,9 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
   }
 
   long getIndexSize() {
+    if (Boolean.getBoolean(SafetyValveConstants.INDEX_STATUS_REPLICATION_SIZE_DISABLED)) {
+      return 0;
+    }
     Directory dir;
     long size = 0;
     try {

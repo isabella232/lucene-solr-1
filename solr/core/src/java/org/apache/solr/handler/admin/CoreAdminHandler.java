@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-import com.google.common.collect.Lists;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.index.DirectoryReader;
@@ -73,6 +72,7 @@ import org.apache.solr.update.processor.UpdateRequestProcessorChain;
 import org.apache.solr.util.NumberUtils;
 import org.apache.solr.util.PropertiesUtil;
 import org.apache.solr.util.RefCounted;
+import org.apache.solr.util.SafetyValveConstants;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1115,6 +1115,9 @@ public class CoreAdminHandler extends RequestHandlerBase {
   }
 
   private long getIndexSize(SolrCore core) {
+    if (Boolean.getBoolean(SafetyValveConstants.INDEX_STATUS_REPLICATION_SIZE_DISABLED)) {
+      return 0;
+    }
     Directory dir;
     long size = 0;
     try {
