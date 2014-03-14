@@ -78,6 +78,7 @@ import org.apache.solr.update.SolrIndexWriter;
 import org.apache.solr.util.NumberUtils;
 import org.apache.solr.util.PropertiesInputStream;
 import org.apache.solr.util.RefCounted;
+import org.apache.solr.util.SafetyValveConstants;
 import org.apache.solr.util.plugin.SolrCoreAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -529,6 +530,9 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
   }
 
   long getIndexSize() {
+    if (Boolean.getBoolean(SafetyValveConstants.INDEX_STATUS_REPLICATION_SIZE_DISABLED)) {
+      return 0;
+    }
     Directory dir;
     long size = 0;
     try {

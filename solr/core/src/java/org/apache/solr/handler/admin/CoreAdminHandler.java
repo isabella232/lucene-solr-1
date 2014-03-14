@@ -82,6 +82,7 @@ import org.apache.solr.update.processor.UpdateRequestProcessorChain;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.NumberUtils;
 import org.apache.solr.util.RefCounted;
+import org.apache.solr.util.SafetyValveConstants;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1165,6 +1166,9 @@ public class CoreAdminHandler extends RequestHandlerBase {
   }
 
   private long getIndexSize(SolrCore core) {
+    if (Boolean.getBoolean(SafetyValveConstants.INDEX_STATUS_REPLICATION_SIZE_DISABLED)) {
+      return 0;
+    }
     Directory dir;
     long size = 0;
     try {
