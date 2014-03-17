@@ -512,7 +512,24 @@ public class SolrDispatchFilter implements Filter
       if (isSecure) {
         // Required for SPNego authentication
         HttpOptions options = new HttpOptions(urlstr);
-        httpClient.execute(options);
+        HttpResponse optionsResponse = null;
+        boolean optionsSuccess = true;
+        try {
+          optionsResponse = httpClient.execute(options);
+          // we don't actually care about the response, we just send
+          // HttpOptions for the purpose of triggering SPNego. But we need
+          // to consume the response, else HttpClient will hold onto the
+          // connection.
+          EntityUtils.consumeQuietly(optionsResponse.getEntity());
+          optionsSuccess = true;
+        } finally {
+          if (!optionsSuccess) {
+            if (optionsResponse != null) {
+              EntityUtils.consumeQuietly(optionsResponse.getEntity());
+            }
+            options.abort();
+          }
+        }
       }
 
       if ("GET".equals(req.getMethod())) {
