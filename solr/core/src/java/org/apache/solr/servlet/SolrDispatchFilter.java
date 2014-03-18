@@ -513,7 +513,7 @@ public class SolrDispatchFilter implements Filter
         // Required for SPNego authentication
         HttpOptions options = new HttpOptions(urlstr);
         HttpResponse optionsResponse = null;
-        boolean optionsSuccess = true;
+        boolean optionsSuccess = false;
         try {
           optionsResponse = httpClient.execute(options);
           // we don't actually care about the response, we just send
