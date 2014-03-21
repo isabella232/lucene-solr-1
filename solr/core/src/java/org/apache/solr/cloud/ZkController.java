@@ -1036,16 +1036,14 @@ public final class ZkController {
    * Publish core state to overseer.
    */
   public void publish(final CoreDescriptor cd, final String state, boolean updateLastState) throws KeeperException, InterruptedException {
-    log.info("publishing core={} state={}", cd.getName(), state);
+    String collection = cd.getCloudDescriptor().getCollectionName();
+    log.info("publishing core={} state={} collection={}", new String [] { cd.getName(), state, collection} );
     //System.out.println(Thread.currentThread().getStackTrace()[3]);
     Integer numShards = cd.getCloudDescriptor().getNumShards();
     if (numShards == null) { //XXX sys prop hack
       log.info("numShards not found on descriptor - reading it from system property");
       numShards = Integer.getInteger(ZkStateReader.NUM_SHARDS_PROP);
     }
-    
-    assert cd.getCloudDescriptor().getCollectionName() != null && cd.getCloudDescriptor()
-        .getCollectionName().length() > 0;
     
     String coreNodeName = cd.getCloudDescriptor().getCoreNodeName();
     //assert cd.getCloudDescriptor().getShardId() != null;
@@ -1058,8 +1056,7 @@ public final class ZkController {
         ZkStateReader.SHARD_ID_PROP, cd.getCloudDescriptor().getShardId(),
         ZkStateReader.SHARD_RANGE_PROP, cd.getCloudDescriptor().getShardRange(),
         ZkStateReader.SHARD_STATE_PROP, cd.getCloudDescriptor().getShardState(),
-        ZkStateReader.COLLECTION_PROP, cd.getCloudDescriptor()
-            .getCollectionName(),
+        ZkStateReader.COLLECTION_PROP, collection,
         ZkStateReader.NUM_SHARDS_PROP, numShards != null ? numShards.toString()
             : null,
         ZkStateReader.CORE_NODE_NAME_PROP, coreNodeName != null ? coreNodeName
@@ -1089,6 +1086,12 @@ public final class ZkController {
     final String coreNodeName = cd.getCloudDescriptor().getCoreNodeName();
     final String collection = cd.getCloudDescriptor().getCollectionName();
     assert collection != null;
+    
+    if (collection == null || collection.trim().length() == 0) {
+      log.error("No collection was specified.");
+      return;
+    }
+    
     ElectionContext context = electionContexts.remove(new ContextKey(collection, coreNodeName));
     
     if (context != null) {
