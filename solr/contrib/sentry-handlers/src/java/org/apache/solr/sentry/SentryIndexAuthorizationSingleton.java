@@ -166,7 +166,7 @@ public class SentryIndexAuthorizationSingleton {
    * Get the user name associated with the request
    *
    * @param req the request
-   * @returns the user name associated with the request
+   * @return the user name associated with the request
    */
   public String getUserName(SolrQueryRequest req) throws SolrException {
     if (binding == null) {
