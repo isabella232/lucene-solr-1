@@ -55,6 +55,13 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     super.setUp(core);
   }
 
+  private String getClause(String authField, String value) {
+    StringBuilder builder = new StringBuilder();
+    builder.append(" {!raw f=").append(authField)
+      .append(" v=").append(value).append("}");
+    return builder.toString();
+  }
+
   private ResponseBuilder getResponseBuilder() {
     SolrQueryRequest request = getRequest();
     return new ResponseBuilder(request, null, null);
@@ -67,6 +74,8 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
 
     if (params != null) {
       builder.req.setParams(params);
+    } else {
+      builder.req.setParams(new ModifiableSolrParams());
     }
 
     QueryDocAuthorizationComponent component =
@@ -94,7 +103,7 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
   public void testSimple() throws Exception {
     ResponseBuilder builder = runComponent("junit", new NamedList(), null);
 
-    String expect = QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD + ":(junit)";
+    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
     checkParams(new String[] {expect}, builder);
   }
 
@@ -105,7 +114,7 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     args.add(QueryDocAuthorizationComponent.AUTH_FIELD_PROP, authField);
     ResponseBuilder builder = runComponent("junit", args, null);
 
-    String expect = authField + ":(junit)";
+    String expect = getClause(authField, "junit");
     checkParams(new String[] {expect}, builder);
   }
 
@@ -125,7 +134,7 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     newParams.add("fq", existingFq);
     ResponseBuilder builder = runComponent("junit", new NamedList(), newParams);
 
-    String expect = QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD + ":(junit)";
+    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
     checkParams(new String[] {existingFq, expect} , builder);
   }
 
@@ -140,7 +149,42 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
   public void testMultipleGroup() throws Exception {
     ResponseBuilder builder = runComponent("multipleMemberGroup", new NamedList(), null);
 
-    String expect = QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD + ":(user1 OR user2 OR user3)";
+    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user1")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user2")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user3");
+    checkParams(new String[] {expect}, builder);
+  }
+
+  @Test
+  public void testAllGroupsToken() throws Exception {
+    // test no arg
+    ResponseBuilder builder = runComponent("junit", new NamedList(), null);
+    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
+    checkParams(new String[] {expect}, builder);
+
+    // test empty string arg
+    NamedList args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ALL_GROUPS_TOKEN_PROP, "");
+    builder = runComponent("junit", args, null);
+    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
+    checkParams(new String[] {expect}, builder);
+
+    String allGroupsToken = "specialAllGroupsToken";
+    args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ALL_GROUPS_TOKEN_PROP, allGroupsToken);
+
+    // test valid single group
+    builder = runComponent("junit", args, null);
+    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, allGroupsToken);
+    checkParams(new String[] {expect}, builder);
+
+    // test valid multiple group
+    builder = runComponent("multipleMemberGroup", args, null);
+    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user1")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user2")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user3")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, allGroupsToken);
     checkParams(new String[] {expect}, builder);
   }
 }
