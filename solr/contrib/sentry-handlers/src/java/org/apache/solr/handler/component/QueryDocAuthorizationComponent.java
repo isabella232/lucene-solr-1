@@ -36,8 +36,10 @@ public class QueryDocAuthorizationComponent extends SearchComponent
     LoggerFactory.getLogger(QueryDocAuthorizationComponent.class);
   public static String AUTH_FIELD_PROP = "sentryAuthField";
   public static String DEFAULT_AUTH_FIELD = "_sentry_auth_";
+  public static String ALL_GROUPS_TOKEN_PROP = "allGroupsToken";
   private SentryIndexAuthorizationSingleton sentryInstance;
   private String authField;
+  private String allGroupsToken;
 
   public QueryDocAuthorizationComponent() {
     this(SentryIndexAuthorizationSingleton.getInstance());
@@ -54,6 +56,16 @@ public class QueryDocAuthorizationComponent extends SearchComponent
     Object fieldArg = args.get(AUTH_FIELD_PROP);
     this.authField = (fieldArg == null) ? DEFAULT_AUTH_FIELD : fieldArg.toString();
     log.info("QueryDocAuthorizationComponent authField: " + this.authField);
+    Object groupsArg = args.get(ALL_GROUPS_TOKEN_PROP);
+    this.allGroupsToken = (groupsArg == null) ? "" : groupsArg.toString();
+    log.info("QueryDocAuthorizationComponent allGroupsToken: " + this.allGroupsToken);
+  }
+
+  private void addRawClause(StringBuilder builder, String authField, String value) {
+    // requires a space before the first term, so the
+    // default lucene query parser will be used
+    builder.append(" {!raw f=").append(authField).append(" v=")
+      .append(value).append("}");
   }
 
   @Override
@@ -66,14 +78,12 @@ public class QueryDocAuthorizationComponent extends SearchComponent
     List<String> groups = sentryInstance.getGroups(userName);
     if (groups != null && groups.size() > 0) {
       StringBuilder builder = new StringBuilder();
-      builder.append(authField).append(":(");
       for (int i = 0; i < groups.size(); ++i) {
-        if (i != 0) {
-           builder.append(" OR ");
-        }
-        builder.append(groups.get(i));
+        addRawClause(builder, authField, groups.get(i));
       }
-      builder.append(")");
+      if (allGroupsToken != null && !allGroupsToken.isEmpty()) {
+        addRawClause(builder, authField, allGroupsToken);
+      }
       ModifiableSolrParams newParams = new ModifiableSolrParams(rb.req.getParams());
       String result = builder.toString();
       newParams.add("fq", result);
