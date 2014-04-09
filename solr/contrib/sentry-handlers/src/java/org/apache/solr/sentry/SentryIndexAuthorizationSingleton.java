@@ -31,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.net.URL;
@@ -155,7 +154,7 @@ public class SentryIndexAuthorizationSingleton {
    * @param userName
    * @return list of groups the user belongs to
    */
-  public List<String> getGroups(String userName) {
+  public java.util.Collection<String> getGroups(String userName) {
     if (binding == null) {
       return null;
     }

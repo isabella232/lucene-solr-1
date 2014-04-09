@@ -18,12 +18,13 @@ package org.apache.solr.sentry;
 
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -39,6 +40,8 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Test for SentryIndexAuthorizationSingleton
@@ -110,7 +113,7 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
       assertEquals(ex.code(), SolrException.ErrorCode.UNAUTHORIZED.code);
     }
 
-    List<String> groups = nonSingleton.getGroups("junit");
+    Collection<String> groups = nonSingleton.getGroups("junit");
     assertEquals(null, groups);
   }
 
@@ -211,24 +214,24 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
    */
   @Test
   public void testGetGroups() throws Exception {
-    List<String> emptyList = Arrays.asList();
+    Collection<String> emptyCollection = ImmutableSet.<String>of();
 
     // null user
-    List<String> groups = sentryInstance.getGroups(null);
-    assertEquals(emptyList, groups);
+    Collection<String> groups = sentryInstance.getGroups(null);
+    assertTrue(CollectionUtils.isEqualCollection(emptyCollection, groups));
 
     // no group
     groups = sentryInstance.getGroups("bogusUser");
-    assertEquals(emptyList, groups);
+    assertTrue(CollectionUtils.isEqualCollection(emptyCollection, groups));
 
     // single member
-    List<String> singleMember = Arrays.asList("junit");
+    Collection<String> singleMember = ImmutableSet.<String>of("junit");
     groups = sentryInstance.getGroups("junit");
-    assertEquals(singleMember, groups);
+    assertTrue(CollectionUtils.isEqualCollection(singleMember, groups));
 
     // multiple members
-    List<String> multipleMember = Arrays.asList("user1", "user2", "user3");
+    Collection<String> multipleMember = ImmutableSet.<String>of("user1", "user2", "user3");
     groups = sentryInstance.getGroups("multipleMemberGroup");
-    assertEquals(multipleMember, groups);
+    assertTrue(CollectionUtils.isEqualCollection(multipleMember, groups));
   }
 }
