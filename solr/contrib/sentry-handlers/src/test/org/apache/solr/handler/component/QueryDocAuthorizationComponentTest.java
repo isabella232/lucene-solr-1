@@ -17,6 +17,7 @@ package org.apache.solr.handler.component;
  */
 
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.SolrCore;
@@ -26,6 +27,7 @@ import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.sentry.SentrySingletonTestInstance;
 import org.apache.solr.request.SolrQueryRequest;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -138,11 +140,24 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     checkParams(new String[] {existingFq, expect} , builder);
   }
 
+  /**
+   * Test a request from a user coming from an empty group.
+   * This request should be rejected because otherwise document-level
+   * filtering will be skipped.
+   */
   @Test
   public void testEmptyGroup() throws Exception {
-    ResponseBuilder builder = runComponent("bogusUser", new NamedList(), null);
+    String user = "bogusUser";
+    try {
+      ResponseBuilder builder = runComponent(user, new NamedList(), null);
 
-    checkParams(null, builder);
+      checkParams(null, builder);
+      Assert.fail("Expected SolrException");
+    } catch (SolrException ex) {
+      assertEquals(ex.code(), SolrException.ErrorCode.UNAUTHORIZED.code);
+      assertTrue(ex.getMessage().contains(
+        user + " rejected because user does not belong to any groups."));
+    }
   }
 
   @Test
