@@ -19,6 +19,7 @@ package org.apache.solr.handler.component;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
@@ -88,6 +89,10 @@ public class QueryDocAuthorizationComponent extends SearchComponent
       String result = builder.toString();
       newParams.add("fq", result);
       rb.req.setParams(newParams);
+    } else {
+      throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED,
+        "Request from user: " + userName +
+        " rejected because user does not belong to any groups.");
     }
   }
 
