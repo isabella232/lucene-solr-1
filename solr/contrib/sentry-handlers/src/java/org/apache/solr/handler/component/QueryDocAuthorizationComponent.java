@@ -26,9 +26,9 @@ import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Iterator;
-import java.util.List;
 import java.net.URLEncoder;
 
 public class QueryDocAuthorizationComponent extends SearchComponent
@@ -76,11 +76,11 @@ public class QueryDocAuthorizationComponent extends SearchComponent
     if (superUser.equals(userName)) {
       return;
     }
-    List<String> groups = sentryInstance.getGroups(userName);
+    Collection<String> groups = sentryInstance.getGroups(userName);
     if (groups != null && groups.size() > 0) {
       StringBuilder builder = new StringBuilder();
-      for (int i = 0; i < groups.size(); ++i) {
-        addRawClause(builder, authField, groups.get(i));
+      for (String group : groups) {
+        addRawClause(builder, authField, group);
       }
       if (allGroupsToken != null && !allGroupsToken.isEmpty()) {
         addRawClause(builder, authField, allGroupsToken);
