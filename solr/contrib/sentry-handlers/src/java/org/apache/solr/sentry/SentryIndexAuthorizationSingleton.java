@@ -154,7 +154,7 @@ public class SentryIndexAuthorizationSingleton {
    * @param userName
    * @return list of groups the user belongs to
    */
-  public java.util.Collection<String> getGroups(String userName) {
+  public Set<String> getGroups(String userName) {
     if (binding == null) {
       return null;
     }
