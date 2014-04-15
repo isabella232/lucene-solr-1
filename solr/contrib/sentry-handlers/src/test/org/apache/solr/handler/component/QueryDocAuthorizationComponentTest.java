@@ -16,6 +16,10 @@ package org.apache.solr.handler.component;
  * limitations under the License.
  */
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.SolrParams;
@@ -87,6 +91,13 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     return builder;
   }
 
+  // Clauses are treated as OR, so order does not matter.
+  private void assertEqualClausesOrderIndependent(String expected, String actual) {
+    Set<String> expectedSet = new HashSet<String>(Arrays.asList(expected.split("}")));
+    Set<String> actualSet = new HashSet<String>(Arrays.asList(actual.split("}")));
+    assertEquals(expectedSet, actualSet);
+  }
+
   private void checkParams(String[] expected, ResponseBuilder builder) {
     final String fieldName = "fq";
     final String [] params = builder.req.getParams().getParams(fieldName);
@@ -95,8 +106,8 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     } else {
       assertNotNull(params);
       assertEquals(expected.length, params.length);
-      for (int i = 0; i < expected.length; ++i) {
-        assertEquals(expected[ i ], params[ i ]);
+      for (int i = 0; i < params.length; ++i) {
+        assertEqualClausesOrderIndependent(expected[ i ], params[ i ]);
       }
     }
   }
