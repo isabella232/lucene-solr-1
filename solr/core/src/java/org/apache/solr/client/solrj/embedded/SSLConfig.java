@@ -17,6 +17,11 @@ package org.apache.solr.client.solrj.embedded;
  * limitations under the License.
  */
 
+import org.eclipse.jetty.util.resource.Resource;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+
+import java.io.IOException;
+
 public class SSLConfig {
   
   private boolean useSsl;
@@ -65,5 +70,102 @@ public class SSLConfig {
 
   public String getTrustStorePassword() {
     return trustStorePassword;
+  }
+
+  /**
+   * Returns an SslContextFactory that should be used by a jetty server based on the specified 
+   * SSLConfig param which may be null.
+   *
+   * if the SSLConfig param is non-null, then this method will return the results of 
+   * {@link #createContextFactory()}.
+   * 
+   * If the SSLConfig param is null, then this method will return null unless the 
+   * <code>tests.jettySsl</code> system property is true, in which case standard "javax.net.ssl.*" 
+   * system properties will be used instead, along with "tests.jettySsl.clientAuth".
+   * 
+   * @see #createContextFactory()
+   */
+  public static SslContextFactory createContextFactory(SSLConfig sslConfig) {
+
+    if (sslConfig != null) {
+      return sslConfig.createContextFactory();
+    }
+    // else...
+    if (Boolean.getBoolean("tests.jettySsl")) {
+      return configureSslFromSysProps();
+    }
+    // else...
+    return null;
+  }
+  
+  /**
+   * Returns an SslContextFactory that should be used by a jetty server based on this SSLConfig instance, 
+   * or null if SSL should not be used.
+   *
+   * The default implementation generates a simple factory according to the keystore, truststore, 
+   * and clientAuth properties of this object.
+   *
+   * @see #getKeyStore
+   * @see #getKeyStorePassword
+   * @see #isClientAuthMode
+   * @see #getTrustStore
+   * @see #getTrustStorePassword
+   */
+  public SslContextFactory createContextFactory() {
+
+    if (! isSSLMode()) {
+      return null;
+    }
+    // else...
+    
+    SslContextFactory factory = new SslContextFactory(false);
+    if (getKeyStore() != null)
+      factory.setKeyStorePath(getKeyStore());
+    if (getKeyStorePassword() != null)
+      factory.setKeyStorePassword(getKeyStorePassword());
+    
+    factory.setNeedClientAuth(isClientAuthMode());
+    
+    if (isClientAuthMode()) {
+      if (getTrustStore() != null)
+        setTrustStorePath(factory, getTrustStore());
+      if (getTrustStorePassword() != null)
+        factory.setTrustStorePassword(getTrustStorePassword());
+    }
+    return factory;
+
+  }
+
+  private static SslContextFactory configureSslFromSysProps() {
+
+    SslContextFactory sslcontext = new SslContextFactory(false);
+
+    if (null != System.getProperty("javax.net.ssl.keyStore")) {
+      sslcontext.setKeyStorePath
+          (System.getProperty("javax.net.ssl.keyStore"));
+    }
+    if (null != System.getProperty("javax.net.ssl.keyStorePassword")) {
+      sslcontext.setKeyStorePassword
+          (System.getProperty("javax.net.ssl.keyStorePassword"));
+    }
+    if (null != System.getProperty("javax.net.ssl.trustStore")) {
+      setTrustStorePath
+          (sslcontext, System.getProperty("javax.net.ssl.trustStore"));
+    }
+    if (null != System.getProperty("javax.net.ssl.trustStorePassword")) {
+      sslcontext.setTrustStorePassword
+          (System.getProperty("javax.net.ssl.trustStorePassword"));
+    }
+    sslcontext.setNeedClientAuth(Boolean.getBoolean("tests.jettySsl.clientAuth"));
+
+    return sslcontext;
+  }
+
+  private static void setTrustStorePath(SslContextFactory factory, String trustStore) {
+    try {
+      factory.setTrustStoreResource(Resource.newResource(trustStore));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
