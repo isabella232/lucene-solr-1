@@ -53,6 +53,8 @@ public abstract class ConfigSolr {
 
   private final static String SENTRY_ENABLED = System.getProperty("solr.authorization.sentry.site");
 
+  static final int DEFAULT_LEADER_CONFLICT_RESOLVE_WAIT = 60000;
+
   public static ConfigSolr fromFile(SolrResourceLoader loader, File configFile) {
     log.info("Loading container configuration from {}", configFile.getAbsolutePath());
 
@@ -160,6 +162,10 @@ public abstract class ConfigSolr {
       "org.apache.solr.handler.admin.CollectionsHandler");
   }
 
+  public int getLeaderConflictResolveWait() {
+    return getInt(CfgProp.SOLR_LEADERCONFLICTRESOLVEWAIT, DEFAULT_LEADER_CONFLICT_RESOLVE_WAIT);
+  }
+
   public String getInfoHandlerClass() {
     return get(CfgProp.SOLR_INFOHANDLER, SENTRY_ENABLED != null ?
       "org.apache.solr.handler.admin.SecureInfoHandler":
@@ -190,6 +196,7 @@ public abstract class ConfigSolr {
     SOLR_GENERICCORENODENAMES,
     SOLR_ZKCLIENTTIMEOUT,
     SOLR_ZKHOST,
+    SOLR_LEADERCONFLICTRESOLVEWAIT,
 
     //TODO: Remove all of these elements for 5.0
     SOLR_PERSISTENT,
