@@ -167,17 +167,18 @@ public final class ZkController {
   protected volatile Overseer overseer;
 
   private String leaderVoteWait;
+  private int leaderConflictResolveWait;
   
   private boolean genericCoreNodeNames;
 
   private int clientTimeout;
 
   private volatile boolean isClosed;
-  
+
   private UpdateShardHandler updateShardHandler;
 
   public ZkController(final CoreContainer cc, String zkServerAddress, int zkClientTimeout, int zkClientConnectTimeout, String localHost, String locaHostPort,
-      String localHostContext, String leaderVoteWait, boolean genericCoreNodeNames, int distribUpdateConnTimeout, int distribUpdateSoTimeout, final CurrentCoreDescriptorProvider registerOnReconnect) throws InterruptedException,
+      String localHostContext, String leaderVoteWait, int leaderConflictResolveWait, boolean genericCoreNodeNames, int distribUpdateConnTimeout, int distribUpdateSoTimeout, final CurrentCoreDescriptorProvider registerOnReconnect) throws InterruptedException,
       TimeoutException, IOException {
     if (cc == null) throw new IllegalArgumentException("CoreContainer cannot be null.");
     this.cc = cc;
@@ -203,6 +204,8 @@ public final class ZkController {
                                      this.localHostContext);
 
     this.leaderVoteWait = leaderVoteWait;
+    this.leaderConflictResolveWait = leaderConflictResolveWait;
+    
     this.clientTimeout = zkClientTimeout;
     zkClient = new SolrZkClient(zkServerAddress, zkClientTimeout, zkClientConnectTimeout,
         // on reconnect, reload cloud info
@@ -890,19 +893,28 @@ public final class ZkController {
           shardId, timeoutms * 2); // since we found it in zk, we are willing to
                                    // wait a while to find it in state
       int tries = 0;
+      final long msInSec = 1000L;
+      int maxTries = (int)Math.floor(leaderConflictResolveWait/msInSec);
       while (!leaderUrl.equals(clusterStateLeaderUrl)) {
-        if (tries == 60) {
+        if (tries > maxTries) {
           throw new SolrException(ErrorCode.SERVER_ERROR,
               "There is conflicting information about the leader of shard: "
                   + cloudDesc.getShardId() + " our state says:"
                   + clusterStateLeaderUrl + " but zookeeper says:" + leaderUrl);
         }
-        Thread.sleep(1000);
+        Thread.sleep(msInSec);
         tries++;
         clusterStateLeaderUrl = zkStateReader.getLeaderUrl(collection, shardId,
             timeoutms);
         leaderUrl = getLeaderProps(collection, cloudDesc.getShardId(), timeoutms)
             .getCoreUrl();
+        
+        if (tries % 30 == 0) {
+          String warnMsg = String.format("Still seeing conflicting information about the leader "
+              + "of shard %s for collection %s after %d seconds; our state says %s, but ZooKeeper says %s",
+              cloudDesc.getShardId(), collection, tries, clusterStateLeaderUrl, leaderUrl);
+          log.warn(warnMsg);
+        }
       }
       
     } catch (Exception e) {
