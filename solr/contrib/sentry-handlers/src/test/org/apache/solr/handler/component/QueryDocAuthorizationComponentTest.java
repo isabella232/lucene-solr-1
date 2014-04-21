@@ -114,16 +114,32 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
 
   @Test
   public void testSimple() throws Exception {
-    ResponseBuilder builder = runComponent("junit", new NamedList(), null);
+    NamedList args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
+    ResponseBuilder builder = runComponent("junit", args, null);
 
     String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
     checkParams(new String[] {expect}, builder);
   }
 
   @Test
+  public void testEnabled() throws Exception {
+    // Test empty args
+    NamedList args = new NamedList();
+    ResponseBuilder builder = runComponent("junit", args, null);
+    checkParams(null, builder);
+
+    // Test enabled false
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "false");
+    builder = runComponent("junit", args, null);
+    checkParams(null, builder);
+  }
+
+  @Test
   public void testAuthFieldNonDefault() throws Exception {
     String authField = "nonDefaultAuthField";
     NamedList args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
     args.add(QueryDocAuthorizationComponent.AUTH_FIELD_PROP, authField);
     ResponseBuilder builder = runComponent("junit", args, null);
 
@@ -134,7 +150,9 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
   @Test
   public void testSuperUser() throws Exception {
     String superUser = (System.getProperty("solr.authorization.superuser", "solr"));
-    ResponseBuilder builder = runComponent(superUser, new NamedList(), null);
+    NamedList args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
+    ResponseBuilder builder = runComponent(superUser, args, null);
     prepareCollAndUser(core, builder.req, "collection1", superUser);
 
     checkParams(null, builder);
@@ -145,7 +163,9 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     ModifiableSolrParams newParams = new ModifiableSolrParams();
     String existingFq = "bogusField:(bogusUser)";
     newParams.add("fq", existingFq);
-    ResponseBuilder builder = runComponent("junit", new NamedList(), newParams);
+    NamedList args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
+    ResponseBuilder builder = runComponent("junit", args, newParams);
 
     String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
     checkParams(new String[] {existingFq, expect} , builder);
@@ -160,7 +180,9 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
   public void testEmptyGroup() throws Exception {
     String user = "bogusUser";
     try {
-      ResponseBuilder builder = runComponent(user, new NamedList(), null);
+      NamedList args = new NamedList();
+      args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
+      ResponseBuilder builder = runComponent(user, args, null);
 
       checkParams(null, builder);
       Assert.fail("Expected SolrException");
@@ -173,7 +195,9 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
 
   @Test
   public void testMultipleGroup() throws Exception {
-    ResponseBuilder builder = runComponent("multipleMemberGroup", new NamedList(), null);
+    NamedList args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
+    ResponseBuilder builder = runComponent("multipleMemberGroup", args, null);
 
     String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user1")
       + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user2")
@@ -184,12 +208,15 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
   @Test
   public void testAllGroupsToken() throws Exception {
     // test no arg
-    ResponseBuilder builder = runComponent("junit", new NamedList(), null);
+    NamedList args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
+    ResponseBuilder builder = runComponent("junit", args, null);
     String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
     checkParams(new String[] {expect}, builder);
 
     // test empty string arg
-    NamedList args = new NamedList();
+    args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
     args.add(QueryDocAuthorizationComponent.ALL_GROUPS_TOKEN_PROP, "");
     builder = runComponent("junit", args, null);
     expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
@@ -197,6 +224,7 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
 
     String allGroupsToken = "specialAllGroupsToken";
     args = new NamedList();
+    args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
     args.add(QueryDocAuthorizationComponent.ALL_GROUPS_TOKEN_PROP, allGroupsToken);
 
     // test valid single group
