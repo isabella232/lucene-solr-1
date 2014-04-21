@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.request.LocalSolrQueryRequest;
@@ -36,11 +37,13 @@ public class QueryDocAuthorizationComponent extends SearchComponent
   private static Logger log =
     LoggerFactory.getLogger(QueryDocAuthorizationComponent.class);
   public static String AUTH_FIELD_PROP = "sentryAuthField";
-  public static String DEFAULT_AUTH_FIELD = "_sentry_auth_";
+  public static String DEFAULT_AUTH_FIELD = "sentry_auth";
   public static String ALL_GROUPS_TOKEN_PROP = "allGroupsToken";
+  public static String ENABLED_PROP = "enabled";
   private SentryIndexAuthorizationSingleton sentryInstance;
   private String authField;
   private String allGroupsToken;
+  private boolean enabled;
 
   public QueryDocAuthorizationComponent() {
     this(SentryIndexAuthorizationSingleton.getInstance());
@@ -54,12 +57,13 @@ public class QueryDocAuthorizationComponent extends SearchComponent
 
   @Override
   public void init(NamedList args) {
-    Object fieldArg = args.get(AUTH_FIELD_PROP);
-    this.authField = (fieldArg == null) ? DEFAULT_AUTH_FIELD : fieldArg.toString();
+    SolrParams params = SolrParams.toSolrParams(args);
+    this.authField = params.get(AUTH_FIELD_PROP, DEFAULT_AUTH_FIELD);
     log.info("QueryDocAuthorizationComponent authField: " + this.authField);
-    Object groupsArg = args.get(ALL_GROUPS_TOKEN_PROP);
-    this.allGroupsToken = (groupsArg == null) ? "" : groupsArg.toString();
+    this.allGroupsToken = params.get(ALL_GROUPS_TOKEN_PROP, "");
     log.info("QueryDocAuthorizationComponent allGroupsToken: " + this.allGroupsToken);
+    this.enabled = params.getBool(ENABLED_PROP, false);
+    log.info("QueryDocAuthorizationComponent enabled: " + this.enabled);
   }
 
   private void addRawClause(StringBuilder builder, String authField, String value) {
@@ -71,6 +75,8 @@ public class QueryDocAuthorizationComponent extends SearchComponent
 
   @Override
   public void prepare(ResponseBuilder rb) throws IOException {
+    if (!enabled) return;
+
     String userName = sentryInstance.getUserName(rb.req);
     String superUser = (System.getProperty("solr.authorization.superuser", "solr"));
     if (superUser.equals(userName)) {
