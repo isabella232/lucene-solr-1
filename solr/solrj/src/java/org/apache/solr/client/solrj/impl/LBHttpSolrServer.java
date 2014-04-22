@@ -18,6 +18,8 @@ package org.apache.solr.client.solrj.impl;
 
 import org.apache.http.client.HttpClient;
 import org.apache.solr.client.solrj.*;
+import org.apache.solr.client.solrj.request.IsUpdateRequest;
+import org.apache.solr.client.solrj.request.RequestWriter;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
@@ -26,6 +28,7 @@ import org.apache.solr.common.SolrException;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.net.ConnectException;
 import java.net.MalformedURLException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
@@ -73,7 +76,14 @@ import java.util.*;
  * @since solr 1.4
  */
 public class LBHttpSolrServer extends SolrServer {
+  private static Set<Integer> RETRY_CODES = new HashSet<Integer>(4);
 
+  static {
+    RETRY_CODES.add(404);
+    RETRY_CODES.add(403);
+    RETRY_CODES.add(503);
+    RETRY_CODES.add(500);
+  }
 
   // keys to the maps are currently of the form "http://localhost:8983/solr"
   // which should be equivalent to CommonsHttpSolrServer.getBaseURL()
@@ -244,7 +254,7 @@ public class LBHttpSolrServer extends SolrServer {
   public Rsp request(Req req) throws SolrServerException, IOException {
     Rsp rsp = new Rsp();
     Exception ex = null;
-
+    boolean isUpdate = req.request instanceof IsUpdateRequest;
     List<ServerWrapper> skipped = new ArrayList<ServerWrapper>(req.getNumDeadServersToTry());
 
     for (String serverStr : req.getServers()) {
@@ -260,69 +270,17 @@ public class LBHttpSolrServer extends SolrServer {
       rsp.server = serverStr;
       HttpSolrServer server = makeServer(serverStr);
 
-      try {
-        rsp.rsp = server.request(req.getRequest());
+      ex = doRequest(server, req, rsp, isUpdate, false, null);
+      if (ex == null) {
         return rsp; // SUCCESS
-      } catch (SolrException e) {
-        // we retry on 404 or 403 or 503 - you can see this on solr shutdown
-        if (e.code() == 404 || e.code() == 403 || e.code() == 503 || e.code() == 500) {
-          ex = addZombie(server, e);
-        } else {
-          // Server is alive but the request was likely malformed or invalid
-          throw e;
-        }
-       
-       // TODO: consider using below above - currently does cause a problem with distrib updates:
-       // seems to match up against a failed forward to leader exception as well...
-       //     || e.getMessage().contains("java.net.SocketException")
-       //     || e.getMessage().contains("java.net.ConnectException")
-      } catch (SocketException e) {
-        ex = addZombie(server, e);
-      } catch (SocketTimeoutException e) {
-        ex = addZombie(server, e);
-      } catch (SolrServerException e) {
-        Throwable rootCause = e.getRootCause();
-        if (rootCause instanceof IOException) {
-          ex = addZombie(server, e);
-        } else {
-          throw e;
-        }
-      } catch (Exception e) {
-        throw new SolrServerException(e);
       }
     }
 
     // try the servers we previously skipped
     for (ServerWrapper wrapper : skipped) {
-      try {
-        rsp.rsp = wrapper.solrServer.request(req.getRequest());
-        zombieServers.remove(wrapper.getKey());
-        return rsp; // SUCCESS
-      } catch (SolrException e) {
-        // we retry on 404 or 403 or 503 - you can see this on solr shutdown
-        if (e.code() == 404 || e.code() == 403 || e.code() == 503 || e.code() == 500) {
-          ex = e;
-          // already a zombie, no need to re-add
-        } else {
-          // Server is alive but the request was malformed or invalid
-          zombieServers.remove(wrapper.getKey());
-          throw e;
-        }
-
-      } catch (SocketException e) {
-        ex = e;
-      } catch (SocketTimeoutException e) {
-        ex = e;
-      } catch (SolrServerException e) {
-        Throwable rootCause = e.getRootCause();
-        if (rootCause instanceof IOException) {
-          ex = e;
-          // already a zombie, no need to re-add
-        } else {
-          throw e;
-        }
-      } catch (Exception e) {
-        throw new SolrServerException(e);
+      ex = doRequest(wrapper.solrServer, req, rsp, isUpdate, true, wrapper.getKey());
+      if (ex == null) {
+         return rsp; // SUCCESS
       }
     }
 
@@ -347,7 +305,53 @@ public class LBHttpSolrServer extends SolrServer {
     return e;
   }  
 
+  protected Exception doRequest(HttpSolrServer server, Req req, Rsp rsp, boolean isUpdate,
+      boolean isZombie, String zombieKey) throws SolrServerException, IOException {
+    Exception ex = null;
+    try {
+      rsp.rsp = server.request(req.getRequest());
+      if (isZombie) {
+        zombieServers.remove(zombieKey);
+      }
+    } catch (SolrException e) {
+      // we retry on 404 or 403 or 503 or 500
+      // unless it's an update - then we only retry on connect exception
+      if (!isUpdate && RETRY_CODES.contains(e.code())) {
+        ex = (!isZombie) ? addZombie(server, e) : e;
+      } else {
+        // Server is alive but the request was likely malformed or invalid
+        if (isZombie) {
+          zombieServers.remove(zombieKey);
+        }
+        throw e;
+      }
+    } catch (SocketException e) {
+      if (!isUpdate || e instanceof ConnectException) {
+        ex = (!isZombie) ? addZombie(server, e) : e;
+      } else {
+        throw e;
+      }
+    } catch (SocketTimeoutException e) {
+      if (!isUpdate) {
+        ex = (!isZombie) ? addZombie(server, e) : e;
+      } else {
+        throw e;
+      }
+    } catch (SolrServerException e) {
+      Throwable rootCause = e.getRootCause();
+      if (!isUpdate && rootCause instanceof IOException) {
+        ex = (!isZombie) ? addZombie(server, e) : e;
+      } else if (isUpdate && rootCause instanceof ConnectException) {
+        ex = (!isZombie) ? addZombie(server, e) : e;
+      } else {
+        throw e;
+      }
+    } catch (Exception e) {
+      throw new SolrServerException(e);
+    }
 
+    return ex;
+  }
 
   private void updateAliveList() {
     synchronized (aliveServers) {
