@@ -65,12 +65,31 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+
+import javax.xml.xpath.XPathExpressionException;
+
+import org.apache.solr.cloud.ZkController;
+import org.apache.solr.cloud.ZkSolrResourceLoader;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.cloud.ZooKeeperException;
+import org.apache.solr.common.util.ExecutorUtil;
+import org.apache.solr.handler.admin.CollectionsHandler;
+import org.apache.solr.handler.admin.CoreAdminHandler;
+import org.apache.solr.handler.admin.InfoHandler;
+import org.apache.solr.handler.component.ShardHandlerFactory;
+import org.apache.solr.logging.LogWatcher;
+import org.apache.solr.logging.jul.JulWatcher;
+import org.apache.solr.schema.IndexSchema;
+import org.apache.solr.schema.IndexSchemaFactory;
+import org.apache.solr.util.DefaultSolrThreadFactory;
+import org.apache.solr.util.FileUtils;
+import org.apache.solr.util.PropertiesUtil;
+import org.apache.zookeeper.KeeperException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 
 /**
  *
@@ -243,6 +262,8 @@ public class CoreContainer
     String host = cfg.get(ConfigSolr.CfgProp.SOLR_HOST, null);
     
     String leaderVoteWait = cfg.get(ConfigSolr.CfgProp.SOLR_LEADERVOTEWAIT, LEADER_VOTE_WAIT);
+    
+    int leaderConflictResolveWait = cfg.getInt(ConfigSolr.CfgProp.SOLR_LEADERCONFLICTRESOLVEWAIT, ConfigSolr.DEFAULT_LEADER_CONFLICT_RESOLVE_WAIT);
 
     adminHandler = cfg.get(ConfigSolr.CfgProp.SOLR_ADMINHANDLER, null);
     managementPath = cfg.get(ConfigSolr.CfgProp.SOLR_MANAGEMENTPATH, null);
@@ -257,7 +278,7 @@ public class CoreContainer
 
     zkClientTimeout = Integer.parseInt(System.getProperty("zkClientTimeout",
         Integer.toString(zkClientTimeout)));
-    zkSys.initZooKeeper(this, solrHome, zkHost, zkClientTimeout, hostPort, hostContext, host, leaderVoteWait, genericCoreNodeNames, distribUpdateConnTimeout, distribUpdateSoTimeout);
+    zkSys.initZooKeeper(this, solrHome, zkHost, zkClientTimeout, hostPort, hostContext, host, leaderVoteWait, leaderConflictResolveWait, genericCoreNodeNames, distribUpdateConnTimeout, distribUpdateSoTimeout);
     
     if (isZooKeeperAware() && coreLoadThreads <= 1) {
       throw new SolrException(ErrorCode.SERVER_ERROR,

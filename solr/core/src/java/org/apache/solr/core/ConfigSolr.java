@@ -51,6 +51,9 @@ public abstract class ConfigSolr {
   
   public final static String SOLR_XML_FILE = "solr.xml";
 
+
+  static final int DEFAULT_LEADER_CONFLICT_RESOLVE_WAIT = 60000;
+
   public static ConfigSolr fromFile(SolrResourceLoader loader, File configFile) {
     log.info("Loading container configuration from {}", configFile.getAbsolutePath());
 
@@ -146,6 +149,10 @@ public abstract class ConfigSolr {
 
   protected abstract String getShardHandlerFactoryConfigPath();
 
+  public int getLeaderConflictResolveWait() {
+    return getInt(CfgProp.SOLR_LEADERCONFLICTRESOLVEWAIT, DEFAULT_LEADER_CONFLICT_RESOLVE_WAIT);
+  }
+  
   // Ugly for now, but we'll at least be able to centralize all of the differences between 4x and 5x.
   public static enum CfgProp {
     SOLR_ADMINHANDLER,
@@ -168,6 +175,7 @@ public abstract class ConfigSolr {
     SOLR_GENERICCORENODENAMES,
     SOLR_ZKCLIENTTIMEOUT,
     SOLR_ZKHOST,
+    SOLR_LEADERCONFLICTRESOLVEWAIT,
 
     //TODO: Remove all of these elements for 5.0
     SOLR_PERSISTENT,
