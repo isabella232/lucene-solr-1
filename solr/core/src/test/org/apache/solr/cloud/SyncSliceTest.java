@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import org.apache.lucene.util.LuceneTestCase.Slow;
@@ -96,6 +97,19 @@ public class SyncSliceTest extends AbstractFullDistribZkTestBase {
     waitForThingsToLevelOut(30);
 
     del("*:*");
+    
+    int docId = 0;
+    
+    docId = syncTest();
+    
+    // Convenient place to test compareResults
+    compareResults(docId);
+    
+    success = true;
+  }
+
+  public int syncTest() throws IOException, SolrServerException, Exception,
+      InterruptedException {
     List<CloudJettyRunner> skipServers = new ArrayList<CloudJettyRunner>();
     int docId = 0;
     indexDoc(skipServers, id, docId++, i1, 50, tlong, 50, t1,
@@ -235,8 +249,85 @@ public class SyncSliceTest extends AbstractFullDistribZkTestBase {
     waitForRecoveriesToFinish(false);
 
     checkShardConsistency(true, true);
+    return docId;
+  }
+
+  public void compareResults(int docId) throws SolrServerException, IOException {
+    boolean shouldFail = CloudInspectUtil.compareResults(controlClient, cloudClient);
+    assertFalse("A test that compareResults is working correctly failed", shouldFail);
     
-    success = true;
+    // add an extra doc to control
+    SolrInputDocument doc = new SolrInputDocument();
+    addFields(doc, "id", docId++);
+    addFields(doc, "rnd_b", true);
+    
+    controlClient.add(doc);
+    controlClient.commit();
+    
+    shouldFail = CloudInspectUtil.compareResults(controlClient, cloudClient);
+    assertTrue("A test that compareResults is working correctly failed", shouldFail);
+    
+    Set<String> addFails = new HashSet<String>(1);
+    addFails.add(Integer.toString(docId - 1));
+    
+    shouldFail = CloudInspectUtil.compareResults(controlClient, cloudClient, addFails, null);
+    assertFalse("A test that compareResults is working correctly failed", shouldFail);
+    
+    // test a failed delete on cloud
+    cloudClient.add(doc);
+    SolrInputDocument doc2 = new SolrInputDocument();
+    addFields(doc2, "id", docId++);
+    addFields(doc2, "rnd_b", true);
+    cloudClient.add(doc2);
+    cloudClient.commit();
+    
+    Set<String> deleteFails = new HashSet<String>(1);
+    deleteFails.add(Integer.toString(docId - 1));
+    
+    shouldFail = CloudInspectUtil.compareResults(controlClient, cloudClient);
+    assertTrue("A test that compareResults is working correctly failed", shouldFail);
+    shouldFail = CloudInspectUtil.compareResults(controlClient, cloudClient, null, deleteFails);
+    assertFalse("A test that compareResults is working correctly failed", shouldFail);
+    
+    // test failed adds and deletes
+    controlClient.deleteByQuery("*:*");
+    cloudClient.deleteByQuery("*:*");
+    controlClient.commit();
+    cloudClient.commit();
+    addFails = new HashSet<String>();
+    deleteFails = new HashSet<String>();
+    List<String> deletes = new ArrayList<String>();
+    Random random = random();
+    for (int i = 0; i < 15; i++) {
+      if (deletes.size() == 0 || random().nextBoolean()) {
+        SolrInputDocument sdoc = new SolrInputDocument();
+        addFields(sdoc, "id", docId++);
+ 
+        if (random.nextBoolean()) {
+          controlClient.add(sdoc);
+          cloudClient.add(sdoc);
+          deletes.add(Integer.toString(docId - 1));
+        } else {
+          controlClient.add(sdoc);
+          addFails.add(Integer.toString(docId - 1));
+        } 
+      } else {
+        String deleteId = deletes.remove(0);
+        if (random.nextBoolean()) {
+          controlClient.deleteById(deleteId);
+          cloudClient.deleteById(deleteId);
+        } else {
+          controlClient.deleteById(deleteId);
+          deleteFails.add(deleteId);
+        } 
+      }
+    }
+
+    cloudClient.commit();
+    controlClient.commit();
+    
+    shouldFail = CloudInspectUtil.compareResults(controlClient, cloudClient, addFails, deleteFails);
+    assertFalse("A test that compareResults is working correctly failed", shouldFail);
   }
 
   private void waitTillRecovered() throws Exception {

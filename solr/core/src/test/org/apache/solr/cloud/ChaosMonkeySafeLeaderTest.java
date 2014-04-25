@@ -25,9 +25,6 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.core.Diagnostics;
-import org.apache.solr.core.SolrCore;
-import org.apache.solr.servlet.SolrDispatchFilter;
-import org.apache.solr.update.DirectUpdateHandler2;
 import org.apache.solr.update.SolrCmdDistributor;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -35,7 +32,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 
 @Slow
-public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
+public class ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
   
   private static final Integer RUN_LENGTH = Integer.parseInt(System.getProperty("solr.tests.cloud.cm.runlength", "-1"));
 
@@ -57,6 +54,17 @@ public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
   @AfterClass
   public static void afterSuperClass() {
     SolrCmdDistributor.testing_errorHook = null;
+  }
+  
+  protected static final String[] fieldNames = new String[]{"f_i", "f_f", "f_d", "f_l", "f_dt"};
+  protected static final RandVal[] randVals = new RandVal[]{rint, rfloat, rdouble, rlong, rdate};
+  
+  public String[] getFieldNames() {
+    return fieldNames;
+  }
+
+  public RandVal[] getRandValues() {
+    return randVals;
   }
   
   @Before
@@ -90,7 +98,7 @@ public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
     handle.put("QTime", SKIPVAL);
     handle.put("timestamp", SKIPVAL);
     
-    // randomly turn on 5 seconds 'soft' commit
+    // randomly turn on 1 seconds 'soft' commit
     randomlyEnableAutoSoftCommit();
 
     del("*:*");
@@ -104,14 +112,16 @@ public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
     }
     
     chaosMonkey.startTheMonkey(false, 500);
-    long runLength;
-    if (RUN_LENGTH != -1) {
-      runLength = RUN_LENGTH;
-    } else {
-      int[] runTimes = new int[] {5000,6000,10000,15000,15000,30000,30000,45000,90000,120000};
-      runLength = runTimes[random().nextInt(runTimes.length - 1)];
-    }
     try {
+      long runLength;
+      if (RUN_LENGTH != -1) {
+        runLength = RUN_LENGTH;
+      } else {
+        int[] runTimes = new int[] {5000, 6000, 10000, 25000, 27000, 30000,
+            30000, 45000, 90000, 120000};
+        runLength = runTimes[random().nextInt(runTimes.length - 1)];
+      }
+      
       Thread.sleep(runLength);
     } finally {
       chaosMonkey.stopTheMonkey();
@@ -152,7 +162,7 @@ public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
     CloudSolrServer client = createCloudClient("collection1");
     try {
         createCollection(null, "testcollection",
-            1, 1, 1, client, null);
+            1, 1, 1, client, null, "conf1");
 
     } finally {
       client.shutdown();
@@ -165,17 +175,7 @@ public class  ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
 
   private void randomlyEnableAutoSoftCommit() {
     if (r.nextBoolean()) {
-      log.info("Turning on auto soft commit");
-      for (CloudJettyRunner jetty : shardToJetty.get("shard1")) {
-        SolrCore core = ((SolrDispatchFilter) jetty.jetty.getDispatchFilter()
-            .getFilter()).getCores().getCore("collection1");
-        try {
-          ((DirectUpdateHandler2) core.getUpdateHandler()).getCommitTracker()
-              .setTimeUpperBound(5000);
-        } finally {
-          core.close();
-        }
-      }
+      enableAutoSoftCommit(1000);
     } else {
       log.info("Not turning on auto soft commit");
     }
