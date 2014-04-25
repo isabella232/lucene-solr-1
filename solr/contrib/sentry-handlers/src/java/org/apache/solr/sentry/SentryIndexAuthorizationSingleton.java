@@ -16,25 +16,24 @@
  */
 package org.apache.solr.sentry;
 
+import java.net.URL;
+import java.util.Set;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.apache.sentry.binding.solr.authz.SentrySolrAuthorizationException;
+import org.apache.sentry.binding.solr.authz.SolrAuthzBinding;
+import org.apache.sentry.binding.solr.conf.SolrAuthzConf;
+import org.apache.sentry.core.common.Subject;
+import org.apache.sentry.core.model.search.Collection;
+import org.apache.sentry.core.model.search.SearchModelAction;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
-import org.apache.sentry.binding.solr.authz.SolrAuthzBinding;
-import org.apache.sentry.binding.solr.authz.SentrySolrAuthorizationException;
-import org.apache.sentry.binding.solr.conf.SolrAuthzConf;
-import org.apache.sentry.core.common.Subject;
-import org.apache.sentry.core.model.search.Collection;
-import org.apache.sentry.core.model.search.SearchModelAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.Set;
-import java.net.URL;
-import javax.servlet.http.HttpServletRequest;
 
 public class SentryIndexAuthorizationSingleton {
 
@@ -151,7 +150,7 @@ public class SentryIndexAuthorizationSingleton {
   /**
    * Get the list of groups the user belongs to
    *
-   * @param userName
+   * @param userName for the user
    * @return list of groups the user belongs to
    */
   public Set<String> getGroups(String userName) {
