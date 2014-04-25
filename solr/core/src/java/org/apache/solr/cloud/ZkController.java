@@ -1044,10 +1044,27 @@ public final class ZkController {
     publish(cd, state, true);
   }
   
+  public void publish(final CoreDescriptor cd, final String state, boolean updateLastState) throws KeeperException, InterruptedException {
+    publish(cd, state, true, false);
+  }
+  
   /**
    * Publish core state to overseer.
    */
-  public void publish(final CoreDescriptor cd, final String state, boolean updateLastState) throws KeeperException, InterruptedException {
+  public void publish(final CoreDescriptor cd, final String state, boolean updateLastState, boolean forcePublish) throws KeeperException, InterruptedException {
+    if (!forcePublish) {
+      SolrCore core = cc.getCore(cd.getName());
+      if (core == null) {
+        return;
+      }
+      try {
+        if (core.isClosed()) {
+          return;
+        }
+      } finally {
+        core.close();
+      }
+    }
     String collection = cd.getCloudDescriptor().getCollectionName();
     log.info("publishing core={} state={} collection={}", new String [] { cd.getName(), state, collection} );
     //System.out.println(Thread.currentThread().getStackTrace()[3]);
@@ -1406,16 +1423,18 @@ public final class ZkController {
   public void preRegister(CoreDescriptor cd ) {
     
     String coreNodeName = getCoreNodeName(cd);
-
-    // make sure the node name is set on the descriptor
-    if (cd.getCloudDescriptor().getCoreNodeName() == null) {
-      cd.getCloudDescriptor().setCoreNodeName(coreNodeName);
-    }
-
     // before becoming available, make sure we are not live and active
     // this also gets us our assigned shard id if it was not specified
     try {
-      publish(cd, ZkStateReader.DOWN, false);
+      CloudDescriptor cloudDesc = cd.getCloudDescriptor();
+
+
+      // make sure the node name is set on the descriptor
+      if (cloudDesc.getCoreNodeName() == null) {
+        cloudDesc.setCoreNodeName(coreNodeName);
+      }
+
+      publish(cd, ZkStateReader.DOWN, false, true);
     } catch (KeeperException e) {
       log.error("", e);
       throw new ZooKeeperException(SolrException.ErrorCode.SERVER_ERROR, "", e);
