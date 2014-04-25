@@ -40,6 +40,7 @@ public class RecoveryZkTest extends AbstractFullDistribZkTestBase {
     super();
     sliceCount = 1;
     shardCount = 2;
+    schemaString = "schema15.xml";      // we need a string id
   }
   
   @Override
@@ -54,10 +55,10 @@ public class RecoveryZkTest extends AbstractFullDistribZkTestBase {
     
     int maxDoc = maxDocList[random().nextInt(maxDocList.length - 1)];
     
-    indexThread = new StopableIndexingThread(0, true, maxDoc);
+    indexThread = new StopableIndexingThread("1", true, maxDoc);
     indexThread.start();
     
-    indexThread2 = new StopableIndexingThread(10000, true, maxDoc);
+    indexThread2 = new StopableIndexingThread("2", true, maxDoc);
     
     indexThread2.start();
 
