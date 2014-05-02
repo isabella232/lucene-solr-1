@@ -345,7 +345,6 @@ public class HttpSolrServer extends SolrServer {
             }
             // It is has one stream, it is the post body, put the params in the URL
             else {
-              sendAuthenticatingRequestIfNecessary();
               String pstr = ClientUtils.toQueryString(params, false);
               HttpPost post = new HttpPost(url + pstr);
 
