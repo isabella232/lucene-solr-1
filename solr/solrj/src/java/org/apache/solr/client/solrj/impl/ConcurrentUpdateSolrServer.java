@@ -36,9 +36,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpOptions;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentProducer;
 import org.apache.http.entity.EntityTemplate;
+import org.apache.http.util.EntityUtils;
 import org.apache.solr.client.solrj.ResponseParser;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
@@ -155,6 +157,7 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
       HttpPost method = null;
       HttpResponse response = null;            
       try {
+        sendAuthenticatingRequestIfNecessary();
         while (!queue.isEmpty()) {
           try {
             final UpdateRequest updateRequest = 
@@ -286,6 +289,35 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
         log.debug("finished: {}", this);
         runnerLock.unlock();
       }
+    }
+
+    private void sendAuthenticatingRequestIfNecessary() throws IOException {
+      if (isSecure()) {
+        // Required for SPNego authentication
+        HttpOptions options = new HttpOptions(server.getBaseURL() + "/");
+        HttpResponse optionsResponse = null;
+        boolean optionsSuccess = false;
+        try {
+          optionsResponse = server.getHttpClient().execute(options);
+          // we don't actually care about the response, we just send
+          // HttpOptions for the purpose of triggering SPNego. But we need
+          // to consume the response, else HttpClient will hold onto the
+          // connection.
+          EntityUtils.consumeQuietly(optionsResponse.getEntity());
+          optionsSuccess = true;
+        } finally {
+          if (!optionsSuccess) {
+            if (optionsResponse != null) {
+              EntityUtils.consumeQuietly(optionsResponse.getEntity());
+            }
+            options.abort();
+          }
+        }
+      }
+    }
+
+    private boolean isSecure() {
+      return System.getProperty("java.security.auth.login.config") != null;
     }
   }
 
