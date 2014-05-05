@@ -111,7 +111,7 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
       assertEquals(ex.code(), SolrException.ErrorCode.UNAUTHORIZED.code);
     }
 
-    Collection<String> groups = nonSingleton.getGroups("junit");
+    Collection<String> groups = nonSingleton.getRoles("junit");
     assertEquals(null, groups);
   }
 
@@ -208,28 +208,32 @@ public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
   }
 
   /**
-   * Test getting the groups from user name
+   * Test getting the roles from user name
    */
   @Test
-  public void testGetGroups() throws Exception {
+  public void testGetRoles() throws Exception {
     Collection<String> emptyCollection = ImmutableSet.<String>of();
 
     // null user
-    Collection<String> groups = sentryInstance.getGroups(null);
-    assertTrue(CollectionUtils.isEqualCollection(emptyCollection, groups));
+    Collection<String> roles = sentryInstance.getRoles(null);
+    assertTrue(CollectionUtils.isEqualCollection(emptyCollection, roles));
 
     // no group
-    groups = sentryInstance.getGroups("bogusUser");
-    assertTrue(CollectionUtils.isEqualCollection(emptyCollection, groups));
+    roles = sentryInstance.getRoles("bogusUser");
+    assertTrue(CollectionUtils.isEqualCollection(emptyCollection, roles));
+
+    // no role
+    roles = sentryInstance.getRoles("undefinedRoleUser");
+    assertTrue(CollectionUtils.isEqualCollection(emptyCollection, roles));
 
     // single member
-    Collection<String> singleMember = ImmutableSet.<String>of("junit");
-    groups = sentryInstance.getGroups("junit");
-    assertTrue(CollectionUtils.isEqualCollection(singleMember, groups));
+    Collection<String> singleRole = ImmutableSet.<String>of("junit_role");
+    roles = sentryInstance.getRoles("junit");
+    assertTrue(CollectionUtils.isEqualCollection(singleRole, roles));
 
     // multiple members
-    Collection<String> multipleMember = ImmutableSet.<String>of("user1", "user2", "user3");
-    groups = sentryInstance.getGroups("multipleMemberGroup");
-    assertTrue(CollectionUtils.isEqualCollection(multipleMember, groups));
+    Collection<String> multipleRoles = ImmutableSet.<String>of("junit_role", "queryOnlyAdmin_role", "updateOnlyAdmin_role");
+    roles = sentryInstance.getRoles("multiGroupUser");
+    assertTrue(CollectionUtils.isEqualCollection(multipleRoles, roles));
   }
 }

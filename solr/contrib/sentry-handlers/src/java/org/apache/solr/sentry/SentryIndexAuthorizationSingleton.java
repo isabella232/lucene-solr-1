@@ -148,16 +148,15 @@ public class SentryIndexAuthorizationSingleton {
   }
 
   /**
-   * Get the list of groups the user belongs to
-   *
-   * @param userName for the user
-   * @return list of groups the user belongs to
+   * Get the roles associated with the user
+   * @param user
+   * @return The roles associated with the user
    */
-  public Set<String> getGroups(String userName) {
+  public Set<String> getRoles(String userName) {
     if (binding == null) {
       return null;
     }
-    return binding.getGroups(userName);
+    return binding.getRoles(userName);
   }
 
   /**

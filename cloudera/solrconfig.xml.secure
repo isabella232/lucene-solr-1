@@ -1353,9 +1353,9 @@
     <!-- Field where the auth tokens are stored in the document -->
     <str name="sentryAuthField">sentry_auth</str>
 
-    <!-- Auth token defined to allow any group to access the document.
+    <!-- Auth token defined to allow any role to access the document.
          Uncomment to enable. -->
-    <!--<str name="allGroupsToken">*</str>-->
+    <!--<str name="allRolesToken">*</str>-->
   </searchComponent>
 
   <!-- A request handler for demonstrating the spellcheck component.  
