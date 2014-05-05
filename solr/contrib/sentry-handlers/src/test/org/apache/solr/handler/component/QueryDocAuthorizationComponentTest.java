@@ -118,7 +118,7 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
     ResponseBuilder builder = runComponent("junit", args, null);
 
-    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
+    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit_role");
     checkParams(new String[] {expect}, builder);
   }
 
@@ -143,7 +143,7 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     args.add(QueryDocAuthorizationComponent.AUTH_FIELD_PROP, authField);
     ResponseBuilder builder = runComponent("junit", args, null);
 
-    String expect = getClause(authField, "junit");
+    String expect = getClause(authField, "junit_role");
     checkParams(new String[] {expect}, builder);
   }
 
@@ -167,7 +167,7 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
     ResponseBuilder builder = runComponent("junit", args, newParams);
 
-    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
+    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit_role");
     checkParams(new String[] {existingFq, expect} , builder);
   }
 
@@ -189,56 +189,78 @@ public class QueryDocAuthorizationComponentTest extends SentryTestBase {
     } catch (SolrException ex) {
       assertEquals(ex.code(), SolrException.ErrorCode.UNAUTHORIZED.code);
       assertTrue(ex.getMessage().contains(
-        user + " rejected because user does not belong to any groups."));
+        user + " rejected because user is not associated with any roles"));
+    }
+  }
+
+  /**
+   * Test a request from a user coming from an empty role.
+   * This request should be rejected because otherwise document-level
+   * filtering will be skipped.
+   */
+  @Test
+  public void testEmptyRole() throws Exception {
+    String user = "undefinedRoleUser";
+    try {
+      NamedList args = new NamedList();
+      args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
+      ResponseBuilder builder = runComponent(user, args, null);
+
+      checkParams(null, builder);
+      Assert.fail("Expected SolrException");
+    } catch (SolrException ex) {
+      assertEquals(ex.code(), SolrException.ErrorCode.UNAUTHORIZED.code);
+      assertTrue(ex.getMessage().contains(
+        user + " rejected because user is not associated with any roles"));
     }
   }
 
   @Test
-  public void testMultipleGroup() throws Exception {
+  public void testMultipleRoles() throws Exception {
     NamedList args = new NamedList();
     args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
-    ResponseBuilder builder = runComponent("multipleMemberGroup", args, null);
+    ResponseBuilder builder = runComponent("multiGroupUser", args, null);
 
-    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user1")
-      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user2")
-      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user3");
+    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit_role")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "queryOnlyAdmin_role")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "updateOnlyAdmin_role");
     checkParams(new String[] {expect}, builder);
   }
 
   @Test
-  public void testAllGroupsToken() throws Exception {
+  public void testAllRolesToken() throws Exception {
     // test no arg
     NamedList args = new NamedList();
     args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
     ResponseBuilder builder = runComponent("junit", args, null);
-    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
+    String expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit_role");
     checkParams(new String[] {expect}, builder);
 
     // test empty string arg
     args = new NamedList();
     args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
-    args.add(QueryDocAuthorizationComponent.ALL_GROUPS_TOKEN_PROP, "");
+    args.add(QueryDocAuthorizationComponent.ALL_ROLES_TOKEN_PROP, "");
     builder = runComponent("junit", args, null);
-    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit");
+    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit_role");
     checkParams(new String[] {expect}, builder);
 
-    String allGroupsToken = "specialAllGroupsToken";
+    String allRolesToken = "specialAllRolesToken";
     args = new NamedList();
     args.add(QueryDocAuthorizationComponent.ENABLED_PROP, "true");
-    args.add(QueryDocAuthorizationComponent.ALL_GROUPS_TOKEN_PROP, allGroupsToken);
+    args.add(QueryDocAuthorizationComponent.ALL_ROLES_TOKEN_PROP, allRolesToken);
 
     // test valid single group
     builder = runComponent("junit", args, null);
-    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit")
-      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, allGroupsToken);
+    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit_role")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, allRolesToken);
     checkParams(new String[] {expect}, builder);
 
     // test valid multiple group
-    builder = runComponent("multipleMemberGroup", args, null);
-    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user1")
-      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user2")
-      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "user3")
-      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, allGroupsToken);
+    builder = runComponent("multiGroupUser", args, null);
+    expect = getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "junit_role")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "queryOnlyAdmin_role")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, "updateOnlyAdmin_role")
+      + getClause(QueryDocAuthorizationComponent.DEFAULT_AUTH_FIELD, allRolesToken);
     checkParams(new String[] {expect}, builder);
   }
 }

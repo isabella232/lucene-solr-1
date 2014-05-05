@@ -38,11 +38,11 @@ public class QueryDocAuthorizationComponent extends SearchComponent
     LoggerFactory.getLogger(QueryDocAuthorizationComponent.class);
   public static String AUTH_FIELD_PROP = "sentryAuthField";
   public static String DEFAULT_AUTH_FIELD = "sentry_auth";
-  public static String ALL_GROUPS_TOKEN_PROP = "allGroupsToken";
+  public static String ALL_ROLES_TOKEN_PROP = "allRolesToken";
   public static String ENABLED_PROP = "enabled";
   private SentryIndexAuthorizationSingleton sentryInstance;
   private String authField;
-  private String allGroupsToken;
+  private String allRolesToken;
   private boolean enabled;
 
   public QueryDocAuthorizationComponent() {
@@ -60,8 +60,8 @@ public class QueryDocAuthorizationComponent extends SearchComponent
     SolrParams params = SolrParams.toSolrParams(args);
     this.authField = params.get(AUTH_FIELD_PROP, DEFAULT_AUTH_FIELD);
     log.info("QueryDocAuthorizationComponent authField: " + this.authField);
-    this.allGroupsToken = params.get(ALL_GROUPS_TOKEN_PROP, "");
-    log.info("QueryDocAuthorizationComponent allGroupsToken: " + this.allGroupsToken);
+    this.allRolesToken = params.get(ALL_ROLES_TOKEN_PROP, "");
+    log.info("QueryDocAuthorizationComponent allRolesToken: " + this.allRolesToken);
     this.enabled = params.getBool(ENABLED_PROP, false);
     log.info("QueryDocAuthorizationComponent enabled: " + this.enabled);
   }
@@ -82,14 +82,14 @@ public class QueryDocAuthorizationComponent extends SearchComponent
     if (superUser.equals(userName)) {
       return;
     }
-    Set<String> groups = sentryInstance.getGroups(userName);
-    if (groups != null && groups.size() > 0) {
+    Set<String> roles = sentryInstance.getRoles(userName);
+    if (roles != null && roles.size() > 0) {
       StringBuilder builder = new StringBuilder();
-      for (String group : groups) {
-        addRawClause(builder, authField, group);
+      for (String role : roles) {
+        addRawClause(builder, authField, role);
       }
-      if (allGroupsToken != null && !allGroupsToken.isEmpty()) {
-        addRawClause(builder, authField, allGroupsToken);
+      if (allRolesToken != null && !allRolesToken.isEmpty()) {
+        addRawClause(builder, authField, allRolesToken);
       }
       ModifiableSolrParams newParams = new ModifiableSolrParams(rb.req.getParams());
       String result = builder.toString();
@@ -98,7 +98,7 @@ public class QueryDocAuthorizationComponent extends SearchComponent
     } else {
       throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED,
         "Request from user: " + userName +
-        " rejected because user does not belong to any groups.");
+        " rejected because user is not associated with any roles");
     }
   }
 
