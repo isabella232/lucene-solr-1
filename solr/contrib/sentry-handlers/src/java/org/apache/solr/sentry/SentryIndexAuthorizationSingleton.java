@@ -149,7 +149,7 @@ public class SentryIndexAuthorizationSingleton {
 
   /**
    * Get the roles associated with the user
-   * @param user
+   * @param userName
    * @return The roles associated with the user
    */
   public Set<String> getRoles(String userName) {
