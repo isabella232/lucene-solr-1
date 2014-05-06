@@ -76,7 +76,6 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
       switch (action) {
         case RENAME:
         case UNLOAD:
-        case STATUS:
         case RELOAD:
         case SWAP:
         case MERGEINDEXES:
@@ -97,6 +96,10 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
           collection = params.get(CoreAdminParams.COLLECTION);
           break;
         }
+        case STATUS:
+          // CORE is an optional param for STATUS, but since the
+          // non-parameterized version returns all the core info, it doesn't
+          // make sense to check for core permissions.
         case PERSIST:
         case CREATEALIAS:
         case DELETEALIAS:
