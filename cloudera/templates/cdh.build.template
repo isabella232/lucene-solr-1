@@ -4,6 +4,6 @@ zookeeper.version=org.apache.zookeeper:zookeeper.version
 hadoop.version=org.apache.hadoop:hadoop-common.version
 avro.version=org.apache.avro:avro.version
 slf4j.version=org.slf4j:slf4j-api.version
-sentry.version=1.3.0-incubating-search-1.3.0-SNAPSHOT
+sentry.version=1.3.0-incubating-search-1.3.0
 
 skipSnapshotsChecksum=true
