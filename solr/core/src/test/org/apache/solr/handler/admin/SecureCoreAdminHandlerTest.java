@@ -124,8 +124,14 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
     CoreAdminHandler handler = new SecureCoreAdminHandler(h.getCoreContainer());
     verifyAuthorized(handler, getCoreAdminRequest("collection1", "junit", action));
     verifyAuthorized(handler, getCoreAdminRequest("queryCollection", "junit", action));
-    verifyUnauthorized(handler, getCoreAdminRequest("bogusCollection", "junit", action), "bogusCollection", "junit");
-    verifyUnauthorized(handler, getCoreAdminRequest("updateCollection", "junit", action), "updateCollection", "junit");
+    if (action.equals(CoreAdminAction.STATUS)) {
+      // STATUS doesn't check collection permissions
+      verifyAuthorized(handler, getCoreAdminRequest("bogusCollection", "junit", action));
+      verifyAuthorized(handler, getCoreAdminRequest("updateCollection", "junit", action));
+    } else {
+      verifyUnauthorized(handler, getCoreAdminRequest("bogusCollection", "junit", action), "bogusCollection", "junit");
+      verifyUnauthorized(handler, getCoreAdminRequest("updateCollection", "junit", action), "updateCollection", "junit");
+    }
   }
 
   private void verifyUpdateAccess(CoreAdminAction action, boolean checkCollection) throws Exception {
