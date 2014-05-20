@@ -47,7 +47,8 @@
     <double name="maxWriteMBPerSecRead">4000000</double>
     <str name="solr.hdfs.home">${solr.hdfs.home:}</str>
     <bool name="solr.hdfs.blockcache.enabled">${solr.hdfs.blockcache.enabled:true}</bool> 
-    <str name="solr.hdfs.blockcache.global">${solr.hdfs.blockcache.global:false}</str>
+    <bool name="solr.hdfs.blockcache.global">${solr.hdfs.blockcache.global:false}</bool>
+    <bool name="solr.hdfs.blockcache.write.enabled">${solr.hdfs.blockcache.write.enabled:false}</bool>
   </directoryFactory>
 
   <luceneMatchVersion>${tests.luceneMatchVersion:LUCENE_CURRENT}</luceneMatchVersion>
