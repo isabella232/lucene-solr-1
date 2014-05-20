@@ -640,7 +640,7 @@ public class CoreAdminHandler extends RequestHandlerBase {
           core.getDirectoryFactory().remove(core.getDataDir(), true);
         } catch (Exception e) {
           SolrException.log(log, "Failed to flag data dir for removal for core:"
-                  + core.getName() + " dir:" + core.getDataDir());
+                  + core.getName() + " dir:" + core.getDataDir(), e);
         }
       }
       
@@ -658,7 +658,7 @@ public class CoreAdminHandler extends RequestHandlerBase {
                 FileUtils.deleteDirectory(instanceDir);
               } catch (IOException e) {
                 SolrException.log(log, "Failed to delete instance dir for core:"
-                    + core.getName() + " dir:" + instanceDir.getAbsolutePath());
+                    + core.getName() + " dir:" + instanceDir.getAbsolutePath(), e);
               }
             }
           }

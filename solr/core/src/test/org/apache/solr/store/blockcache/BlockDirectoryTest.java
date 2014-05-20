@@ -87,6 +87,9 @@ public class BlockDirectoryTest extends LuceneTestCase {
     @Override
     public void renameCacheFile(String source, String dest) {
     }
+
+    @Override
+    public void releaseResources() {}
   }
 
   private static final int MAX_NUMBER_OF_WRITES = 10000;
