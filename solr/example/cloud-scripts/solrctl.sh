@@ -47,7 +47,7 @@ Options:
 Commands:
     init        [--force]
 
-    instancedir [--generate path]
+    instancedir [--generate path [-schemaless]]
                 [--create name path]
                 [--update name path]
                 [--get name path]
@@ -304,11 +304,22 @@ while test $# != 0 ; do
             [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
 
             [ -e "$3" ] && die "Error: subdirectory $3 already exists"
-
+            schemaless="false"
+            if [ $# -gt 3 -a "$4" = "-schemaless" ] ; then
+              schemaless="true"
+            fi
             mkdir -p "$3" > /dev/null 2>&1
             [ -d "$3" ] || usage "Error: $3 has to be a directory"
             cp -r ${SOLR_HOME}/coreconfig-template "$3/conf"
-            shift 3
+            if [ "$schemaless" = "true" ] ; then
+              [ -d "$3"/conf ] || die "Error: subdirectory $3/conf must exist"
+              cp ${SOLR_HOME}/coreconfig-schemaless-template/schema.xml.schemaless "$3/conf/schema.xml"
+              cp ${SOLR_HOME}/coreconfig-schemaless-template/solrconfig.xml.schemaless "$3/conf/solrconfig.xml"
+              cp ${SOLR_HOME}/coreconfig-schemaless-template/solrconfig.xml.schemaless.secure "$3/conf/solrconfig.xml.secure"
+              shift 4
+            else
+              shift 3
+            fi
             ;;
         --list)
             get_solr_state | sed -n -e '/\/configs\//s#^.*/configs/\([^/]*\)/.*$#\1#p' | sort -u
