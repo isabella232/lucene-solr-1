@@ -649,9 +649,12 @@
     </listener>
     <listener event="firstSearcher" class="solr.QuerySenderListener">
       <arr name="queries">
-        <lst>
+        <!-- firstSearcher not enabled for schemaless, since it requires
+          a df.  Consider reenabling once the schema is generated
+          and a df defined.  -->
+        <!-- <lst>
           <str name="q">static firstSearcher warming in solrconfig.xml</str>
-        </lst>
+        </lst> -->
       </arr>
     </listener>
 
