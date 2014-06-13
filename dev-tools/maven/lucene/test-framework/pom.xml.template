@@ -125,6 +125,7 @@
         <enabled>true</enabled>
       </releases>
       <snapshots>
+        <enabled>false</enabled>
         <updatePolicy>never</updatePolicy>
       </snapshots>
     </repository>
