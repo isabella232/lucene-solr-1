@@ -41,6 +41,8 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Solr-managed schema - non-user-editable, but can be mutable via internal and external REST API requests. */
@@ -336,6 +338,13 @@ public final class ManagedIndexSchema extends IndexSchema {
       Document document = schemaConf.getDocument();
       final XPath xpath = schemaConf.getXPath();
       newSchema.loadFields(document, xpath);
+      // let's completely rebuild the copy fields from the schema in ZK.
+      // create new copyField-related objects so we don't affect the
+      // old schema
+      newSchema.copyFieldsMap = new HashMap<String, List<CopyField>>();
+      newSchema.dynamicCopyFields = null;
+      newSchema.copyFieldTargetCounts = new HashMap<SchemaField, Integer>();
+      newSchema.loadCopyFields(document, xpath);
       if (null != uniqueKeyField) {
         newSchema.requiredFields.add(uniqueKeyField);
       }
