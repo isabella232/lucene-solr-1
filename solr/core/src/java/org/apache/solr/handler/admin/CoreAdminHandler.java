@@ -788,19 +788,6 @@ public class CoreAdminHandler extends RequestHandlerBase {
         try (SolrCore core = coreContainer.getCore(cname)) {
 
           if (core != null) {
-            // try to publish as recovering right away
-            try {
-              coreContainer.getZkController().publish(core.getCoreDescriptor(), ZkStateReader.RECOVERING);
-            }  catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              SolrException.log(log, "", e);
-            } catch (Throwable e) {
-              SolrException.log(log, "", e);
-              if (e instanceof Error) {
-                throw (Error) e;
-              }
-            }
-            
             core.getUpdateHandler().getSolrCoreState().doRecovery(coreContainer, core.getCoreDescriptor());
           } else {
             SolrException.log(log, "Could not find core to call recovery:" + cname);
