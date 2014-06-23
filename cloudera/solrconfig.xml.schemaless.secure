@@ -1610,6 +1610,8 @@
     -->
   <updateRequestProcessorChain name="add-unknown-fields-to-the-schema-updateIndexAuthorization">
     <processor class="solr.UpdateIndexAuthorizationProcessorFactory" />
+    <processor class="solr.LogUpdateProcessorFactory"/>
+    <processor class="solr.DistributedUpdateProcessorFactory" />
     <processor class="solr.RemoveBlankFieldUpdateProcessorFactory"/>
     <processor class="solr.ParseBooleanFieldUpdateProcessorFactory"/>
     <processor class="solr.ParseLongFieldUpdateProcessorFactory"/>
@@ -1655,8 +1657,6 @@
         <str name="fieldType">tdoubles</str>
       </lst>
     </processor>
-    <processor class="solr.LogUpdateProcessorFactory"/>
-    <processor class="solr.DistributedUpdateProcessorFactory" />
     <processor class="solr.RunUpdateProcessorFactory"/>
   </updateRequestProcessorChain>
 
