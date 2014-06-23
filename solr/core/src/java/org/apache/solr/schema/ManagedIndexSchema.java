@@ -335,7 +335,7 @@ public final class ManagedIndexSchema extends IndexSchema {
       // create new copyField-related objects so we don't affect the
       // old schema
       newSchema.copyFieldsMap = new HashMap<String, List<CopyField>>();
-      newSchema.dynamicCopyFields = null;
+      newSchema.dynamicCopyFields = new DynamicCopy[] {};
       newSchema.copyFieldTargetCounts = new HashMap<SchemaField, Integer>();
       newSchema.loadCopyFields(document, xpath);
       if (null != uniqueKeyField) {
