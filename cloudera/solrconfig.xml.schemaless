@@ -1562,7 +1562,7 @@
     -->
   <updateRequestProcessorChain name="add-unknown-fields-to-the-schema">
     <processor class="solr.LogUpdateProcessorFactory"/>
-    <processor class="solr.DistributedUpdateProcessorFactory" />
+    <processor class="solr.DistributedUpdateProcessorFactory"/>
     <processor class="solr.RemoveBlankFieldUpdateProcessorFactory"/>
     <processor class="solr.ParseBooleanFieldUpdateProcessorFactory"/>
     <processor class="solr.ParseLongFieldUpdateProcessorFactory"/>
