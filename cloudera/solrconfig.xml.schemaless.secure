@@ -1609,7 +1609,7 @@
        See http://wiki.apache.org/solr/GuessingFieldTypes
     -->
   <updateRequestProcessorChain name="add-unknown-fields-to-the-schema-updateIndexAuthorization">
-    <processor class="solr.UpdateIndexAuthorizationProcessorFactory" />
+    <processor class="solr.UpdateIndexAuthorizationProcessorFactory"/>
     <processor class="solr.LogUpdateProcessorFactory"/>
     <processor class="solr.DistributedUpdateProcessorFactory" />
     <processor class="solr.RemoveBlankFieldUpdateProcessorFactory"/>
