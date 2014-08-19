@@ -985,7 +985,9 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
           zkController.getBaseUrl(), req.getCore().getName()));
 
       SolrParams params = req.getParams();
-      Collection<Slice> slices = coll.getRouter().getSearchSlices(params.get(ShardParams.SHARD_KEYS), params, coll);
+      String route = params.get(ShardParams._ROUTE_);
+      if(route == null) route = params.get(ShardParams.SHARD_KEYS);// deprecated . kept for backcompat
+      Collection<Slice> slices = coll.getRouter().getSearchSlices(route, params, coll);
 
       List<Node> leaders =  new ArrayList<Node>(slices.size());
       for (Slice slice : slices) {

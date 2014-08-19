@@ -185,6 +185,13 @@ public abstract class DirectoryFactory implements NamedListInitializedPlugin,
   public abstract boolean isPersistent();
   
   /**
+   * @return true if storage is shared.
+   */
+  public boolean isSharedStorage() {
+    return false;
+  }
+  
+  /**
    * Releases the Directory so that it may be closed when it is no longer
    * referenced.
    * 

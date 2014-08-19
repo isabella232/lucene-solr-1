@@ -99,6 +99,9 @@ public class ClusterState implements JSONWriter.Writable {
     return null;
   }
 
+  public boolean hasCollection(String coll) {
+    return collectionStates.containsKey(coll) ;
+  }
 
   /**
    * Get the named Slice for collection, or null if not found.
@@ -143,6 +146,10 @@ public class ClusterState implements JSONWriter.Writable {
     }
     return coll;
   }
+  
+  public DocCollection getCollectionOrNull(String coll) {
+    return collectionStates.get(coll);
+  }
 
   /**
    * Get collection names.
@@ -174,6 +181,25 @@ public class ClusterState implements JSONWriter.Writable {
           String rbaseUrl = replica.getStr(ZkStateReader.BASE_URL_PROP);
           String rcore = replica.getStr(ZkStateReader.CORE_NAME_PROP);
           if (baseUrl.equals(rbaseUrl) && coreName.equals(rcore)) {
+            return slice.getName();
+          }
+        }
+      }
+    }
+    return null;
+  }
+  
+  public String getShardIdByCoreNodeName(String collectionName, String coreNodeName) {
+    Collection<DocCollection> states = collectionStates.values();
+    if (collectionName != null) {
+      DocCollection c = getCollectionOrNull(collectionName);
+      if (c != null) states = Collections.singletonList(c);
+    }
+
+    for (DocCollection coll : states) {
+      for (Slice slice : coll.getSlices()) {
+        for (Replica replica : slice.getReplicas()) {
+          if (coreNodeName.equals(replica.getName())) {
             return slice.getName();
           }
         }

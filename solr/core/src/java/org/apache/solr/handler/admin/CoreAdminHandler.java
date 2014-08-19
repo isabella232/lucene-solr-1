@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -43,6 +44,7 @@ import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.DocRouter;
+import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
@@ -552,6 +554,27 @@ public class CoreAdminHandler extends RequestHandlerBase {
                               "Error CREATEing SolrCore '" + name + "': " +
                               ex.getMessage() + rootMsg, ex);
     }
+  }
+
+
+  private boolean checkIfCoreNodeNameAlreadyExists(CoreDescriptor dcore) {
+    ZkStateReader zkStateReader = coreContainer.getZkController()
+        .getZkStateReader();
+    DocCollection collection = zkStateReader.getClusterState().getCollectionOrNull(dcore.getCloudDescriptor().getCollectionName());
+    if (collection != null) {
+      Collection<Slice> slices = collection.getSlices();
+      
+      for (Slice slice : slices) {
+        Collection<Replica> replicas = slice.getReplicas();
+        for (Replica replica : replicas) {
+          if (replica.getName().equals(
+              dcore.getCloudDescriptor().getCoreNodeName())) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   /**

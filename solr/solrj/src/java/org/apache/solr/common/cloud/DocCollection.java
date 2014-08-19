@@ -17,15 +17,17 @@ package org.apache.solr.common.cloud;
  * limitations under the License.
  */
 
-import org.noggit.JSONUtil;
-import org.noggit.JSONWriter;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
+import org.noggit.JSONUtil;
+import org.noggit.JSONWriter;
 
 /**
  * Models a Collection in zookeeper (but that Java name is obviously taken, hence "DocCollection")
@@ -39,6 +41,10 @@ public class DocCollection extends ZkNodeProps {
   private final Map<String, Slice> activeSlices;
   private final DocRouter router;
 
+  private final Integer replicationFactor;
+  private final Integer maxShardsPerNode;
+  private final boolean autoAddReplicas;
+
   /**
    * @param name  The name of the collection
    * @param slices The logical shards of the collection.  This is used directly and a copy is not made.
@@ -50,6 +56,36 @@ public class DocCollection extends ZkNodeProps {
 
     this.slices = slices;
     this.activeSlices = new HashMap<String, Slice>();
+    
+    if (props != null) {
+      Object replicationFactorObject = (Object) props
+          .get(ZkStateReader.REPLICATION_FACTOR);
+      if (replicationFactorObject != null) {
+        this.replicationFactor = Integer.parseInt(replicationFactorObject
+            .toString());
+      } else {
+        this.replicationFactor = null;
+      }
+      Object maxShardsPerNodeObject = (Object) props
+          .get(ZkStateReader.MAX_SHARDS_PER_NODE);
+      if (maxShardsPerNodeObject != null) {
+        this.maxShardsPerNode = Integer.parseInt(maxShardsPerNodeObject
+            .toString());
+      } else {
+        this.maxShardsPerNode = null;
+      }
+      Object autoAddReplicasObject = (Object) props
+          .get(ZkStateReader.AUTO_ADD_REPLICAS);
+      if (autoAddReplicasObject != null) {
+        this.autoAddReplicas = Boolean.parseBoolean(autoAddReplicasObject.toString());
+      } else {
+        this.autoAddReplicas = false;
+      }
+    } else {
+      this.replicationFactor = null;
+      this.maxShardsPerNode = null;
+      this.autoAddReplicas = false;
+    }
 
     Iterator<Map.Entry<String, Slice>> iter = slices.entrySet().iterator();
 
@@ -102,6 +138,25 @@ public class DocCollection extends ZkNodeProps {
    */
   public Map<String, Slice> getActiveSlicesMap() {
     return activeSlices;
+  }
+
+  /**
+   * @return replication factor for this collection or null if no
+   *         replication factor exists.
+   */
+  public Integer getReplicationFactor() {
+    return replicationFactor;
+  }
+  
+  public boolean getAutoAddReplicas() {
+    return autoAddReplicas;
+  }
+  
+  public int getMaxShardsPerNode() {
+    if (maxShardsPerNode == null) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, ZkStateReader.MAX_SHARDS_PER_NODE + " is not in the cluster state.");
+    }
+    return maxShardsPerNode;
   }
 
   public DocRouter getRouter() {

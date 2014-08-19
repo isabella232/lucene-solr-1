@@ -17,7 +17,6 @@
 
 package org.apache.solr.client.solrj;
 
-
 import org.apache.solr.util.AbstractSolrTestCase;
 import org.junit.BeforeClass;
 
@@ -26,24 +25,22 @@ import org.junit.BeforeClass;
  * 
  * This lets us try various SolrServer implementations with the same tests.
  * 
- *
- * @since solr 1.3
  */
-abstract public class SolrExampleTestBase extends AbstractSolrTestCase 
-{
+abstract public class SolrExampleTestBase extends AbstractSolrTestCase {
   @Override
-  public String getSolrHome() { return "../../../example/solr/"; }
-
+  public String getSolrHome() {
+    return "../../../example/solr/";
+  }
+  
   @BeforeClass
   public static void beforeClass() throws Exception {
     if (dataDir == null) {
       createTempDir();
     }
   }
- 
+  
   @Override
-  public void setUp() throws Exception
-  {
+  public void setUp() throws Exception {
     ignoreException("maxWarmingSearchers");
     super.setUp();
     

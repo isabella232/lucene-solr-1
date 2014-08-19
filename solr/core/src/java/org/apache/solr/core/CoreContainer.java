@@ -359,6 +359,7 @@ public class CoreContainer
                 SolrCore c = null;
                 try {
                   if (zkSys.getZkController() != null) {
+                    zkSys.getZkController().throwErrorIfReplicaReplaced(p);
                     preRegisterInZk(p);
                   }
                   c = create(p);
@@ -887,6 +888,7 @@ public class CoreContainer
       if (core == null) {
         if (zkSys.getZkController() != null) {
           preRegisterInZk(desc);
+          zkSys.getZkController().throwErrorIfReplicaReplaced(desc);
         }
         core = create(desc); // This should throw an error if it fails.
         core.open();
@@ -1133,9 +1135,13 @@ public class CoreContainer
   public ZkController getZkController() {
     return zkSys.getZkController();
   }
-  
+
   public boolean isShareSchema() {
     return shareSchema;
+  }
+
+  public ConfigSolr getConfig() {
+    return cfg;
   }
 
   /** The default ShardHandlerFactory used to communicate with other solr instances */

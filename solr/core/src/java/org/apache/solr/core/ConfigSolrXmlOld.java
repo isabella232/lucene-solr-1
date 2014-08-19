@@ -18,6 +18,7 @@ package org.apache.solr.core;
  */
 
 import org.apache.solr.common.SolrException;
+import org.apache.solr.core.ConfigSolr.CfgProp;
 import org.apache.solr.util.DOMUtil;
 import org.apache.solr.util.PropertiesUtil;
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -135,6 +137,14 @@ public class ConfigSolrXmlOld extends ConfigSolr {
         config.getVal("solr/cores/@leaderVoteWait", false));
     propMap.put(CfgProp.SOLR_GENERICCORENODENAMES,
         config.getVal("solr/cores/@genericCoreNodeNames", false));
+    
+    propMap.put(CfgProp.SOLR_AUTOREPLICAFAILOVERBADNODEEXPIRATION,
+        config.getVal("solr/cores/@autoReplicaFailoverBadNodeExpiration", false));
+    propMap.put(CfgProp.SOLR_AUTOREPLICAFAILOVERWAITAFTEREXPIRATION,
+        config.getVal("solr/cores/@autoReplicaFailoverWaitAfterExpiration", false));
+    propMap.put(CfgProp.SOLR_AUTOREPLICAFAILOVERWORKLOOPDELAY,
+        config.getVal("solr/cores/@autoReplicaFailoverWorkLoopDelay", false));
+    
     propMap.put(CfgProp.SOLR_MANAGEMENTPATH,
         config.getVal("solr/cores/@managementPath", false));
     propMap.put(CfgProp.SOLR_SHARESCHEMA,

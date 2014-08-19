@@ -17,6 +17,7 @@ package org.apache.solr.common.cloud;
  * the License.
  */
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
@@ -54,7 +55,7 @@ import org.slf4j.LoggerFactory;
  * ZooKeeper. This class handles synchronous connects and reconnections.
  *
  */
-public class SolrZkClient {
+public class SolrZkClient implements Closeable {
   // These should *only* be used for debugging or monitoring purposes
   public static final AtomicLong numOpens = new AtomicLong();
   public static final AtomicLong numCloses = new AtomicLong();
@@ -80,6 +81,11 @@ public class SolrZkClient {
     return zkClientTimeout;
   }
 
+  // expert: for tests
+  public SolrZkClient() {
+    
+  }
+  
   public SolrZkClient(String zkServerAddress, int zkClientTimeout) {
     this(zkServerAddress, zkClientTimeout, new DefaultConnectionStrategy(), null);
   }

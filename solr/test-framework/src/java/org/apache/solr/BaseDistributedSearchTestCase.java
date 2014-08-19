@@ -293,8 +293,13 @@ public abstract class BaseDistributedSearchTestCase extends SolrTestCaseJ4 {
     super.tearDown();
   }
 
+  protected JettySolrRunner createControlJetty() throws Exception {
+    JettySolrRunner jetty = createJetty(new File(getSolrHome()), testDir + "/control/data", null, getSolrConfigFile(), getSchemaFile());
+    return jetty;
+  }
+  
   protected void createServers(int numShards) throws Exception {
-    controlJetty = createJetty(new File(getSolrHome()), testDir + "/control/data", null, getSolrConfigFile(), getSchemaFile());
+    controlJetty = createControlJetty();
 
     controlClient = createNewSolrServer(controlJetty.getLocalPort());
 

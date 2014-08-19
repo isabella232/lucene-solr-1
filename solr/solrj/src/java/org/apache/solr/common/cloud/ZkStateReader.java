@@ -17,7 +17,25 @@ package org.apache.solr.common.cloud;
  * limitations under the License.
  */
 
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.util.ByteUtils;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.data.Stat;
+import org.noggit.CharArr;
+import org.noggit.JSONParser;
+import org.noggit.JSONWriter;
+import org.noggit.ObjectBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.Closeable;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -31,22 +49,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.noggit.CharArr;
-import org.noggit.JSONParser;
-import org.noggit.JSONWriter;
-import org.noggit.ObjectBuilder;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.common.SolrException.ErrorCode;
-import org.apache.solr.common.util.ByteUtils;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.Watcher.Event.EventType;
-import org.apache.zookeeper.data.Stat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-public class ZkStateReader {
+public class ZkStateReader implements Closeable {
   private static Logger log = LoggerFactory.getLogger(ZkStateReader.class);
   
   public static final String BASE_URL_PROP = "base_url";
@@ -57,6 +60,7 @@ public class ZkStateReader {
   public static final String CORE_NAME_PROP = "core";
   public static final String COLLECTION_PROP = "collection";
   public static final String SHARD_ID_PROP = "shard";
+  public static final String REPLICA_PROP = "replica";
   public static final String SHARD_RANGE_PROP = "shard_range";
   public static final String SHARD_STATE_PROP = "shard_state";
   public static final String NUM_SHARDS_PROP = "numShards";
@@ -66,21 +70,30 @@ public class ZkStateReader {
   public static final String LIVE_NODES_ZKNODE = "/live_nodes";
   public static final String ALIASES = "/aliases.json";
   public static final String CLUSTER_STATE = "/clusterstate.json";
-  
+  public static final String CLUSTER_PROPS = "/clusterprops.json";
+
+  public static final String REPLICATION_FACTOR = "replicationFactor";
+  public static final String MAX_SHARDS_PER_NODE = "maxShardsPerNode";
+  public static final String AUTO_ADD_REPLICAS = "autoAddReplicas";
+
+  public static final String ROLES = "/roles.json";
+
   public static final String RECOVERING = "recovering";
   public static final String RECOVERY_FAILED = "recovery_failed";
   public static final String ACTIVE = "active";
   public static final String DOWN = "down";
   public static final String SYNC = "sync";
+
+  public static final String CONFIGS_ZKNODE = "/configs";
+  public final static String CONFIGNAME_PROP="configName";
   
-  private volatile ClusterState clusterState;
+  protected volatile ClusterState clusterState;
 
   private static final long SOLRCLOUD_UPDATE_DELAY = Long.parseLong(System.getProperty("solrcloud.update.delay", "5000"));
 
   public static final String LEADER_ELECT_ZKNODE = "/leader_elect";
 
   public static final String SHARD_LEADERS_ZKNODE = "leaders";
-
 
 
   
@@ -111,6 +124,51 @@ public class ZkStateReader {
     } catch (IOException e) {
       throw new RuntimeException(e); // should never happen w/o using real IO
     }
+  }
+  
+  /**
+   * Returns config set name for collection.
+   *
+   * @param collection to return config set name for
+   */
+  public String readConfigName(String collection) {
+
+    String configName = null;
+
+    String path = COLLECTIONS_ZKNODE + "/" + collection;
+    if (log.isInfoEnabled()) {
+      log.info("Load collection config from:" + path);
+    }
+
+    try {
+      byte[] data = zkClient.getData(path, null, null, true);
+
+      if(data != null) {
+        ZkNodeProps props = ZkNodeProps.load(data);
+        configName = props.getStr(CONFIGNAME_PROP);
+      }
+
+      if (configName != null) {
+        if (!zkClient.exists(CONFIGS_ZKNODE + "/" + configName, true)) {
+          log.error("Specified config does not exist in ZooKeeper:" + configName);
+          throw new ZooKeeperException(ErrorCode.SERVER_ERROR,
+              "Specified config does not exist in ZooKeeper:" + configName);
+        } else if (log.isInfoEnabled()) {
+          log.info("path={} {}={} specified config exists in ZooKeeper",
+              new Object[] {path, CONFIGNAME_PROP, configName});
+        }
+
+      }
+    }
+    catch (KeeperException e) {
+      throw new SolrException(ErrorCode.SERVER_ERROR, "Error loading config name for collection " + collection, e);
+    }
+    catch (InterruptedException e) {
+      Thread.interrupted();
+      throw new SolrException(ErrorCode.SERVER_ERROR, "Error loading config name for collection " + collection, e);
+    }
+
+    return configName;
   }
 
 
@@ -361,7 +419,7 @@ public class ZkStateReader {
         liveNodesSet.addAll(liveNodes);
         
         if (!onlyLiveNodes) {
-          log.info("Updating cloud state from ZooKeeper... ");
+          log.debug("Updating cloud state from ZooKeeper... ");
           
           clusterState = ClusterState.load(zkClient, liveNodesSet);
         } else {
@@ -375,16 +433,16 @@ public class ZkStateReader {
 
     } else {
       if (clusterStateUpdateScheduled) {
-        log.info("Cloud state update for ZooKeeper already scheduled");
+        log.debug("Cloud state update for ZooKeeper already scheduled");
         return;
       }
-      log.info("Scheduling cloud state update from ZooKeeper...");
+      log.debug("Scheduling cloud state update from ZooKeeper...");
       clusterStateUpdateScheduled = true;
       updateCloudExecutor.schedule(new Runnable() {
         
         @Override
         public void run() {
-          log.info("Updating cluster state from ZooKeeper...");
+          log.debug("Updating cluster state from ZooKeeper...");
           synchronized (getUpdateLock()) {
             clusterStateUpdateScheduled = false;
             ClusterState clusterState;
@@ -395,7 +453,7 @@ public class ZkStateReader {
               liveNodesSet.addAll(liveNodes);
               
               if (!onlyLiveNodes) {
-                log.info("Updating cloud state from ZooKeeper... ");
+                log.debug("Updating cloud state from ZooKeeper... ");
                 
                 clusterState = ClusterState.load(zkClient, liveNodesSet);
               } else {
@@ -558,6 +616,27 @@ public class ZkStateReader {
     Aliases aliases = ClusterState.load(data);
 
     ZkStateReader.this.aliases = aliases;
+  }
+  
+  /**
+   * Returns the baseURL corresponding to a given node's nodeName --
+   * NOTE: does not (currently) imply that the nodeName (or resulting 
+   * baseURL) exists in the cluster.
+   * @lucene.experimental
+   */
+  public String getBaseUrlForNodeName(final String nodeName) {
+    final int _offset = nodeName.indexOf("_");
+    if (_offset < 0) {
+      throw new IllegalArgumentException("nodeName does not contain expected '_' seperator: " + nodeName);
+    }
+    final String hostAndPort = nodeName.substring(0,_offset);
+    try {
+      final String path = URLDecoder.decode(nodeName.substring(1+_offset), "UTF-8");
+      String urlScheme = "http";
+      return urlScheme + "://" + hostAndPort + (path.isEmpty() ? "" : ("/" + path));
+    } catch (UnsupportedEncodingException e) {
+      throw new IllegalStateException("JVM Does not seem to support UTF-8", e);
+    }
   }
   
 }

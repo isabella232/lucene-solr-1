@@ -138,10 +138,8 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
   }
 
   private static JettySolrRunner createJetty(SolrInstance instance) throws Exception {
-    System.setProperty("solr.data.dir", instance.getDataDir());
-
     JettySolrRunner jetty = new JettySolrRunner(instance.getHomeDir(), "/solr", 0);
-
+    jetty.setDataDir(instance.getDataDir());
     jetty.start();
     return jetty;
   }

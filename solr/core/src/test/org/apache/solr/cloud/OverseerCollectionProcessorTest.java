@@ -17,25 +17,6 @@ package org.apache.solr.cloud;
  * limitations under the License.
  */
 
-import static org.easymock.EasyMock.capture;
-import static org.easymock.EasyMock.createMock;
-import static org.easymock.EasyMock.expect;
-import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.replay;
-import static org.easymock.EasyMock.anyObject;
-import static org.easymock.EasyMock.reset;
-import static org.easymock.EasyMock.verify;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.Set;
-
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -52,8 +33,8 @@ import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.handler.component.ShardHandler;
 import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
+import org.apache.zookeeper.CreateMode;
 import org.easymock.Capture;
-import org.easymock.EasyMock;
 import org.easymock.IAnswer;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.junit.After;
@@ -61,6 +42,27 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Queue;
+import java.util.Set;
+
+import static org.easymock.EasyMock.anyBoolean;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.capture;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.getCurrentArguments;
+import static org.easymock.EasyMock.replay;
+import static org.easymock.EasyMock.reset;
+import static org.easymock.EasyMock.verify;
 
 public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
   
@@ -73,12 +75,14 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
   private static ZkStateReader zkStateReaderMock;
   private static ClusterState clusterStateMock;
   private static SolrZkClient solrZkClientMock;
-  
+  private final Map zkMap = new HashMap();
+  private final Set collectionsSet = new HashSet();
+
   private OverseerCollectionProcessorToBeTested underTest;
   
   private Thread thread;
   private Queue<QueueEvent> queue = new BlockingArrayQueue<QueueEvent>();
-  
+
   private class OverseerCollectionProcessorToBeTested extends
       OverseerCollectionProcessor {
     
@@ -93,6 +97,7 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
     @Override
     protected SolrResponse processMessage(ZkNodeProps message, String operation) {
       lastProcessMessageResult = super.processMessage(message, operation);
+      log.info("1 : "+System.currentTimeMillis());
       return lastProcessMessageResult;
     }
     
@@ -124,6 +129,7 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
   @Before
   public void setUp() throws Exception {
     super.setUp();
+    queue.clear();
     reset(workQueueMock);
     reset(workQueueMock);
     reset(shardHandlerMock);
@@ -132,6 +138,8 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
     reset(solrZkClientMock);
     underTest = new OverseerCollectionProcessorToBeTested(zkStateReaderMock,
         "1234", shardHandlerMock, ADMIN_PATH, workQueueMock);
+    zkMap.clear();
+    collectionsSet.clear();
   }
   
   @After
@@ -157,7 +165,7 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
     expectLastCall().andAnswer(new IAnswer<Object>() {
       @Override
       public Object answer() throws Throwable {
-        queue.remove((QueueEvent)EasyMock.getCurrentArguments()[0]);
+        queue.remove((QueueEvent) getCurrentArguments()[0]);
         return null;
       }
     }).anyTimes();
@@ -191,7 +199,7 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
     expectLastCall().andAnswer(new IAnswer<Object>() {
       @Override
       public Object answer() throws Throwable {
-        return new HashSet<String>();
+        return collectionsSet;
       }
     }).anyTimes();
     final Set<String> liveNodes = new HashSet<String>();
@@ -217,10 +225,59 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
         return liveNodes;
       }
     }).anyTimes();
+    solrZkClientMock.create(anyObject(String.class), anyObject(byte[].class), anyObject(CreateMode.class), anyBoolean());
+    expectLastCall().andAnswer(new IAnswer<String>() {
+      @Override
+      public String answer() throws Throwable {
+        String key = (String) getCurrentArguments()[0];
+        zkMap.put(key, null);
+        handleCrateCollMessage((byte[]) getCurrentArguments()[1]);
+        return key;
+      }
+    }).anyTimes();
+
+    solrZkClientMock.create(anyObject(String.class), anyObject(byte[].class), anyObject(List.class),anyObject(CreateMode.class), anyBoolean());
+    expectLastCall().andAnswer(new IAnswer<String>() {
+      @Override
+      public String answer() throws Throwable {
+        String key = (String) getCurrentArguments()[0];
+        zkMap.put(key, null);
+        handleCrateCollMessage((byte[]) getCurrentArguments()[1]);
+        return key;
+      }
+    }).anyTimes();
+
+    solrZkClientMock.makePath(anyObject(String.class), anyObject(byte[].class), anyBoolean());
+    expectLastCall().andAnswer(new IAnswer<String>() {
+      @Override
+      public String answer() throws Throwable {
+        String key = (String) getCurrentArguments()[0];
+        return key;
+      }
+    }).anyTimes();
+
+    solrZkClientMock.exists(anyObject(String.class),anyBoolean());
+    expectLastCall().andAnswer(new IAnswer<Boolean>() {
+      @Override
+      public Boolean answer() throws Throwable {
+        String key = (String) getCurrentArguments()[0];
+        return zkMap.containsKey(key);
+      }
+    }).anyTimes();
     
     return liveNodes;
   }
-  
+
+  private void handleCrateCollMessage(byte[] bytes) {
+    try {
+      ZkNodeProps props = ZkNodeProps.load(bytes);
+      if("createcollection".equals(props.getStr("operation"))){
+        String collName = props.getStr("name") ;
+        if(collName != null) collectionsSet.add(collName);
+      }
+    } catch (Exception e) { }
+  }
+
   protected void startComponentUnderTest() {
     thread = new Thread(underTest);
     thread.start();
@@ -263,22 +320,22 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
     if (sendCreateNodeList) {
       props = new ZkNodeProps(Overseer.QUEUE_OPERATION,
           OverseerCollectionProcessor.CREATECOLLECTION,
-          OverseerCollectionProcessor.REPLICATION_FACTOR,
+          ZkStateReader.REPLICATION_FACTOR,
           replicationFactor.toString(), "name", COLLECTION_NAME,
           "collection.configName", CONFIG_NAME,
           OverseerCollectionProcessor.NUM_SLICES, numberOfSlices.toString(),
-          OverseerCollectionProcessor.MAX_SHARDS_PER_NODE,
+          ZkStateReader.MAX_SHARDS_PER_NODE,
           maxShardsPerNode.toString(),
           OverseerCollectionProcessor.CREATE_NODE_SET,
           (createNodeList != null)?StrUtils.join(createNodeList, ','):null);
     } else {
       props = new ZkNodeProps(Overseer.QUEUE_OPERATION,
           OverseerCollectionProcessor.CREATECOLLECTION,
-          OverseerCollectionProcessor.REPLICATION_FACTOR,
+          ZkStateReader.REPLICATION_FACTOR,
           replicationFactor.toString(), "name", COLLECTION_NAME,
           "collection.configName", CONFIG_NAME,
           OverseerCollectionProcessor.NUM_SLICES, numberOfSlices.toString(),
-          OverseerCollectionProcessor.MAX_SHARDS_PER_NODE,
+          ZkStateReader.MAX_SHARDS_PER_NODE,
           maxShardsPerNode.toString());
     }
     QueueEvent qe = new QueueEvent("id", ZkStateReader.toJSON(props), null);
@@ -409,8 +466,8 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
   protected void waitForEmptyQueue(long maxWait) throws Exception {
     long start = System.currentTimeMillis();
     while (queue.peek() != null) {
-      if ((System.currentTimeMillis() - start) > maxWait) fail("Queue not empty within "
-          + maxWait + " ms");
+      if ((System.currentTimeMillis() - start) > maxWait) fail(" Queue not empty within "
+          + maxWait + " ms" + System.currentTimeMillis());
       Thread.sleep(100);
     }
   }
@@ -446,10 +503,12 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
     replay(zkStateReaderMock);
     replay(clusterStateMock);
     replay(shardHandlerMock);
+
+    log.info("clusterstate " +clusterStateMock.hashCode());
+
     startComponentUnderTest();
     
     issueCreateJob(numberOfSlices, replicationFactor, maxShardsPerNode, (createNodeListOption != CreateNodeListOptions.SEND_NULL)?createNodeList:null, (createNodeListOption != CreateNodeListOptions.DONT_SEND));
-    
     waitForEmptyQueue(10000);
     
     if (collectionExceptedToBeCreated) {

@@ -19,6 +19,7 @@ package org.apache.solr.core;
 
 import org.apache.lucene.util.IOUtils;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.core.ConfigSolr.CfgProp;
 import org.apache.solr.util.PropertiesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,6 +126,11 @@ public class ConfigSolrXml extends ConfigSolr {
     propMap.put(CfgProp.SOLR_LEADERVOTEWAIT, doSub("solr/solrcloud/int[@name='leaderVoteWait']"));
     propMap.put(CfgProp.SOLR_LEADERCONFLICTRESOLVEWAIT, doSub("solr/solrcloud/int[@name='leaderConflictResolveWait']"));
     propMap.put(CfgProp.SOLR_GENERICCORENODENAMES, doSub("solr/solrcloud/bool[@name='genericCoreNodeNames']"));
+    
+    propMap.put(CfgProp.SOLR_AUTOREPLICAFAILOVERBADNODEEXPIRATION, doSub("solr/solrcloud/int[@name='autoReplicaFailoverBadNodeExpiration']"));
+    propMap.put(CfgProp.SOLR_AUTOREPLICAFAILOVERWAITAFTEREXPIRATION, doSub("solr/solrcloud/int[@name='autoReplicaFailoverWaitAfterExpiration']"));
+    propMap.put(CfgProp.SOLR_AUTOREPLICAFAILOVERWORKLOOPDELAY, doSub("solr/solrcloud/int[@name='autoReplicaFailoverWorkLoopDelay']"));
+    
     propMap.put(CfgProp.SOLR_MANAGEMENTPATH, doSub("solr/str[@name='managementPath']"));
     propMap.put(CfgProp.SOLR_SHAREDLIB, doSub("solr/str[@name='sharedLib']"));
     propMap.put(CfgProp.SOLR_SHARESCHEMA, doSub("solr/str[@name='shareSchema']"));

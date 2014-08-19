@@ -17,11 +17,14 @@ package org.apache.solr.cloud;
  * limitations under the License.
  */
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.servlet.Filter;
 
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.client.solrj.SolrServer;
@@ -506,29 +509,47 @@ public class ChaosMonkey {
     return starts.get();
   }
 
+  public static void stop(List<JettySolrRunner> jettys) throws Exception {
+    for (JettySolrRunner jetty : jettys) {
+      stop(jetty);
+    }
+  }
+  
   public static void stop(JettySolrRunner jetty) throws Exception {
     stopJettySolrRunner(jetty);
   }
   
+  public static void start(List<JettySolrRunner> jettys) throws Exception {
+    for (JettySolrRunner jetty : jettys) {
+      start(jetty);
+    }
+  }
+  
   public static boolean start(JettySolrRunner jetty) throws Exception {
-    
+
     try {
       jetty.start();
     } catch (Exception e) {
       jetty.stop();
-      Thread.sleep(2000);
+      Thread.sleep(3000);
       try {
         jetty.start();
       } catch (Exception e2) {
         jetty.stop();
-        Thread.sleep(5000);
+        Thread.sleep(10000);
         try {
           jetty.start();
         } catch (Exception e3) {
-          log.error("Could not get the port to start jetty again", e3);
-          // we coud not get the port
           jetty.stop();
-          return false;
+          Thread.sleep(30000);
+          try {
+            jetty.start();
+          } catch (Exception e4) {
+            log.error("Could not get the port to start jetty again", e4);
+            // we coud not get the port
+            jetty.stop();
+            return false;
+          }
         }
       }
     }

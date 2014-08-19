@@ -162,7 +162,7 @@ public class ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
     CloudSolrServer client = createCloudClient("collection1");
     try {
         createCollection(null, "testcollection",
-            1, 1, 1, client, null, "conf1");
+            1, 1, 1, client, null);
 
     } finally {
       client.shutdown();

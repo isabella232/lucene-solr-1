@@ -55,6 +55,7 @@ Commands:
                 [--list]
 
     collection  [--create name -s <numShards>
+                              [-a Create collection with autoAddReplicas=true]
                               [-c <collection.configName>]
                               [-r <replicationFactor>]
                               [-m <maxShardsPerNode>]
@@ -129,7 +130,7 @@ solr_webapi() {
     [ -n "$SOLR_ADMIN_URI" ] || die "Error: can't discover Solr URI. Please specify it explicitly via --solr." 
   fi
 
-  URI="$SOLR_ADMIN_URI/$1"
+  URI="$SOLR_ADMIN_URI$1"
   shift
   local WEB_OUT=`$SOLR_ADMIN_CURL $URI "$@" | sed -e 's#>#>\n#g'`
 
@@ -202,11 +203,11 @@ done
 if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
   SOLR_ADMIN_ZK_CMD="local_coreconfig"
   cat >&2 <<-__EOT__
-	Warning: Non-SolrCloud mode has been completely deprecated
-	Please configure SolrCloud via SOLR_ZK_ENSEMBLE setting in 
-	/etc/default/solr
-	If you running remotely, please use --zk zk_ensemble.
-	__EOT__
+  Warning: Non-SolrCloud mode has been completely deprecated
+  Please configure SolrCloud via SOLR_ZK_ENSEMBLE setting in 
+  /etc/default/solr
+  If you running remotely, please use --zk zk_ensemble.
+  __EOT__
 else
   SOLR_ADMIN_ZK_CMD='${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
 fi
@@ -365,6 +366,10 @@ while test $# != 0 ; do
                   COL_CREATE_NODESET="$2"
                   shift 2
                   ;;
+                -a)
+                  COL_AUTO_ADD_REPLICAS="true"
+                  shift 1
+                  ;;
                  *)
                   break
                   ;;
@@ -381,6 +386,7 @@ while test $# != 0 ; do
             [ -n "$COL_CREATE_REPL" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&replicationFactor=${COL_CREATE_REPL}"
             [ -n "$COL_CREATE_MAXSHARDS" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&maxShardsPerNode=${COL_CREATE_MAXSHARDS}"
             [ -n "$COL_CREATE_NODESET" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&createNodeSet=${COL_CREATE_NODESET}"
+            [ -n "$COL_AUTO_ADD_REPLICAS" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&autoAddReplicas=true"
             
             eval $SOLR_ADMIN_API_CMD "'/admin/collections?action=CREATE${COL_CREATE_CALL}'"
 

@@ -3,6 +3,11 @@ package org.apache.solr.cloud;
 import java.io.IOException;
 import java.util.Map;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.ClusterState;
@@ -38,8 +43,8 @@ import org.slf4j.LoggerFactory;
  * limitations under the License.
  */
 
-public abstract class ElectionContext {
-  private static Logger log = LoggerFactory.getLogger(ElectionContext.class);
+public abstract class ElectionContext implements Closeable {
+  static Logger log = LoggerFactory.getLogger(ElectionContext.class);
   final String electionPath;
   final ZkNodeProps leaderProps;
   final String id;
@@ -56,7 +61,9 @@ public abstract class ElectionContext {
     this.zkClient = zkClient;
   }
   
-  public void close() {}
+  public void close() {
+
+  }
   
   public void cancelElection() throws InterruptedException, KeeperException {
     try {
@@ -128,6 +135,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
   
   @Override
   public void close() {
+    super.close();
     this.isClosed  = true;
     syncStrategy.close();
   }
@@ -423,6 +431,7 @@ final class OverseerElectionContext extends ElectionContext {
     overseer.start(id);
   }
   
+  @Override
   public void cancelElection() throws InterruptedException, KeeperException {
     super.cancelElection();
     overseer.close();

@@ -1,4 +1,4 @@
-package org.apache.solr.common.cloud;
+package org.apache.solr.util;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -17,11 +17,43 @@ package org.apache.solr.common.cloud;
  * limitations under the License.
  */
 
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
+import org.apache.solr.core.ConfigSolr;
+
 /**
- * @deprecated because this class is no longer used internally and will be removed
+ *
  */
-@Deprecated
-public interface ClosableThread {
-  public void close();
-  public boolean isClosed();
+public class MockConfigSolr extends ConfigSolr {
+
+  @Override
+  protected String getShardHandlerFactoryConfigPath() {
+    return null;
+  }
+
+  @Override
+  public void substituteProperties() {}
+
+  @Override
+  public List<String> getAllCoreNames() {
+    return null;
+  }
+
+  @Override
+  public String getProperty(String coreName, String property, String defaultVal) {
+    return null;
+  }
+
+  @Override
+  public Properties readCoreProperties(String coreName) {
+    return null;
+  }
+
+  @Override
+  public Map<String,String> readCoreAttributes(String coreName) {
+    return null;
+  }
+
 }

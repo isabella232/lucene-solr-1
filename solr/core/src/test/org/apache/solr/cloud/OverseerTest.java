@@ -19,9 +19,11 @@ package org.apache.solr.cloud;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -42,11 +44,14 @@ import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.handler.component.HttpShardHandlerFactory;
+import org.apache.solr.update.UpdateShardHandler;
 import org.apache.solr.util.DefaultSolrThreadFactory;
+import org.apache.solr.util.MockConfigSolr;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.data.Stat;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -58,6 +63,7 @@ public class OverseerTest extends SolrTestCaseJ4 {
   static final int TIMEOUT = 10000;
   private static final boolean DEBUG = false;
 
+  private List<Overseer> overseers = new ArrayList<Overseer>();
   
   private String collection = "collection1";
   
@@ -180,6 +186,16 @@ public class OverseerTest extends SolrTestCaseJ4 {
   public static void afterClass() throws Exception {
     initCore();
     Thread.sleep(3000); //XXX wait for threads to die...
+  }
+  
+  
+  @After
+  public void tearDown() throws Exception {
+    super.tearDown();
+    for (Overseer overseer : overseers) {
+      overseer.close();
+    }
+    overseers.clear();
   }
 
   @Test
@@ -963,9 +979,13 @@ public class OverseerTest extends SolrTestCaseJ4 {
     SolrZkClient zkClient = new SolrZkClient(address, TIMEOUT);
     ZkStateReader reader = new ZkStateReader(zkClient);
     LeaderElector overseerElector = new LeaderElector(zkClient);
-    // TODO: close Overseer
+    UpdateShardHandler updateShardHandler = new UpdateShardHandler(30000, 60000);
+    if (overseers.size() > 0) {
+      overseers.get(overseers.size() -1).close();
+    }
     Overseer overseer = new Overseer(
-        new HttpShardHandlerFactory().getShardHandler(), "/admin/cores", reader);
+        new HttpShardHandlerFactory().getShardHandler(), updateShardHandler, "/admin/cores", reader, null, new MockConfigSolr());
+    overseers.add(overseer);
     ElectionContext ec = new OverseerElectionContext(zkClient, overseer, address.replaceAll("/", "_"));
     overseerElector.setup(ec);
     overseerElector.joinElection(ec, false);

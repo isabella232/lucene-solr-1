@@ -54,6 +54,11 @@ public abstract class ConfigSolr {
   private final static String SENTRY_ENABLED = System.getProperty("solr.authorization.sentry.site");
 
   static final int DEFAULT_LEADER_CONFLICT_RESOLVE_WAIT = 60000;
+  
+  // TODO: tune defaults
+  private static final int DEFAULT_AUTO_REPLICA_FAILOVER_WAIT_AFTER_EXPIRATION = 30000;
+  private static final int DEFAULT_AUTO_REPLICA_FAILOVER_WORKLOOP_DELAY = 10000;
+  private static final int DEFAULT_AUTO_REPLICA_FAILOVER_BAD_NODE_EXPIRATION = 60000;
 
   public static ConfigSolr fromFile(SolrResourceLoader loader, File configFile) {
     log.info("Loading container configuration from {}", configFile.getAbsolutePath());
@@ -138,6 +143,17 @@ public abstract class ConfigSolr {
                     : new ConfigSolrXml(config, null);
   }
 
+  public int getAutoReplicaFailoverWaitAfterExpiration() {
+    return getInt(CfgProp.SOLR_AUTOREPLICAFAILOVERWAITAFTEREXPIRATION, DEFAULT_AUTO_REPLICA_FAILOVER_WAIT_AFTER_EXPIRATION);
+  }
+  
+  public int getAutoReplicaFailoverWorkLoopDelay() {
+    return getInt(CfgProp.SOLR_AUTOREPLICAFAILOVERWORKLOOPDELAY, DEFAULT_AUTO_REPLICA_FAILOVER_WORKLOOP_DELAY);
+  }
+  
+  public int getAutoReplicaFailoverBadNodeExpiration() {
+    return getInt(CfgProp.SOLR_AUTOREPLICAFAILOVERBADNODEEXPIRATION, DEFAULT_AUTO_REPLICA_FAILOVER_BAD_NODE_EXPIRATION);
+  }
 
   public PluginInfo getShardHandlerFactoryPluginInfo() {
     Node node = config.getNode(getShardHandlerFactoryConfigPath(), false);
@@ -198,6 +214,10 @@ public abstract class ConfigSolr {
     SOLR_ZKHOST,
     SOLR_LEADERCONFLICTRESOLVEWAIT,
 
+    SOLR_AUTOREPLICAFAILOVERWAITAFTEREXPIRATION,
+    SOLR_AUTOREPLICAFAILOVERWORKLOOPDELAY,
+    SOLR_AUTOREPLICAFAILOVERBADNODEEXPIRATION,
+    
     //TODO: Remove all of these elements for 5.0
     SOLR_PERSISTENT,
     SOLR_CORES_DEFAULT_CORE_NAME,
