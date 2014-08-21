@@ -134,7 +134,7 @@ solr_webapi() {
   local WEB_OUT=`$SOLR_ADMIN_CURL $URI "$@" | sed -e 's#>#>\n#g'`
 
   if [ $? -eq 0 ] && (echo "$WEB_OUT" | grep -q 'HTTP/.*200.*OK') ; then
-    echo "$WEB_OUT" | egrep -q '<lst name="(failure|exception|error)">' || return 0
+    echo "$WEB_OUT" | egrep -q '<lst name="(failure|exception|error|status)">' || return 0
   fi
 
   die "Error: A call to SolrCloud WEB APIs failed: $WEB_OUT"
