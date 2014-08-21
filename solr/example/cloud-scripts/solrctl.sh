@@ -21,7 +21,7 @@ SOLR_XML='<solr>
     <str name="host">${host:}</str>
     <int name="hostPort">${solr.port:8983}</int>
     <str name="hostContext">${hostContext:solr}</str>
-    <int name="zkClientTimeout">${zkClientTimeout:15000}</int>
+    <int name="zkClientTimeout">${zkClientTimeout:30000}</int>
     <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
   </solrcloud>
 
