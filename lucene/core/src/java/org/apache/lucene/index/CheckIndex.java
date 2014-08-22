@@ -505,7 +505,7 @@ public final class CheckIndex implements Closeable {
     }
 
     msg(infoStream, "Segments file=" + segmentsFileName + " numSegments=" + numSegments
-        + " " + versionString + " format=" + sFormat + userDataString);
+        + " " + versionString + " id=" + sis.getId() + " format=" + sFormat + userDataString);
 
     if (onlySegments != null) {
       result.partial = true;
@@ -556,6 +556,7 @@ public final class CheckIndex implements Closeable {
 
       try {
         msg(infoStream, "    version=" + (version == null ? "3.0" : version));
+        msg(infoStream, "    id=" + info.info.getId());
         final Codec codec = info.info.getCodec();
         msg(infoStream, "    codec=" + codec);
         segInfoStat.codec = codec;
