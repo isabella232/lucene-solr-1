@@ -30,6 +30,7 @@ import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.lucene3x.Lucene3xSegmentInfoFormat;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.TrackingDirectoryWrapper;
+import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.Version;
 
 /**
@@ -59,10 +60,13 @@ public final class SegmentInfo {
 
   private boolean isCompoundFile;
 
+  /** Id that uniquely identifies this segment. */
+  private final String id;
+
   private Codec codec;
 
   private Map<String,String> diagnostics;
-  
+
   /** @deprecated not used anymore */
   @Deprecated
   private Map<String,String> attributes;
@@ -91,7 +95,7 @@ public final class SegmentInfo {
    */
   public SegmentInfo(Directory dir, Version version, String name, int docCount,
       boolean isCompoundFile, Codec codec, Map<String,String> diagnostics) {
-    this(dir, version, name, docCount, isCompoundFile, codec, diagnostics, null);
+    this(dir, version, name, docCount, isCompoundFile, codec, diagnostics, null, null);
   }
 
   /**
@@ -100,7 +104,8 @@ public final class SegmentInfo {
    * the codecs package.</p>
    */
   public SegmentInfo(Directory dir, Version version, String name, int docCount,
-                     boolean isCompoundFile, Codec codec, Map<String,String> diagnostics, Map<String,String> attributes) {
+                     boolean isCompoundFile, Codec codec, Map<String,String> diagnostics, Map<String,String> attributes,
+                     String id) {
     assert !(dir instanceof TrackingDirectoryWrapper);
     this.dir = dir;
     this.version = version;
@@ -110,6 +115,7 @@ public final class SegmentInfo {
     this.codec = codec;
     this.diagnostics = diagnostics;
     this.attributes = attributes;
+    this.id = id;
   }
 
   /**
@@ -250,6 +256,11 @@ public final class SegmentInfo {
     return version;
   }
 
+  /** Return the id that uniquely identifies this segment. */
+  public String getId() {
+    return id;
+  }
+
   private Set<String> setFiles;
 
   /** Sets the files written for this segment. */
@@ -338,7 +349,7 @@ public final class SegmentInfo {
 
   @Override
   public SegmentInfo clone() {
-    SegmentInfo other = new SegmentInfo(dir, version, name, docCount, isCompoundFile, codec, cloneMap(diagnostics), cloneMap(attributes));
+    SegmentInfo other = new SegmentInfo(dir, version, name, docCount, isCompoundFile, codec, cloneMap(diagnostics), cloneMap(attributes), id);
     if (setFiles != null) {
       other.setFiles(new HashSet<>(setFiles));
     }
