@@ -46,6 +46,8 @@ import static org.apache.lucene.codecs.simpletext.SimpleTextSegmentInfoWriter.SI
 import static org.apache.lucene.codecs.simpletext.SimpleTextSegmentInfoWriter.SI_USECOMPOUND;
 import static org.apache.lucene.codecs.simpletext.SimpleTextSegmentInfoWriter.SI_VERSION;
 
+import static org.apache.lucene.codecs.simpletext.SimpleTextSegmentInfoWriter.SI_ID;
+
 /**
  * reads plaintext segments files
  * <p>
@@ -106,10 +108,14 @@ public class SimpleTextSegmentInfoReader extends SegmentInfoReader {
         files.add(fileName);
       }
       
+      SimpleTextUtil.readLine(input, scratch);
+      assert StringHelper.startsWith(scratch.get(), SI_ID);
+      final String id = readString(SI_ID.length, scratch);
+
       SimpleTextUtil.checkFooter(input);
 
       SegmentInfo info = new SegmentInfo(directory, version, segmentName, docCount, 
-                                         isCompoundFile, null, diagnostics);
+                                         isCompoundFile, null, diagnostics, null, id);
       info.setFiles(files);
       success = true;
       return info;
