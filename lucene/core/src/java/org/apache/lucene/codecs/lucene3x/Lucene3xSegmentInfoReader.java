@@ -248,7 +248,7 @@ public class Lucene3xSegmentInfoReader extends SegmentInfoReader {
     }
 
     SegmentInfo info = new SegmentInfo(dir, version, name, docCount, isCompoundFile,
-                                       null, diagnostics, Collections.unmodifiableMap(attributes));
+                                       null, diagnostics, Collections.unmodifiableMap(attributes), null);
     info.setFiles(files);
 
     SegmentCommitInfo infoPerCommit = new SegmentCommitInfo(info, delCount, delGen, -1, -1);
@@ -277,7 +277,7 @@ public class Lucene3xSegmentInfoReader extends SegmentInfoReader {
     final Set<String> files = input.readStringSet();
 
     SegmentInfo info = new SegmentInfo(dir, version, name, docCount, isCompoundFile,
-                                       null, diagnostics, Collections.unmodifiableMap(attributes));
+                                       null, diagnostics, Collections.unmodifiableMap(attributes), null);
     info.setFiles(files);
     return info;
   }
