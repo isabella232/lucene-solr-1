@@ -66,10 +66,24 @@ public class FacetComponent extends SearchComponent
    * Actually run the query
    */
   @Override
-  public void process(ResponseBuilder rb) throws IOException
-  {
+  public void process(ResponseBuilder rb) throws IOException {
+
+    //SolrParams params = rb.req.getParams();
     if (rb.doFacets) {
-      SolrParams params = rb.req.getParams();
+      ModifiableSolrParams params = new ModifiableSolrParams();
+      SolrParams origParams = rb.req.getParams();
+      Iterator<String> iter = origParams.getParameterNamesIterator();
+      while (iter.hasNext()) {
+        String paramName = iter.next();
+        // Deduplicate the list with LinkedHashSet, but _only_ for facet params.
+        if (paramName.startsWith(FacetParams.FACET) == false) {
+          params.add(paramName, origParams.getParams(paramName));
+          continue;
+        }
+        HashSet<String> deDupe = new LinkedHashSet(Arrays.asList(origParams.getParams(paramName)));
+        params.add(paramName, deDupe.toArray(new String[deDupe.size()]));
+      }
+
       SimpleFacets f = new SimpleFacets(rb.req,
               rb.getResults().docSet,
               params,
