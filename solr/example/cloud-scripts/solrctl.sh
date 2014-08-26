@@ -439,6 +439,7 @@ while test $# != 0 ; do
           ;;
         --reload|--unload|--status)
           CORE_ACTION=`echo $2 | tr '[a-z]-' '[A-Z] '`
+          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $CORE_ACTION"
           eval $SOLR_ADMIN_API_CMD "'/admin/cores?action=`echo $CORE_ACTION`&core=$3'"
           shift 3
           ;;
