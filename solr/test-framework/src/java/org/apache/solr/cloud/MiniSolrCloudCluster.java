@@ -31,7 +31,6 @@ import org.apache.solr.client.solrj.embedded.SSLConfig;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,8 +86,7 @@ public class MiniSolrCloudCluster {
         AbstractZkTestCase.TIMEOUT, 45000, null);
       zkClient.makePath("/solr", false, true);
       is = new FileInputStream(solrXml);
-      zkClient.create("/solr/solr.xml", IOUtils.toByteArray(is),
-        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT, true);
+      zkClient.create("/solr/solr.xml", IOUtils.toByteArray(is), CreateMode.PERSISTENT, true);
     } finally {
       IOUtils.closeQuietly(is);
       if (zkClient != null) zkClient.close();

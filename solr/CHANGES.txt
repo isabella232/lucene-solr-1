@@ -101,6 +101,8 @@ Other Changes
 
 ==================  4.10.2 ==================
 
+* SOLR-4580: Support for protecting content in ZooKeeper. (Per Steffensen, Mark Miller)
+
 Bug Fixes
 ----------------------
 
