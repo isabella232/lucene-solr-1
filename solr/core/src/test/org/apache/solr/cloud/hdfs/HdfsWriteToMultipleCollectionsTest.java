@@ -53,7 +53,6 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 
 @Slow
-@Nightly
 @ThreadLeakScope(Scope.NONE) // hdfs client currently leaks thread(s)
 public class HdfsWriteToMultipleCollectionsTest extends BasicDistributedZkTest {
   private static final String SOLR_HDFS_HOME = "solr.hdfs.home";
