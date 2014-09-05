@@ -116,6 +116,13 @@ public class CoreDescriptor {
     coreProperties.putAll(propsIn);
   }
 
+  public CoreDescriptor(CoreContainer container, String name,
+      String instanceDir, Properties properties) {
+    this(container);
+    doInit(name, instanceDir);
+    coreProperties.putAll(properties);
+  }
+
   private void doInit(String name, String instanceDir) {
     if (name == null) {
       throw new RuntimeException("Core needs a name");

@@ -24,11 +24,15 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -39,6 +43,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.QuickPatchThreadsFilter;
+import org.apache.lucene.util.TestUtil;
 import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
@@ -52,6 +57,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.XML;
 import org.apache.solr.core.ConfigSolr;
 import org.apache.solr.core.CoreContainer;
+import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrResourceLoader;
@@ -61,6 +67,7 @@ import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrRequestHandler;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.schema.SchemaField;
+import org.apache.solr.schema.TrieDateField;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.servlet.DirectSolrConnection;
 import org.apache.solr.util.AbstractSolrTestCase;
@@ -1591,6 +1598,258 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     FileUtils.copyFile(new File(top, "schema-tiny.xml"), new File(subHome, "schema.xml"));
     FileUtils.copyFile(new File(top, "solrconfig-minimal.xml"), new File(subHome, "solrconfig.xml"));
     FileUtils.copyFile(new File(top, "solrconfig.snippet.randomindexconfig.xml"), new File(subHome, "solrconfig.snippet.randomindexconfig.xml"));
+  }
+
+  // Creates minimal full setup, including the old solr.xml file that used to be hard coded in ConfigSolrXmlOld
+  // TODO: remove for 5.0
+  public static void copyMinFullSetup(File dstRoot) throws IOException {
+    if (! dstRoot.exists()) {
+      assertTrue("Failed to make subdirectory ", dstRoot.mkdirs());
+    }
+    File xmlF = new File(SolrTestCaseJ4.TEST_HOME(), "solr.xml");
+    FileUtils.copyFile(xmlF, new File(dstRoot, "solr.xml"));
+    copyMinConf(dstRoot);
+  }
+
+  // Creates a consistent configuration, _including_ solr.xml at dstRoot. Creates collection1/conf and copies
+  // the stock files in there. Seems to be indicated for some tests when we remove the default, hard-coded
+  // solr.xml from being automatically synthesized from SolrConfigXmlOld.DEFAULT_SOLR_XML.
+  public static void copySolrHomeToTemp(File dstRoot, String collection) throws IOException {
+    copySolrHomeToTemp(dstRoot, collection, false);
+  }
+  public static void copySolrHomeToTemp(File dstRoot, String collection, boolean newStyle) throws IOException {
+    if (!dstRoot.exists()) {
+      assertTrue("Failed to make subdirectory ", dstRoot.mkdirs());
+    }
+
+    if (newStyle) {
+      FileUtils.copyFile(new File(SolrTestCaseJ4.TEST_HOME(), "solr-no-core.xml"), new File(dstRoot, "solr.xml"));
+    } else {
+      FileUtils.copyFile(new File(SolrTestCaseJ4.TEST_HOME(), "solr.xml"), new File(dstRoot, "solr.xml"));
+    }
+
+    File subHome = new File(dstRoot, collection + File.separator + "conf");
+    String top = SolrTestCaseJ4.TEST_HOME() + "/collection1/conf";
+    FileUtils.copyFile(new File(top, "currency.xml"), new File(subHome, "currency.xml"));
+    FileUtils.copyFile(new File(top, "mapping-ISOLatin1Accent.txt"), new File(subHome, "mapping-ISOLatin1Accent.txt"));
+    FileUtils.copyFile(new File(top, "old_synonyms.txt"), new File(subHome, "old_synonyms.txt"));
+    FileUtils.copyFile(new File(top, "open-exchange-rates.json"), new File(subHome, "open-exchange-rates.json"));
+    FileUtils.copyFile(new File(top, "protwords.txt"), new File(subHome, "protwords.txt"));
+    FileUtils.copyFile(new File(top, "schema.xml"), new File(subHome, "schema.xml"));
+    FileUtils.copyFile(new File(top, "solrconfig.snippet.randomindexconfig.xml"), new File(subHome, "solrconfig.snippet.randomindexconfig.xml"));
+    FileUtils.copyFile(new File(top, "solrconfig.xml"), new File(subHome, "solrconfig.xml"));
+    FileUtils.copyFile(new File(top, "stopwords.txt"), new File(subHome, "stopwords.txt"));
+    FileUtils.copyFile(new File(top, "synonyms.txt"), new File(subHome, "synonyms.txt"));
+  }
+
+  public static CoreDescriptorBuilder buildCoreDescriptor(CoreContainer container, String name, String instancedir) {
+    return new CoreDescriptorBuilder(container, name, instancedir);
+  }
+
+  public static class CoreDescriptorBuilder {
+
+    final String name;
+    final String instanceDir;
+    final CoreContainer container;
+    final Properties properties = new Properties();
+
+    public CoreDescriptorBuilder(CoreContainer container, String name, String instancedir) {
+      this.name = name;
+      this.instanceDir = instancedir;
+      this.container = container;
+    }
+
+    public CoreDescriptorBuilder withSchema(String schema) {
+      properties.setProperty(CoreDescriptor.CORE_SCHEMA, schema);
+      return this;
+    }
+
+    public CoreDescriptorBuilder withConfig(String config) {
+      properties.setProperty(CoreDescriptor.CORE_CONFIG, config);
+      return this;
+    }
+
+    public CoreDescriptorBuilder withDataDir(String datadir) {
+      properties.setProperty(CoreDescriptor.CORE_DATADIR, datadir);
+      return this;
+    }
+
+    public CoreDescriptor build() {
+      return new CoreDescriptor(container, name, instanceDir, properties);
+    }
+
+    public CoreDescriptorBuilder isTransient(boolean isTransient) {
+      properties.setProperty(CoreDescriptor.CORE_TRANSIENT, Boolean.toString(isTransient));
+      return this;
+    }
+
+    public CoreDescriptorBuilder loadOnStartup(boolean loadOnStartup) {
+      properties.setProperty(CoreDescriptor.CORE_LOADONSTARTUP, Boolean.toString(loadOnStartup));
+      return this;
+    }
+  }
+  public boolean compareSolrDocument(Object expected, Object actual) {
+
+    if (!(expected instanceof SolrDocument)  || !(actual instanceof SolrDocument)) {
+      return false;
+    }
+
+    if (expected == actual) {
+      return true;
+    }
+
+    SolrDocument solrDocument1 = (SolrDocument) expected;
+    SolrDocument solrDocument2 = (SolrDocument) actual;
+
+    if(solrDocument1.getFieldNames().size() != solrDocument1.getFieldNames().size()) {
+      return false;
+    }
+
+    Iterator<String> iter1 = solrDocument1.getFieldNames().iterator();
+    Iterator<String> iter2 = solrDocument2.getFieldNames().iterator();
+
+    if(iter1.hasNext()) {
+      String key1 = iter1.next();
+      String key2 = iter2.next();
+
+      Object val1 = solrDocument1.getFieldValues(key1);
+      Object val2 = solrDocument2.getFieldValues(key2);
+
+      if(!key1.equals(key2) || !val1.equals(val2)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  public boolean compareSolrDocumentList(Object expected, Object actual) {
+    if (!(expected instanceof SolrDocumentList)  || !(actual instanceof SolrDocumentList)) {
+      return false;
+    }
+
+    if (expected == actual) {
+      return true;
+    }
+
+    SolrDocumentList list1 = (SolrDocumentList) expected;
+    SolrDocumentList list2 = (SolrDocumentList) actual;
+
+    if(Float.compare(list1.getMaxScore(), list2.getMaxScore()) != 0 || list1.getNumFound() != list2.getNumFound() ||
+        list1.getStart() != list2.getStart()) {
+      return false;
+    }
+    for(int i=0; i<list1.getNumFound(); i++) {
+      if(!compareSolrDocument(list1.get(i), list2.get(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public boolean compareSolrInputDocument(Object expected, Object actual) {
+
+    if (!(expected instanceof SolrInputDocument) || !(actual instanceof SolrInputDocument)) {
+      return false;
+    }
+
+    if (expected == actual) {
+      return true;
+    }
+
+    SolrInputDocument sdoc1 = (SolrInputDocument) expected;
+    SolrInputDocument sdoc2 = (SolrInputDocument) actual;
+    if (Float.compare(sdoc1.getDocumentBoost(), sdoc2.getDocumentBoost()) != 0) {
+      return false;
+    }
+
+    if(sdoc1.getFieldNames().size() != sdoc2.getFieldNames().size()) {
+      return false;
+    }
+
+    Iterator<String> iter1 = sdoc1.getFieldNames().iterator();
+    Iterator<String> iter2 = sdoc2.getFieldNames().iterator();
+
+    if(iter1.hasNext()) {
+      String key1 = iter1.next();
+      String key2 = iter2.next();
+
+      Object val1 = sdoc1.getFieldValues(key1);
+      Object val2 = sdoc2.getFieldValues(key2);
+
+      if(!key1.equals(key2) || !val1.equals(val2)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  public boolean assertSolrInputFieldEquals(Object expected, Object actual) {
+    if (!(expected instanceof SolrInputField) || !(actual instanceof  SolrInputField)) {
+      return false;
+    }
+
+    if (expected == actual) {
+      return true;
+    }
+
+    SolrInputField sif1 = (SolrInputField) expected;
+    SolrInputField sif2 = (SolrInputField) actual;
+
+    if (!sif1.getName().equals(sif2.getName())) {
+      return false;
+    }
+
+    if (!sif1.getValue().equals(sif2.getValue())) {
+      return false;
+    }
+
+    if (Float.compare(sif1.getBoost(), sif2.getBoost()) != 0) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /** 
+   * Returns <code>likely</code> most (1/10) of the time, otherwise <code>unlikely</code>
+   */
+  public static Object skewed(Object likely, Object unlikely) {
+    return (0 == TestUtil.nextInt(random(), 0, 9)) ? unlikely : likely;
+  }
+
+  /** 
+   * Returns a randomly generated Date in the appropriate Solr external (input) format 
+   * @see #randomSkewedDate
+   */
+  public static String randomDate() {
+    return TrieDateField.formatExternal(new Date(random().nextLong()));
+  }
+
+  /** 
+   * Returns a Date such that all results from this method always have the same values for 
+   * year+month+day+hour+minute but the seconds are randomized.  This can be helpful for 
+   * indexing documents with random date values that are biased for a narrow window 
+   * (one day) to test collisions/overlaps
+   *
+   * @see #randomDate
+   */
+  public static String randomSkewedDate() {
+    return String.format(Locale.ROOT, "2010-10-31T10:31:%02d.000Z",
+                         TestUtil.nextInt(random(), 0, 59));
+  }
+
+  /**
+   * We want "realistic" unicode strings beyond simple ascii, but because our
+   * updates use XML we need to ensure we don't get "special" code block.
+   */
+  public static String randomXmlUsableUnicodeString() {
+    String result = TestUtil.randomRealisticUnicodeString(random());
+    if (result.matches(".*\\p{InSpecials}.*")) {
+      result = TestUtil.randomSimpleString(random());
+    }
+    return result;
   }
 
 }

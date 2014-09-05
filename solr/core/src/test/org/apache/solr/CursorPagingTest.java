@@ -17,6 +17,7 @@
 
 package org.apache.solr;
 
+import org.apache.lucene.util.TestUtil;
 import org.apache.lucene.util._TestUtil;
 import org.apache.lucene.util.LuceneTestCase.SuppressCodecs;
 import org.apache.lucene.util.SentinelIntSet;
@@ -26,14 +27,15 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.GroupParams;
+
 import static org.apache.solr.common.params.CursorMarkParams.CURSOR_MARK_PARAM;
 import static org.apache.solr.common.params.CursorMarkParams.CURSOR_MARK_NEXT;
 import static org.apache.solr.common.params.CursorMarkParams.CURSOR_MARK_START;
+
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.search.CursorMark; //jdoc
-
 import org.noggit.ObjectBuilder;
 
 import java.util.Arrays;
@@ -43,6 +45,7 @@ import java.util.List;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.UUID;
 import java.nio.ByteBuffer;
 
 import org.junit.BeforeClass;
@@ -551,11 +554,6 @@ public class CursorPagingTest extends SolrTestCaseJ4 {
     return 0 != _TestUtil.nextInt(random(), 0, 30);
   }
 
-  /** returns likely most (1/10) of the time, otherwise unlikely */
-  private static Object skewed(Object likely, Object unlikely) {
-    return (0 == _TestUtil.nextInt(random(), 0, 9)) ? unlikely : likely;
-  }
-
   /**
    * a list of the fields in the schema - excluding _version_
    */
@@ -798,9 +796,8 @@ public class CursorPagingTest extends SolrTestCaseJ4 {
                                     1.0D / random().nextInt(37)));
     }
     if (useField()) {
-      doc.addField("str", skewed(randomUsableUnicodeString(),
-                                 _TestUtil.randomSimpleString(random(),1,1)));
-
+      doc.addField("str", skewed(randomXmlUsableUnicodeString(),
+                                 TestUtil.randomSimpleString(random(),1,1)));
     }
     if (useField()) {
       int numBytes = (Integer) skewed(_TestUtil.nextInt(random(), 20, 50), 2);
@@ -831,19 +828,6 @@ public class CursorPagingTest extends SolrTestCaseJ4 {
         numericFields.get(1) + ":[0 TO *] " +
         numericFields.get(2) + ":[" + low + " TO " + high + "]";
     }
-  }
-
-  /**
-   * We want "realistic" unicode strings beyond simple ascii, but because our
-   * updates use XML we need to ensure we don't get "special" code block.
-   */
-  private static String randomUsableUnicodeString() {
-    String result = _TestUtil.randomRealisticUnicodeString(random());
-    if (result.matches(".*\\p{InSpecials}.*")) {
-      // oh well
-      result = _TestUtil.randomSimpleString(random());
-    }
-    return result;
   }
 
   /**
