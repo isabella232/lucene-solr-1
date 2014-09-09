@@ -159,7 +159,8 @@ public class HdfsWriteToMultipleCollectionsTest extends BasicDistributedZkTest {
             BlockDirectory blockDirectory = (BlockDirectory) directory
                 .getDelegate();
             assertTrue(blockDirectory.isBlockCacheReadEnabled());
-            assertTrue(blockDirectory.isBlockCacheWriteEnabled());
+            // Write cache is buggy, should be off
+            assertFalse(blockDirectory.isBlockCacheWriteEnabled());
             Cache cache = blockDirectory.getCache();
             // we know its a BlockDirectoryCache, but future proof
             assertTrue(cache instanceof BlockDirectoryCache);
