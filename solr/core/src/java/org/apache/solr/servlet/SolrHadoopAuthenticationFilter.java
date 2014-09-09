@@ -17,7 +17,11 @@ package org.apache.solr.servlet;
 * limitations under the License.
 */
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
+import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHandler;
+import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter;
+import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -27,26 +31,38 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.Properties;
-import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHandler;
 import org.apache.solr.servlet.SolrRequestParsers;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Authentication filter that extends Hadoop-auth AuthenticationFilter to override
  * the configuration loading.
  */
-public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
-  static final String SOLR_PREFIX = "solr.authentication.";
+public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticationFilter {
+  private static Logger LOG = LoggerFactory.getLogger(SolrHadoopAuthenticationFilter.class);
+  public static final String SOLR_PREFIX = "solr.authentication.";
+  public static final String SOLR_PROXYUSER_PREFIX = "solr.security.proxyuser.";
 
   private boolean skipAuthFilter = false;
   
   // The ProxyUserFilter can't handle options, let's handle it here
   private HttpServlet optionsServlet;
 
+  private static String superUser = System.getProperty("solr.authorization.superuser", "solr");
+
   /**
    * Request attribute constant for the user name.
    */
   public static final String USER_NAME = "solr.user.name";
+
+  /**
+   * Http param for requesting ProxyUser support.
+   */
+  public static final String DO_AS_PARAM = "doAs";
 
   /**
    * Initialize the filter.
@@ -70,6 +86,35 @@ public class SolrHadoopAuthenticationFilter extends AuthenticationFilter {
   public void destroy() {
     optionsServlet.destroy();
     super.destroy();
+  }
+
+  /**
+   * Return the ProxyUser Configuration.  System properties beginning with
+   * {@link SOLR_PROXYUSER_PREFIX} will be added to the configuration.
+   */
+  @Override
+  protected Configuration getProxyuserConfiguration(FilterConfig filterConfig)
+      throws ServletException {
+    Configuration conf = new Configuration(false);
+    for (Enumeration e = System.getProperties().propertyNames(); e.hasMoreElements();) {
+      String key = e.nextElement().toString();
+      if (key.startsWith(SOLR_PROXYUSER_PREFIX)) {
+        conf.set(PROXYUSER_PREFIX + "." + key.substring(SOLR_PROXYUSER_PREFIX.length()),
+          System.getProperty(key));
+      }
+    }
+    // superuser must be able to proxy any user in order to properly
+    // forward requests
+    final String superUserGroups = PROXYUSER_PREFIX + "." + superUser + ".groups";
+    final String superUserHosts = PROXYUSER_PREFIX + "." + superUser + ".hosts";
+    if (conf.get(superUserGroups) == null && conf.get(superUserHosts) == null) {
+      conf.set(superUserGroups, "*");
+      conf.set(superUserHosts, "*");
+    } else {
+      LOG.warn("Not automatically granting proxy privileges to superUser: " + superUser
+        + " because user groups or user hosts already set for superUser");
+    }
+    return conf;
   }
 
   /**
