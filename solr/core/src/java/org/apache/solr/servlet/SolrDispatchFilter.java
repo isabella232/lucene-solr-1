@@ -64,7 +64,6 @@ import org.apache.solr.response.QueryResponseWriter;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.servlet.cache.HttpCacheHeaderUtil;
 import org.apache.solr.servlet.cache.Method;
-import org.apache.solr.servlet.ProxyUserFilter;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.apache.solr.util.FastWriter;
 import org.slf4j.Logger;
@@ -501,13 +500,13 @@ public class SolrDispatchFilter implements Filter
         String doAsUserName = null;
         if (queryString != null) {
           final SolrParams params = SolrRequestParsers.parseQueryString(queryString);
-          doAsUserName = params.get(ProxyUserFilter.DO_AS_PARAM);
+          doAsUserName = params.get(SolrHadoopAuthenticationFilter.DO_AS_PARAM);
         }
         if (doAsUserName == null) {
           // doAsUserName is null, let's add it to the request so authorization
           // works properly
           
-          StringBuilder doAsParam = new StringBuilder("&").append(ProxyUserFilter.DO_AS_PARAM)
+          StringBuilder doAsParam = new StringBuilder("&").append(SolrHadoopAuthenticationFilter.DO_AS_PARAM)
             .append("=").append(userName);
           queryString = queryString == null ? doAsParam.toString() : queryString + doAsParam.toString();
         }
