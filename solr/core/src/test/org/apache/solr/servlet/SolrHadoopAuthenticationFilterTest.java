@@ -18,7 +18,9 @@
 package org.apache.solr.servlet;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.token.delegation.web.KerberosDelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHandler;
+import org.apache.hadoop.security.token.delegation.web.PseudoDelegationTokenAuthenticationHandler;
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 import static org.apache.solr.servlet.SolrHadoopAuthenticationFilter.SOLR_PROXYUSER_PREFIX;
 import org.apache.solr.SolrTestCaseJ4;
@@ -41,7 +43,8 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
   @Test
   public void testDefaults() throws Exception {
     Properties props = filter.getConfiguration(null, null);
-    assertEquals(props.getProperty(SolrHadoopAuthenticationFilter.AUTH_TYPE), QueryStringAuthenticationHandler.class.getCanonicalName());
+    assertEquals(props.getProperty(SolrHadoopAuthenticationFilter.AUTH_TYPE),
+      PseudoDelegationTokenAuthenticationHandler.class.getName());
     assertEquals("true", props.getProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED));
   }
 
@@ -51,7 +54,8 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
     String authType = filter.SOLR_PREFIX + filter.AUTH_TYPE;
     System.setProperty(authType, kerberos);
     Properties props = filter.getConfiguration(null, null);
-    assertEquals(kerberos, props.getProperty(SolrHadoopAuthenticationFilter.AUTH_TYPE));
+    assertEquals(KerberosDelegationTokenAuthenticationHandler.class.getName(),
+      props.getProperty(SolrHadoopAuthenticationFilter.AUTH_TYPE));
   }
 
   @Test

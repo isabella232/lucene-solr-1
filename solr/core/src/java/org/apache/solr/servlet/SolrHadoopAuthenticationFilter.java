@@ -19,8 +19,12 @@ package org.apache.solr.servlet;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
+import org.apache.hadoop.security.authentication.server.KerberosAuthenticationHandler;
 import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHandler;
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter;
+import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationHandler;
+import org.apache.hadoop.security.token.delegation.web.KerberosDelegationTokenAuthenticationHandler;
+import org.apache.hadoop.security.token.delegation.web.PseudoDelegationTokenAuthenticationHandler;
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 
 import javax.servlet.FilterChain;
@@ -63,6 +67,11 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
    * Http param for requesting ProxyUser support.
    */
   public static final String DO_AS_PARAM = "doAs";
+
+  /**
+   * Delegation token kind
+   */
+  public static final String TOKEN_KIND = "solr-dt";
 
   /**
    * Initialize the filter.
@@ -145,19 +154,24 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
       }
     }
 
-    // ensure old behavior (simple authentication) if properties not specified
-    if (props.getProperty(AUTH_TYPE) == null) {
-      props.setProperty(AUTH_TYPE, PseudoAuthenticationHandler.TYPE);
+    // Ensure we use the DelegationToken-supported versions
+    // of the authentication handlers and that old behavior
+    // (simple authentication) is preserved if properties not specified
+    String authType = props.getProperty(AUTH_TYPE);
+    if (authType == null) {
+      props.setProperty(AUTH_TYPE, PseudoDelegationTokenAuthenticationHandler.class.getName());
       if (props.getProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED) == null) {
         props.setProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED, "true");
       }
+    } else if (authType.equals(PseudoAuthenticationHandler.TYPE)) {
+      props.setProperty(AUTH_TYPE,
+        PseudoDelegationTokenAuthenticationHandler.class.getName());
+    } else if (authType.equals(KerberosAuthenticationHandler.TYPE)) {
+      props.setProperty(AUTH_TYPE,
+        KerberosDelegationTokenAuthenticationHandler.class.getName());
     }
 
-    // use QueryStringAuthenticationHandler rather than hadoop's
-    // PseudoAuthenticationHandler, so we don't affect getInputStream()
-    if (props.getProperty(AUTH_TYPE).equals(PseudoAuthenticationHandler.TYPE)) {
-      props.setProperty(AUTH_TYPE, QueryStringAuthenticationHandler.TYPE);
-    }
+    props.setProperty(DelegationTokenAuthenticationHandler.TOKEN_KIND, TOKEN_KIND);
 
     return props;
   }
