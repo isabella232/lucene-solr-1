@@ -19,8 +19,11 @@
 package org.apache.solr.servlet;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
+import org.apache.hadoop.security.authentication.server.AuthenticationHandler;
 import org.apache.hadoop.security.authentication.server.AuthenticationToken;
+import org.apache.hadoop.security.authentication.client.AuthenticationException;
+import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationHandler;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -42,10 +45,10 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.security.Principal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
 
 import javax.servlet.FilterChain;
@@ -63,53 +66,104 @@ import org.slf4j.LoggerFactory;
 /**
  * Test the proxy user support in the {@link SolrHadoopAuthenticationFilter}.
  */
-public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
-  private static Logger log = LoggerFactory.getLogger(SolrHadoopAuthenticationFilterProxyTest.class);
-  private static final int NUM_SERVERS = 1;
+public class SolrHadoopAuthenticationFilterMiniClusterTest extends SolrTestCaseJ4 {
+  private static Logger log = LoggerFactory.getLogger(SolrHadoopAuthenticationFilterMiniClusterTest.class);
+  private static final int NUM_SERVERS = 2;
   private static MiniSolrCloudCluster miniCluster;
   private static HttpSolrServer solrServer;
+
+  private static String getHttpParam(HttpServletRequest request, String param) {
+    List<NameValuePair> pairs =
+      URLEncodedUtils.parse(request.getQueryString(), Charset.forName("UTF-8"));
+    for (NameValuePair nvp : pairs) {
+      if(param.equals(nvp.getName())) {
+        return nvp.getValue();
+      }
+    }
+    return null;
+  }
+
+  public static class HttpParamAuthenticationHandler
+      implements AuthenticationHandler {
+
+    @Override
+    public String getType() {
+      return "dummy";
+    }
+
+    @Override
+    public void init(Properties config) throws ServletException {
+    }
+
+    @Override
+    public void destroy() {
+    }
+
+    @Override
+    public boolean managementOperation(AuthenticationToken token,
+        HttpServletRequest request, HttpServletResponse response)
+        throws IOException, AuthenticationException {
+      return false;
+    }
+
+    @Override
+    public AuthenticationToken authenticate(HttpServletRequest request,
+        HttpServletResponse response)
+        throws IOException, AuthenticationException {
+      AuthenticationToken token = null;
+      String userName = getHttpParam(request, HttpParamToRequestFilter.USER);
+      if (userName != null) {
+        return new AuthenticationToken(userName, userName, "test");
+      } else {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setHeader("WWW-Authenticate", "dummy");
+      }
+      return token;
+    }
+  }
+
+  public static class HttpParamDelegationTokenAuthenticationHandler extends
+      DelegationTokenAuthenticationHandler {
+    public HttpParamDelegationTokenAuthenticationHandler() {
+      super(new HttpParamAuthenticationHandler());
+    }
+
+    @Override
+    public void init(Properties config) throws ServletException {
+      Properties conf = new Properties(config);
+      conf.setProperty(TOKEN_KIND, "token-kind");
+      initTokenManager(conf);
+    }
+  }
 
   /**
    * Filter that converts http params to HttpServletRequest params
    */
-  public static class ParamsToRequestFilter extends SolrHadoopAuthenticationFilter {
+  public static class HttpParamToRequestFilter extends SolrHadoopAuthenticationFilter {
     public static final String USER = "user";
     public static final String REMOTE_HOST = "remoteHost";
 
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-      super.init(filterConfig);
+    protected Properties getConfiguration(String configPrefix,
+        FilterConfig filterConfig) {
+      Properties conf = super.getConfiguration(configPrefix, filterConfig);
+      conf.setProperty(AUTH_TYPE,
+          HttpParamDelegationTokenAuthenticationHandler.class.getName());
+      return conf;
     }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
       final HttpServletRequest httpRequest = (HttpServletRequest)request;
-      final HttpServletRequestWrapper wrapper = new HttpServletRequestWrapper(httpRequest) {
-        @Override
-        public Principal getUserPrincipal() {
-          String userName = getHttpParam(USER);
-          return new AuthenticationToken(userName, userName, "simple");
-        }
-
+      final HttpServletRequestWrapper requestWrapper = new HttpServletRequestWrapper(httpRequest) {
         @Override
         public String getRemoteHost() {
-          String param = getHttpParam(REMOTE_HOST);
+          String param = getHttpParam(httpRequest, REMOTE_HOST);
           return param != null ? param : httpRequest.getRemoteHost();
-        }
-
-        private String getHttpParam(String param) {
-          List<NameValuePair> pairs =
-            URLEncodedUtils.parse(httpRequest.getQueryString(), Charset.forName("UTF-8"));
-          for (NameValuePair nvp : pairs) {
-            if(param.equals(nvp.getName())) {
-              return nvp.getValue();
-            }
-          }
-          return null;
         }
       };
 
-      super.doFilter(chain, wrapper, (HttpServletResponse)response);
+      super.doFilter(requestWrapper, (HttpServletResponse)response, chain);
     }
   }
 
@@ -154,7 +208,7 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
         return true;
       }
     });
-    extraRequestFilters.put(ParamsToRequestFilter.class, "*");
+    extraRequestFilters.put(HttpParamToRequestFilter.class, "*");
     miniCluster = new MiniSolrCloudCluster(NUM_SERVERS, null, new File(testHome, "solr-no-core.xml"),
       null, extraRequestFilters);
     JettySolrRunner runner = miniCluster.getJettySolrRunners().get(0);
@@ -176,9 +230,9 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
 
   private SolrRequest getProxyRequest(String user, String doAs, String remoteHost) {
     final ModifiableSolrParams params = new ModifiableSolrParams();
-    params.set(ParamsToRequestFilter.USER, user);
+    params.set(HttpParamToRequestFilter.USER, user);
     params.set("doAs", doAs);
-    if (remoteHost != null) params.set(ParamsToRequestFilter.REMOTE_HOST, remoteHost);
+    if (remoteHost != null) params.set(HttpParamToRequestFilter.REMOTE_HOST, remoteHost);
     return new CoreAdminRequest() {
       @Override
       public SolrParams getParams() {
@@ -196,7 +250,7 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testNoConfigGroups() throws Exception {
+  public void testProxyNoConfigGroups() throws Exception {
     try {
       solrServer.request(getProxyRequest("noGroups","bar", null));
       fail("Expected RemoteSolrException");
@@ -207,7 +261,7 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testWrongHost() throws Exception {
+  public void testProxyWrongHost() throws Exception {
     try {
       solrServer.request(getProxyRequest("wrongHost","bar", null));
       fail("Expected RemoteSolrException");
@@ -218,7 +272,7 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testNoConfigHosts() throws Exception {
+  public void testProxyNoConfigHosts() throws Exception {
     try {
       solrServer.request(getProxyRequest("noHosts","bar", null));
       fail("Expected RemoteSolrException");
@@ -231,12 +285,12 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testValidateAnyHostAnyUser() throws Exception {
+  public void testProxyValidateAnyHostAnyUser() throws Exception {
     solrServer.request(getProxyRequest("anyHostAnyUser", "bar", null));
   }
 
   @Test
-  public void testInvalidProxyUser() throws Exception {
+  public void testProxyInvalidProxyUser() throws Exception {
     try {
       // wrong direction, should fail
       solrServer.request(getProxyRequest("bar","anyHostAnyUser", null));
@@ -248,19 +302,19 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testValidateHost() throws Exception {
+  public void testProxyValidateHost() throws Exception {
     solrServer.request(getProxyRequest("localHost", "bar", null));
   }
 
 
 
   @Test
-  public void testValidateGroup() throws Exception {
+  public void testProxyValidateGroup() throws Exception {
     solrServer.request(getProxyRequest("group", System.getProperty("user.name"), null));
   }
 
   @Test
-  public void testUnknownHost() throws Exception {
+  public void testProxyUnknownHost() throws Exception {
     try {
       solrServer.request(getProxyRequest("localHost", "bar", "unknownhost.bar.foo"));
       fail("Expected RemoteSolrException");
@@ -271,7 +325,7 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testInvalidHost() throws Exception {
+  public void testProxyInvalidHost() throws Exception {
     try {
       solrServer.request(getProxyRequest("localHost","bar", "[ff01::114]"));
       fail("Expected RemoteSolrException");
@@ -282,7 +336,7 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testInvalidGroup() throws Exception {
+  public void testProxyInvalidGroup() throws Exception {
     try {
       solrServer.request(getProxyRequest("bogusGroup","bar", null));
       fail("Expected RemoteSolrException");
@@ -293,7 +347,7 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testNullProxyUser() throws Exception {
+  public void testProxyNullProxyUser() throws Exception {
     try {
       solrServer.request(getProxyRequest("","bar", null));
       fail("Expected RemoteSolrException");
@@ -304,7 +358,7 @@ public class SolrHadoopAuthenticationFilterProxyTest extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testSuperUser() throws Exception {
+  public void testProxySuperUser() throws Exception {
     solrServer.request(getProxyRequest("solr", "bar", null));
   }
 }
