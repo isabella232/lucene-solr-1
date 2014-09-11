@@ -32,6 +32,9 @@ Bug fixes
   via Mike McCandless)
   
 * LUCENE-5980: Don't let document length overflow. (Robert Muir)
+* LUCENE-5925: Remove fallback logic from opening commits, instead use
+  Directory.renameFile so that in-progress commits are never visible. 
+  (Robert Muir)
 
 * LUCENE-6042: CustomScoreQuery explain was incorrect in some cases,
   such as when nested inside a boolean query. (Denis Lantsman via Robert Muir)
