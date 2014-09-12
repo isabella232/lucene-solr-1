@@ -90,7 +90,7 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
 
   /**
    * Return the ProxyUser Configuration.  System properties beginning with
-   * {@link SOLR_PROXYUSER_PREFIX} will be added to the configuration.
+   * {#SOLR_PROXYUSER_PREFIX} will be added to the configuration.
    */
   @Override
   protected Configuration getProxyuserConfiguration(FilterConfig filterConfig)
