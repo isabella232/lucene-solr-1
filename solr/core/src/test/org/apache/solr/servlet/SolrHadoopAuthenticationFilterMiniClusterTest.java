@@ -18,6 +18,8 @@
  */
 package org.apache.solr.servlet;
 
+import org.apache.commons.io.IOUtils;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
 import org.apache.hadoop.security.authentication.server.AuthenticationHandler;
@@ -25,8 +27,14 @@ import org.apache.hadoop.security.authentication.server.AuthenticationToken;
 import org.apache.hadoop.security.authentication.client.AuthenticationException;
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationHandler;
 
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.util.EntityUtils;
 
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.cloud.MiniSolrCloudCluster;
@@ -34,9 +42,12 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import static org.apache.solr.servlet.SolrHadoopAuthenticationFilter.SOLR_PROXYUSER_PREFIX;
+
+import org.codehaus.jackson.map.ObjectMapper;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -360,5 +371,185 @@ public class SolrHadoopAuthenticationFilterMiniClusterTest extends SolrTestCaseJ
   @Test
   public void testProxySuperUser() throws Exception {
     solrServer.request(getProxyRequest("solr", "bar", null));
+  }
+
+  private String getTokenQueryString(String baseURL, String user, String op,
+      String delegation, String token, String renewer) {
+    StringBuilder builder = new StringBuilder();
+    builder.append(baseURL).append("/admin/cores?");
+    if (user != null) {
+      builder.append(HttpParamToRequestFilter.USER).append("=").append(user).append("&");
+    }
+    builder.append("op=").append(op);
+    if (delegation != null) {
+      builder.append("&delegation=").append(delegation);
+    }
+    if (token != null) {
+      builder.append("&token=").append(token);
+    }
+    if (renewer != null) {
+      builder.append("&renewer=").append(renewer);
+    }
+    return builder.toString();
+  }
+
+  private HttpResponse getHttpResponse(HttpUriRequest request) throws Exception {
+    HttpClient httpClient = solrServer.getHttpClient();
+    HttpResponse response = null;
+    boolean success = false;
+    try {
+      response = httpClient.execute(request);
+      success = true;
+    } finally {
+      if (!success) {
+        request.abort();
+      }
+    }
+    return response;
+  }
+
+  // Ideally, we would do all of this via solrj, but solrj doesn't support
+  // the delegation token commands yet
+  private String getDelegationToken(String renewer, String user) throws Exception {
+    HttpGet get = new HttpGet(getTokenQueryString(
+      solrServer.getBaseURL(), user, "GETDELEGATIONTOKEN", null, null, renewer));
+    HttpResponse response = getHttpResponse(get);
+    assertNotNull(response);
+    assertEquals(200, response.getStatusLine().getStatusCode());
+    assertTrue(response.getEntity().getContentType().getValue().contains("application/json"));
+    ObjectMapper mapper = new ObjectMapper();
+    Map map = mapper.readValue(response.getEntity().getContent(), Map.class);
+    String dt = (String) ((Map) map.get("Token")).get("urlString");
+    EntityUtils.consumeQuietly(response.getEntity());
+    return dt;
+  }
+
+  private void renewDelegationToken(String token, int expectedStatusCode, String user)
+  throws Exception {
+    HttpPut put = new HttpPut(getTokenQueryString(
+      solrServer.getBaseURL(), user, "RENEWDELEGATIONTOKEN", null, token, null));
+    HttpResponse response = getHttpResponse(put);
+    assertNotNull(response);
+    assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
+    EntityUtils.consumeQuietly(response.getEntity());
+  }
+
+  private void cancelDelegationToken(String token, int expectedStatusCode)
+  throws Exception {
+    HttpPut put = new HttpPut(getTokenQueryString(
+      solrServer.getBaseURL(), null, "CANCELDELEGATIONTOKEN", null, token, null));
+    HttpResponse response = getHttpResponse(put);
+    assertNotNull(response);
+    assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
+    EntityUtils.consumeQuietly(response.getEntity());
+  }
+
+  private void doSolrRequest(String token, int expectedStatusCode)
+  throws Exception {
+    doSolrRequest(token, expectedStatusCode, solrServer.getBaseURL());
+  }
+
+  private void doSolrRequest(String token, int expectedStatusCode, String url)
+  throws Exception {
+    HttpGet get = new HttpGet(getTokenQueryString(
+      url, null, "op", token, null, null));
+    HttpResponse response = getHttpResponse(get);
+    assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
+    EntityUtils.consumeQuietly(response.getEntity());
+  }
+
+  /**
+   * Test basic Delegation Token operations
+   */
+  @Test
+  public void testDelegationTokens() throws Exception {
+    final String user = "bar";
+
+    // Get token
+    String token = getDelegationToken(null, user);
+    assertNotNull(token);
+
+    // fail without token
+    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code);
+
+    // pass with token
+    doSolrRequest(token, 200);
+
+    // pass with token on other server
+    // FixMe: this should be 200 if we are using ZK to store the tokens,
+    // see HADOOP-10868
+    String otherServerUrl =
+      miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
+    doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl);
+
+    // renew token
+    renewDelegationToken(token, 200, user);
+
+    // pass with token
+    doSolrRequest(token, 200);
+
+    // pass with token on other server
+    // FixMe: this should be 200 if we are using ZK to store the tokens,
+    // see HADOOP-10868
+    doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl);
+
+    // cancel token, note don't need to be authenticated to cancel (no user specified)
+    cancelDelegationToken(token, 200);
+
+    // fail with token
+    doSolrRequest(token, ErrorCode.FORBIDDEN.code);
+
+    // fail without token
+    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code);
+  }
+
+  @Test
+  public void testDelegationTokenCancelFail() throws Exception {
+    // cancel twice
+    String token = getDelegationToken(null, "bar");
+    assertNotNull(token);
+    cancelDelegationToken(token, 200);
+    cancelDelegationToken(token, ErrorCode.NOT_FOUND.code);
+
+    // cancel a non-existing token
+    token = getDelegationToken(null, "bar");
+    assertNotNull(token);
+
+    cancelDelegationToken("BOGUS", ErrorCode.NOT_FOUND.code);
+  }
+
+  @Test
+  public void testDelegationTokenRenew() throws Exception {
+    // specify renewer and renew
+    String user = "bar";
+    String token = getDelegationToken(user, user);
+    assertNotNull(token);
+    renewDelegationToken(token, 200, user);
+  }
+
+  @Test
+  public void testDelegationTokenRenewFail() throws Exception {
+    // don't set renewer and try to renew as an a different user
+    String token = getDelegationToken(null, "bar");
+    assertNotNull(token);
+    renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "foo");
+
+    // set renewer and try to renew as different user
+    token = getDelegationToken("renewUser", "bar");
+    assertNotNull(token);
+    renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "notRenewUser");
+  }
+
+  /**
+   * Test that a non-delegation-token operation is handled correctly
+   */
+  @Test
+  public void testDelegationOtherOp() throws Exception {
+    HttpGet get = new HttpGet(getTokenQueryString(
+      solrServer.getBaseURL(), "bar", "someSolrOperation", null, null, null));
+    HttpResponse response = getHttpResponse(get);
+    byte [] body = IOUtils.toByteArray(response.getEntity().getContent());
+    assertTrue(new String(body, "UTF-8").contains("<int name=\"status\">0</int>"));
+    EntityUtils.consumeQuietly(response.getEntity());
   }
 }
