@@ -50,6 +50,7 @@ import org.apache.solr.common.cloud.ImplicitDocRouter;
 import org.apache.solr.common.cloud.PlainIdRouter;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkCoreNodeProps;
 import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
@@ -65,6 +66,7 @@ import org.apache.solr.handler.component.ShardHandler;
 import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -188,6 +190,24 @@ public class OverseerCollectionProcessor implements Runnable, Closeable {
   
   public void close() {
     isClosed = true;
+  }
+  
+  public static String getLeaderNode(SolrZkClient zkClient) throws KeeperException, InterruptedException {
+    String id = getLeaderId(zkClient);
+    return id==null ?
+        null:
+        LeaderElector.getNodeName( id);
+  }
+  
+  public static String getLeaderId(SolrZkClient zkClient) throws KeeperException,InterruptedException{
+    byte[] data = null;
+    try {
+      data = zkClient.getData("/overseer_elect/leader", null, new Stat(), true);
+    } catch (KeeperException.NoNodeException e) {
+      return null;
+    }
+    Map m = (Map) ZkStateReader.fromJSON(data);
+    return  (String) m.get("id");
   }
   
   protected LeaderStatus amILeader() {

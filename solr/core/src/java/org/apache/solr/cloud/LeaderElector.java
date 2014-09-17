@@ -59,6 +59,7 @@ public  class LeaderElector {
   
   private final static Pattern LEADER_SEQ = Pattern.compile(".*?/?.*?-n_(\\d+)");
   private final static Pattern SESSION_ID = Pattern.compile(".*?/?(.*?-.*?)-n_\\d+");
+  private final static Pattern  NODE_NAME = Pattern.compile(".*?/?(.*?-)(.*?)-n_\\d+");
   
   protected SolrZkClient zkClient;
   
@@ -191,6 +192,19 @@ public  class LeaderElector {
     return id;
   }
   
+  public static String getNodeName(String nStringSequence){
+    String result;
+    Matcher m = NODE_NAME.matcher(nStringSequence);
+    if (m.matches()) {
+      result = m.group(2);
+    } else {
+      throw new IllegalStateException("Could not find regex match in:"
+          + nStringSequence);
+    }
+    return result;
+
+  }
+  
   /**
    * Returns int list given list of form n_0000000001, n_0000000003, etc.
    * 
@@ -257,6 +271,7 @@ public  class LeaderElector {
         // we must have failed in creating the election node - someone else must
         // be working on it, lets try again
         if (tries++ > 20) {
+          context = null;
           throw new ZooKeeperException(SolrException.ErrorCode.SERVER_ERROR,
               "", e);
         }
@@ -281,9 +296,8 @@ public  class LeaderElector {
       KeeperException {
     String electZKPath = context.electionPath + LeaderElector.ELECTION_NODE;
     
-    this.context = context;
-    
     zkCmdExecutor.ensureExists(electZKPath, zkClient);
+    this.context = context;
   }
   
   /**

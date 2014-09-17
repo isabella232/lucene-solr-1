@@ -49,7 +49,7 @@ public abstract class ElectionContext implements Closeable {
   final ZkNodeProps leaderProps;
   final String id;
   final String leaderPath;
-  String leaderSeqPath;
+  volatile String leaderSeqPath;
   private SolrZkClient zkClient;
   
   public ElectionContext(final String coreNodeName,
@@ -66,11 +66,16 @@ public abstract class ElectionContext implements Closeable {
   }
   
   public void cancelElection() throws InterruptedException, KeeperException {
-    try {
-      zkClient.delete(leaderSeqPath, -1, true);
-    } catch (NoNodeException e) {
-      // fine
-      log.warn("cancelElection did not find election node to remove");
+    if( leaderSeqPath != null ){
+      try {
+        log.info("canceling election {}",leaderSeqPath );
+        zkClient.delete(leaderSeqPath, -1, true);
+      } catch (NoNodeException e) {
+        // fine
+        log.warn("cancelElection did not find election node to remove {}" ,leaderSeqPath);
+      }
+    } else {
+      log.warn("cancelElection skipped as this context has not been initialized");
     }
   }
 
