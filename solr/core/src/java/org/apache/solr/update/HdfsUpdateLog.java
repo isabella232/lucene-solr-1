@@ -31,13 +31,11 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
-import org.apache.hadoop.ipc.RemoteException;
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.core.PluginInfo;
 import org.apache.solr.core.SolrCore;
-import org.apache.solr.store.hdfs.HdfsDirectory;
 import org.apache.solr.util.HdfsUtil;
 import org.apache.solr.util.IOUtils;
 
@@ -115,19 +113,22 @@ public class HdfsUpdateLog extends UpdateLog {
       }
     }
     
-    try {
-      if (fs != null) {
-        fs.close();
-      }
-    } catch (IOException e) {
-      throw new SolrException(ErrorCode.SERVER_ERROR, e);
-    }
+    FileSystem oldFs = fs;
     
     try {
       fs = FileSystem.newInstance(new Path(dataDir).toUri(), getConf());
     } catch (IOException e) {
       throw new SolrException(ErrorCode.SERVER_ERROR, e);
     }
+    
+    try {
+      if (oldFs != null) {
+        oldFs.close();
+      }
+    } catch (IOException e) {
+      throw new SolrException(ErrorCode.SERVER_ERROR, e);
+    }
+
     
     this.uhandler = uhandler;
     
@@ -252,8 +253,14 @@ public class HdfsUpdateLog extends UpdateLog {
   
   @Override
   public void close(boolean committed) {
-    synchronized (this) {
-      super.close(committed);
+    close(committed, false);
+  }
+  
+  @Override
+  public void close(boolean committed, boolean deleteOnClose) {
+    try {
+      super.close(committed, deleteOnClose);
+    } finally {
       IOUtils.closeQuietly(fs);
     }
   }
