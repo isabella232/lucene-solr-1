@@ -338,7 +338,7 @@ public class HdfsTransactionLog extends TransactionLog {
     FSDataFastInputStream fis;
     private LogCodec codec = new LogCodec(resolver);
     private long sz;
-
+    
     public HDFSLogReader(long startingPos) {
       super();
       incref();
@@ -420,6 +420,16 @@ public class HdfsTransactionLog extends TransactionLog {
       synchronized (HdfsTransactionLog.this) {
         return "LogReader{" + "file=" + tlogFile + ", position=" + fis.position() + ", end=" + fos.size() + "}";
       }
+    }
+    
+    @Override
+    public long currentPos() {
+      return fis.position();
+    }
+    
+    @Override
+    public long currentSize() {
+      return sz;
     }
 
   }
