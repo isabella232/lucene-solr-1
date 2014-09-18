@@ -23,6 +23,8 @@ import java.util.List;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
+import org.apache.solr.cloud.AbstractFullDistribZkTestBase.StopableThread;
+import org.apache.solr.cloud.ChaosMonkeyNothingIsSafeTest.FullThrottleStopableIndexingThread;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.core.Diagnostics;
 import org.apache.solr.update.SolrCmdDistributor;
@@ -33,6 +35,7 @@ import org.junit.BeforeClass;
 
 @Slow
 public class ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
+  private static final int FAIL_TOLERANCE = 20;
   
   private static final Integer RUN_LENGTH = Integer.parseInt(System.getProperty("solr.tests.cloud.cm.runlength", "-1"));
 
@@ -136,8 +139,11 @@ public class ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
       indexThread.join();
     }
     
-    for (StopableIndexingThread indexThread : threads) {
-      assertEquals(0, indexThread.getFailCount());
+    // fails can happen, but cloud client should not easily fail
+    for (StopableThread indexThread : threads) {
+      if (indexThread instanceof StopableIndexingThread && !(indexThread instanceof FullThrottleStopableIndexingThread)) {
+        assertFalse("There were too many update fails - we expect it can happen, but shouldn't easily", ((StopableIndexingThread) indexThread).getFailCount() > FAIL_TOLERANCE);
+      }
     }
     
     // try and wait for any replications and what not to finish...
