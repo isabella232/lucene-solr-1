@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.apache.solr.cloud.Overseer.QUEUE_OPERATION;
@@ -156,7 +157,10 @@ public class CollectionsHandler extends RequestHandlerBase {
         this.handleCreateShard(req, rsp);
         break;
       }
-
+      case LIST: {
+        this.handleListAction(req, rsp);
+        break;
+      }
       default: {
           throw new RuntimeException("Unknown action: " + action);
       }
@@ -358,6 +362,22 @@ public class CollectionsHandler extends RequestHandlerBase {
 
     handleResponse(OverseerCollectionProcessor.SPLITSHARD, m, rsp, DEFAULT_ZK_TIMEOUT * 5);
   }
+
+  /**
+   * Handled list collection request.
+   * Do list collection request to zk host
+   *
+   * @param req solr request
+   * @param rsp solr response
+   * @throws KeeperException      zk connection failed
+   * @throws InterruptedException connection interrupted
+   */
+  private void handleListAction(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
+    Map<String, Object> props = ZkNodeProps.makeMap(
+        Overseer.QUEUE_OPERATION, CollectionAction.LIST.toString().toLowerCase(Locale.ROOT));
+    handleResponse(CollectionAction.LIST.toString(), new ZkNodeProps(props), rsp);
+  }
+
 
   public static ModifiableSolrParams params(String... params) {
     ModifiableSolrParams msp = new ModifiableSolrParams();

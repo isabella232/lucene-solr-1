@@ -1386,6 +1386,11 @@ public abstract class AbstractFullDistribZkTestBase extends AbstractDistribZkTes
   }
 
   protected void createCollection(Map<String,List<Integer>> collectionInfos, String collectionName, Map<String,Object> collectionProps, SolrServer client)  throws SolrServerException, IOException{
+    createCollection(collectionInfos, collectionName, collectionProps, client, null);
+  }
+
+  // TODO: Use CollectionAdminRequest#createCollection() instead of a raw request
+  protected void createCollection(Map<String, List<Integer>> collectionInfos, String collectionName, Map<String, Object> collectionProps, SolrServer client, String confSetName)  throws SolrServerException, IOException{ 
     ModifiableSolrParams params = new ModifiableSolrParams();
     params.set("action", CollectionAction.CREATE.toString());
     for (Map.Entry<String, Object> entry : collectionProps.entrySet()) {
@@ -1439,6 +1444,19 @@ public abstract class AbstractFullDistribZkTestBase extends AbstractDistribZkTes
         MAX_SHARDS_PER_NODE, maxShardsPerNode),
         client);
   }
+
+   protected void createCollection(Map<String, List<Integer>> collectionInfos,
+                                                     String collectionName, int numShards, int numReplicas, int maxShardsPerNode, SolrServer client, String createNodeSetStr, String configName) throws SolrServerException, IOException {
+ 
+    createCollection(collectionInfos, collectionName,
+        OverseerCollectionProcessor.asMap(
+        NUM_SLICES, numShards,
+        REPLICATION_FACTOR, numReplicas,
+        CREATE_NODE_SET, createNodeSetStr,
+        MAX_SHARDS_PER_NODE, maxShardsPerNode),
+        client, configName);
+  }
+   
 
   @Override
   protected SolrServer createNewSolrServer(int port) {

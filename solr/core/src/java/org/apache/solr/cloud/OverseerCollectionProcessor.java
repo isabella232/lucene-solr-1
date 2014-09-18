@@ -70,6 +70,8 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.solr.common.params.CollectionParams.CollectionAction;
+import static org.apache.solr.common.params.CollectionParams.CollectionAction.LIST;
 
 public class OverseerCollectionProcessor implements Runnable, Closeable {
   
@@ -257,6 +259,8 @@ public class OverseerCollectionProcessor implements Runnable, Closeable {
         createShard(zkStateReader.getClusterState(), message, results);
       } else if (DELETESHARD.equals(operation)) {
         deleteShard(zkStateReader.getClusterState(), message, results);
+      } else if(LIST.equals(CollectionAction.get(operation))) {
+        listCollections(zkStateReader.getClusterState(), results);
       } else {
         throw new SolrException(ErrorCode.BAD_REQUEST, "Unknown operation:"
             + operation);
@@ -273,6 +277,15 @@ public class OverseerCollectionProcessor implements Runnable, Closeable {
     } 
     
     return new OverseerSolrResponse(results);
+  }
+
+  private void listCollections(ClusterState clusterState, NamedList results) {
+    Set<String> collections = clusterState.getCollections();
+    List<String> collectionList = new ArrayList<String>();
+    for (String collection : collections) {
+      collectionList.add(collection);
+    }
+    results.add("collections", collectionList);
   }
 
   private void deleteCollection(ZkNodeProps message, NamedList results)
