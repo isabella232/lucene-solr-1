@@ -25,6 +25,7 @@ import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1280,7 +1281,7 @@ public class UpdateLog implements PluginInfoInitialized {
                 loglog.info(
                         "log replay status {} active={} starting pos={} current pos={} current size={} % read={}",
                         translog, activeLog, recoveryInfo.positionOfStart, cpos, csize,
-                        new DecimalFormat("###").format(cpos / (double) csize * 100));
+                        new DecimalFormat("###", new DecimalFormatSymbols(Locale.ROOT)).format(cpos / (double) csize * 100));
                 
               }
             }
