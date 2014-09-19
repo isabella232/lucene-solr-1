@@ -144,7 +144,7 @@ public class HdfsWriteToMultipleCollectionsTest extends BasicDistributedZkTest {
             long dataDirSize = core.getDirectoryFactory().size(dir);
             FileSystem fileSystem = null;
             
-            fileSystem = FileSystem.newInstance(
+            fileSystem = FileSystem.get(
                 new Path(core.getDataDir()).toUri(), new Configuration());
             long size = fileSystem.getContentSummary(
                 new Path(core.getDataDir())).getLength();

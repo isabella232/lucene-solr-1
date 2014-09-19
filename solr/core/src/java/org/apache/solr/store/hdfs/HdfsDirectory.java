@@ -61,7 +61,7 @@ public class HdfsDirectory extends Directory {
     setLockFactory(NoLockFactory.getNoLockFactory());
     this.hdfsDirPath = hdfsDirPath;
     this.configuration = configuration;
-    fileSystem = FileSystem.newInstance(hdfsDirPath.toUri(), configuration);
+    fileSystem = FileSystem.get(hdfsDirPath.toUri(), configuration);
     
     try {
       HdfsUtil.mkDirIfNeededAndWaitForSafeMode(fileSystem, hdfsDirPath);

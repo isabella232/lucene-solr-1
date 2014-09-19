@@ -106,7 +106,7 @@ public class BasicHdfsTest extends BasicDistributedZkTest {
     
     Configuration conf = new Configuration();
     conf.setBoolean("fs.hdfs.impl.disable.cache", true);
-    FileSystem fs = FileSystem.newInstance(new URI(dataDir), conf);
+    FileSystem fs = FileSystem.get(new URI(dataDir), conf);
     assertFalse(
         "Data directory exists after collection removal : "
             + dataDir, fs.exists(new Path(dataDir)));
