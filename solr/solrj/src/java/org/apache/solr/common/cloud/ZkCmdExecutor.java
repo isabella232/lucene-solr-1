@@ -27,13 +27,14 @@ import org.apache.zookeeper.data.ACL;
 
 
 public class ZkCmdExecutor {
-  private long retryDelay = 1500L; // 500 ms over for padding
+  private long retryDelay = 1500L; // 1 second would match timeout, so 500 ms over for padding
   private int retryCount;
   private List<ACL> acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
+  private double timeouts;
   
   public ZkCmdExecutor(int timeoutms) {
-    double timeouts = timeoutms / 1000.0;
-    this.retryCount = Math.round(0.5f * ((float)Math.sqrt(8.0f * timeouts + 1.0f) - 1.0f));
+    timeouts = timeoutms / 1000.0;
+    this.retryCount = Math.round(0.5f * ((float)Math.sqrt(8.0f * timeouts + 1.0f) - 1.0f)) + 1;
   }
   
   public List<ACL> getAcl() {
@@ -76,7 +77,9 @@ public class ZkCmdExecutor {
             throw exception;
           }
         }
-        retryDelay(i);
+        if (i != retryCount -1) {
+          retryDelay(i);
+        }
       }
     }
     throw exception;
@@ -107,9 +110,7 @@ public class ZkCmdExecutor {
    *          the number of the attempts performed so far
    */
   protected void retryDelay(int attemptCount) throws InterruptedException {
-    if (attemptCount > 0) {
-      Thread.sleep(attemptCount * retryDelay);
-    }
+    Thread.sleep((attemptCount + 1) * retryDelay);
   }
 
 }
