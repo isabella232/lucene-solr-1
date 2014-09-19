@@ -173,14 +173,11 @@ public class OverseerCollectionProcessor implements Runnable, Closeable {
            workQueue.remove(head);
           log.info("Overseer Collection Processor: Message id:" + head.getId() + " complete, response:"+ response.getResponse().toString());
         } catch (KeeperException e) {
-          if (e.code() == KeeperException.Code.SESSIONEXPIRED
-              || e.code() == KeeperException.Code.CONNECTIONLOSS) {
-             log.warn("Overseer cannot talk to ZK");
-             return;
-           }
-           SolrException.log(log, "", e);
-           throw new ZooKeeperException(
-               SolrException.ErrorCode.SERVER_ERROR, "", e);
+          if (e.code() == KeeperException.Code.SESSIONEXPIRED) {
+            log.warn("Overseer cannot talk to ZK");
+            return;
+          }
+          SolrException.log(log, "", e);
          } catch (InterruptedException e) {
            Thread.currentThread().interrupt();
            return;
