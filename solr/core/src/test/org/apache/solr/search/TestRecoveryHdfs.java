@@ -83,7 +83,9 @@ public class TestRecoveryHdfs extends SolrTestCaseJ4 {
     
     try {
       URI uri = new URI(hdfsUri);
-      fs = FileSystem.newInstance(uri, new Configuration());
+      Configuration conf = new Configuration();
+      conf.setBoolean("fs.hdfs.impl.disable.cache", true);
+      fs = FileSystem.get(uri, conf);
     } catch (IOException e) {
       throw new RuntimeException(e);
     } catch (URISyntaxException e) {
