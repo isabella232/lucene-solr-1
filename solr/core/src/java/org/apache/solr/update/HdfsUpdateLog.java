@@ -89,7 +89,7 @@ public class HdfsUpdateLog extends UpdateLog {
     if (confDir != null) {
       HdfsUtil.addHdfsResources(conf, confDir);
     }
-    
+    conf.setBoolean("fs.hdfs.impl.disable.cache", true);
     return conf;
   }
   
@@ -117,7 +117,7 @@ public class HdfsUpdateLog extends UpdateLog {
     FileSystem oldFs = fs;
     
     try {
-      fs = FileSystem.newInstance(new Path(dataDir).toUri(), getConf());
+      fs = FileSystem.get(new Path(dataDir).toUri(), getConf());
     } catch (IOException e) {
       throw new SolrException(ErrorCode.SERVER_ERROR, e);
     }
