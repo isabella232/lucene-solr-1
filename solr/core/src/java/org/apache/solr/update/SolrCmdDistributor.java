@@ -20,7 +20,15 @@ package org.apache.solr.update;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -47,27 +55,34 @@ public class SolrCmdDistributor {
   private int retryPause = 500;
   private int maxRetriesOnForward = MAX_RETRIES_ON_FORWARD;
   
-  private List<Error> allErrors = new ArrayList<Error>();
-  private List<Error> errors = new ArrayList<Error>();
+  private final List<Error> allErrors = new ArrayList<Error>();
+  private final List<Error> errors = Collections.synchronizedList(new ArrayList<Error>());
+  private final ExecutorService updateExecutor;
+  
+  private final CompletionService<Object> completionService;
+  private final Set<Future<Object>> pending = new HashSet<Future<Object>>();
   
   public static interface AbortCheck {
     public boolean abortCheck();
   }
   
   public SolrCmdDistributor(UpdateShardHandler updateShardHandler) {
-    servers = new StreamingSolrServers(updateShardHandler);
+    this.servers = new StreamingSolrServers(updateShardHandler);
+    this.updateExecutor = updateShardHandler.getCmdDistribExecutor();
+    this.completionService = new ExecutorCompletionService<Object>(updateExecutor);
   }
   
   public SolrCmdDistributor(StreamingSolrServers servers, int maxRetriesOnForward, int retryPause) {
     this.servers = servers;
     this.maxRetriesOnForward = maxRetriesOnForward;
     this.retryPause = retryPause;
+    this.updateExecutor = servers.getUpdateExecutor();
+    completionService = new ExecutorCompletionService<Object>(updateExecutor);
   }
   
   public void finish() {
     try {
-      servers.blockUntilFinished();
-      doRetriesIfNeeded();
+      blockAndDoRetries();
     } finally {
       servers.shutdown();
     }
@@ -140,12 +155,11 @@ public class SolrCmdDistributor {
     servers.clearErrors();
     this.errors.clear();
     for (Error err : resubmitList) {
-      submit(err.req);
+      submit(err.req, false);
     }
     
     if (resubmitList.size() > 0) {
-      servers.blockUntilFinished();
-      doRetriesIfNeeded();
+      blockAndDoRetries();
     }
   }
   
@@ -164,7 +178,7 @@ public class SolrCmdDistributor {
         uReq.deleteByQuery(cmd.query);
       }
       
-      submit(new Req(cmd.toString(), node, uReq, sync));
+      submit(new Req(cmd.toString(), node, uReq, sync), false);
     }
   }
   
@@ -178,7 +192,7 @@ public class SolrCmdDistributor {
       UpdateRequest uReq = new UpdateRequest();
       uReq.setParams(params);
       uReq.add(cmd.solrDoc, cmd.commitWithin, cmd.overwrite);
-      submit(new Req(cmd.toString(), node, uReq, synchronous));
+      submit(new Req(cmd.toString(), node, uReq, synchronous), false);
     }
     
   }
@@ -187,8 +201,7 @@ public class SolrCmdDistributor {
       ModifiableSolrParams params) throws IOException {
     
     // we need to do any retries before commit...
-    servers.blockUntilFinished();
-    doRetriesIfNeeded();
+    blockAndDoRetries();
     
     UpdateRequest uReq = new UpdateRequest();
     uReq.setParams(params);
@@ -198,9 +211,28 @@ public class SolrCmdDistributor {
     log.debug("Distrib commit to: {} params: {}", nodes, params);
     
     for (Node node : nodes) {
-      submit(new Req(cmd.toString(), node, uReq, false));
+      submit(new Req(cmd.toString(), node, uReq, false), true);
     }
     
+  }
+
+  private void blockAndDoRetries() {
+    servers.blockUntilFinished();
+    
+    // wait for any async commits to complete
+    while (pending != null && pending.size() > 0) {
+      Future<Object> future = null;
+      try {
+        future = completionService.take();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        log.error("blockAndDoRetries interrupted", e);
+      }
+      if (future == null) break;
+      pending.remove(future);
+    }
+    doRetriesIfNeeded();
+
   }
   
   void addCommit(UpdateRequest ureq, CommitUpdateCommand cmd) {
@@ -209,10 +241,9 @@ public class SolrCmdDistributor {
         : AbstractUpdateRequest.ACTION.COMMIT, false, cmd.waitSearcher, cmd.maxOptimizeSegments, cmd.softCommit, cmd.expungeDeletes);
   }
 
-  private void submit(Req req) {
+  private void submit(final Req req, boolean isCommit) {
     if (req.synchronous) {
-      servers.blockUntilFinished();
-      doRetriesIfNeeded();
+      blockAndDoRetries();
       
       HttpSolrServer server = new HttpSolrServer(req.node.getUrl(),
           servers.getHttpClient());
@@ -226,11 +257,32 @@ public class SolrCmdDistributor {
       
       return;
     }
+    
     if (log.isDebugEnabled()) {
       log.debug("sending update to "
           + req.node.getUrl() + " retry:"
           + req.retries + " " + req.cmdString + " params:" + req.uReq.getParams());
     }
+    
+    if (isCommit) {
+      // a commit using ConncurrentUpdateSolrServer is not async,
+      // so we make it async to prevent commits from happening
+      // serially across multiple nodes
+      pending.add(completionService.submit(new Callable<Object>() {
+        
+        @Override
+        public Object call() throws Exception {
+          doRequest(req);
+          return null;
+        }
+
+      }));
+    } else {
+      doRequest(req);
+    }
+  }
+  
+  private void doRequest(final Req req) {
     try {
       SolrServer solrServer = servers.getSolrServer(req);
       NamedList<Object> rsp = solrServer.request(req.uReq);
@@ -418,5 +470,4 @@ public class SolrCmdDistributor {
     return allErrors;
   }
 }
-
 
