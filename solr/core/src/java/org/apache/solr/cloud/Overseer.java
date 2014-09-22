@@ -546,13 +546,13 @@ public class Overseer implements Closeable {
         if (slices != null) {
           for (Slice slice : slices) {
             for (Replica replica : slice.getReplicas()) {
-              String baseUrl = replica.getStr(ZkStateReader.BASE_URL_PROP);
+              String nodeName = replica.getStr(ZkStateReader.NODE_NAME_PROP);
               String core = replica.getStr(ZkStateReader.CORE_NAME_PROP);
               
-              String msgBaseUrl = message.getStr(ZkStateReader.BASE_URL_PROP);
+              String msgNodeName = message.getStr(ZkStateReader.NODE_NAME_PROP);
               String msgCore = message.getStr(ZkStateReader.CORE_NAME_PROP);
               
-              if (baseUrl.equals(msgBaseUrl) && core.equals(msgCore)) {
+              if (nodeName.equals(msgNodeName) && core.equals(msgCore)) {
                 return replica.getName();
               }
             }

@@ -608,7 +608,7 @@ public class OverseerCollectionProcessor implements Runnable, Closeable {
       for (String subShardName : subShardNames) {
         // wait for parent leader to acknowledge the sub-shard core
         log.info("Asking parent leader to wait for: " + subShardName + " to be alive on: " + nodeName);
-        String coreNodeName = waitForCoreNodeName(collection, zkStateReader.getZkClient().getBaseUrlForNodeName(nodeName), subShardName);
+        String coreNodeName = waitForCoreNodeName(collection, nodeName, subShardName);
         CoreAdminRequest.WaitForState cmd = new CoreAdminRequest.WaitForState();
         cmd.setCoreName(subShardName);
         cmd.setNodeName(nodeName);
@@ -715,7 +715,7 @@ public class OverseerCollectionProcessor implements Runnable, Closeable {
 
           sendShardRequest(subShardNodeName, params);
 
-          String coreNodeName = waitForCoreNodeName(collection, zkStateReader.getZkClient().getBaseUrlForNodeName(subShardNodeName), shardName);
+          String coreNodeName = waitForCoreNodeName(collection, subShardNodeName, shardName);
           // wait for the replicas to be seen as active on sub shard leader
           log.info("Asking sub shard leader to wait for: " + shardName + " to be alive on: " + subShardNodeName);
           CoreAdminRequest.WaitForState cmd = new CoreAdminRequest.WaitForState();
@@ -786,7 +786,7 @@ public class OverseerCollectionProcessor implements Runnable, Closeable {
     }
   }
   
-  private String waitForCoreNodeName(DocCollection collection, String msgBaseUrl, String msgCore) {
+  private String waitForCoreNodeName(DocCollection collection, String msgNodeName, String msgCore) {
     int retryCount = 320;
     while (retryCount-- > 0) {
       Map<String,Slice> slicesMap = zkStateReader.getClusterState()
@@ -797,10 +797,10 @@ public class OverseerCollectionProcessor implements Runnable, Closeable {
           for (Replica replica : slice.getReplicas()) {
             // TODO: for really large clusters, we could 'index' on this
             
-            String baseUrl = replica.getStr(ZkStateReader.BASE_URL_PROP);
+            String nodeName = replica.getStr(ZkStateReader.NODE_NAME_PROP);
             String core = replica.getStr(ZkStateReader.CORE_NAME_PROP);
             
-            if (baseUrl.equals(msgBaseUrl) && core.equals(msgCore)) {
+            if (nodeName.equals(msgNodeName) && core.equals(msgCore)) {
               return replica.getName();
             }
           }
