@@ -25,10 +25,13 @@
   <directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:solr.RAMDirectoryFactory}">
     <!-- used to keep RAM reqs down for HdfsDirectoryFactory -->
     <bool name="solr.hdfs.blockcache.enabled">${solr.hdfs.blockcache.enabled:true}</bool>
-    <int name="solr.hdfs.blockcache.blocksperbank">${solr.hdfs.blockcache.blocksperbank:1024}</int>
+    <bool name="solr.hdfs.blockcache.write.enabled">${solr.hdfs.blockcache.write.enabled:false}</bool>
+    <int name="solr.hdfs.blockcache.blocksperbank">${solr.hdfs.blockcache.blocksperbank:10}</int>
     <str name="solr.hdfs.home">${solr.hdfs.home:}</str>
     <str name="solr.hdfs.confdir">${solr.hdfs.confdir:}</str>
-    <str name="solr.hdfs.blockcache.global">${solr.hdfs.blockcache.global:false}</str>
+    <bool name="solr.hdfs.blockcache.global">${solr.hdfs.blockcache.global:false}</bool>
+    <int name="solr.hdfs.blockcache.blocksperbank">10</int>
+    <int name="solr.hdfs.blockcache.slab.count">1</int>
   </directoryFactory>
   
   <dataDir>${solr.data.dir:}</dataDir>

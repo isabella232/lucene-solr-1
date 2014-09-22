@@ -29,9 +29,8 @@ import org.apache.lucene.store.IndexOutput;
  */
 public abstract class CustomBufferedIndexInput extends IndexInput {
   
-  public static final int BUFFER_SIZE = 32768;
-  
-  private int bufferSize = BUFFER_SIZE;
+
+  private final int bufferSize;
   
   protected byte[] buffer;
   
@@ -45,10 +44,6 @@ public abstract class CustomBufferedIndexInput extends IndexInput {
   public byte readByte() throws IOException {
     if (bufferPosition >= bufferLength) refill();
     return buffer[bufferPosition++];
-  }
-  
-  public CustomBufferedIndexInput(String resourceDesc) {
-    this(resourceDesc, BUFFER_SIZE);
   }
   
   public CustomBufferedIndexInput(String resourceDesc, int bufferSize) {

@@ -76,7 +76,7 @@ public class BlockCache {
       }
     };
     cache = new ConcurrentLinkedHashMap.Builder<BlockCacheKey,BlockCacheLocation>()
-        .maximumWeightedCapacity(maxEntries).listener(listener).build();
+        .maximumWeightedCapacity(maxEntries).concurrencyLevel(512).initialCapacity(maxEntries).listener(listener).build();
     this.blockSize = blockSize;
   }
   
