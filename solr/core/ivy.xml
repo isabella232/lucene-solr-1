@@ -39,8 +39,8 @@
     <dependency org="org.restlet.jee" name="org.restlet" rev="2.1.1" conf="compile->*"/>
     <dependency org="org.restlet.jee" name="org.restlet.ext.servlet" rev="2.1.1" conf="compile->*"/>
     <dependency org="joda-time" name="joda-time" rev="2.2" conf="compile->*"/>
-    <dependency org="org.codehaus.jackson" name="jackson-core-asl" rev="1.9.13" conf="compile->*"/>
-    <dependency org="org.codehaus.jackson" name="jackson-mapper-asl" rev="1.9.13" conf="compile->*"/>
+    <dependency org="org.codehaus.jackson" name="jackson-core-asl" rev="${jackson.version}" conf="compile->*"/>
+    <dependency org="org.codehaus.jackson" name="jackson-mapper-asl" rev="${jackson.version}" conf="compile->*"/>
 
     <dependency org="javax.servlet" name="javax.servlet-api" rev="3.0.1" conf="test->*"/>
     <dependency org="org.easymock" name="easymock" rev="3.0" conf="test->*"/>
@@ -54,6 +54,8 @@
     <dependency org="commons-configuration" name="commons-configuration" rev="1.6" conf="compile.hadoop->*"/>
     <dependency org="com.google.protobuf" name="protobuf-java" rev="${protobuf.version}" conf="compile.hadoop->*"/>
     <dependency org="com.googlecode.concurrentlinkedhashmap" name="concurrentlinkedhashmap-lru" rev="1.2" conf="compile.hadoop->*"/>
+    <dependency org="org.apache.curator" name="curator-framework" rev="2.6.0" conf="compile.hadoop->*"/>
+    <dependency org="org.apache.curator" name="curator-client" rev="2.6.0" conf="compile.hadoop->*"/>
 
     <!-- Hadoop DfsMiniCluster Dependencies-->
     <dependency org="org.apache.hadoop" name="hadoop-common" rev="${hadoop.version}" conf="test.DfsMiniCluster->*">
@@ -67,6 +69,7 @@
     <dependency org="com.sun.jersey" name="jersey-core" rev="1.9" conf="test.DfsMiniCluster->*"/>
     <dependency org="com.sun.jersey" name="jersey-server" rev="1.9" conf="test.DfsMiniCluster->*"/>
     <dependency org="commons-collections" name="commons-collections" rev="3.2.1" conf="test.DfsMiniCluster->*"/>
+    
 
     <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/> 
   </dependencies>

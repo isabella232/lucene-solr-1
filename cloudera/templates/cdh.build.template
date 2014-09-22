@@ -8,4 +8,5 @@ httpcomponents.version=org.apache.httpcomponents:httpclient.version
 httpcomponents.core.version=org.apache.httpcomponents:httpcore.version
 slf4j.version=org.slf4j:slf4j-api.version
 sentry.version=org.apache.sentry:sentry.version
+jackson.version=org.codehaus.jackson:jackson-core-asl.version
 skipSnapshotsChecksum=true
