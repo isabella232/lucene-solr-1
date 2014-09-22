@@ -28,7 +28,6 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.ipc.RemoteException;
 import org.apache.lucene.store.BufferedIndexOutput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
@@ -36,8 +35,6 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.NoLockFactory;
 import org.apache.lucene.util.IOUtils;
-import org.apache.solr.common.SolrException;
-import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.store.blockcache.CustomBufferedIndexInput;
 import org.apache.solr.util.HdfsUtil;
 import org.slf4j.Logger;
@@ -47,20 +44,25 @@ public class HdfsDirectory extends Directory {
 
   public static Logger LOG = LoggerFactory.getLogger(HdfsDirectory.class);
   
-  public static final int BUFFER_SIZE = 8192;
-  
   private static final String LF_EXT = ".lf";
   protected static final String SEGMENTS_GEN = "segments.gen";
   protected Path hdfsDirPath;
   protected Configuration configuration;
   
   private final FileSystem fileSystem;
+
+  private final int bufferSize;
   
-  public HdfsDirectory(Path hdfsDirPath, Configuration configuration)
+  public HdfsDirectory(Path hdfsDirPath, Configuration configuration) throws IOException {
+    this(hdfsDirPath, configuration, 4096);
+  }
+  
+  public HdfsDirectory(Path hdfsDirPath, Configuration configuration, int bufferSize)
       throws IOException {
     setLockFactory(NoLockFactory.getNoLockFactory());
     this.hdfsDirPath = hdfsDirPath;
     this.configuration = configuration;
+    this.bufferSize = bufferSize;
     fileSystem = FileSystem.get(hdfsDirPath.toUri(), configuration);
     
     try {
@@ -106,12 +108,8 @@ public class HdfsDirectory extends Directory {
   @Override
   public IndexInput openInput(String name, IOContext context)
       throws IOException {
-    return openInput(name, BUFFER_SIZE);
-  }
-  
-  private IndexInput openInput(String name, int bufferSize) throws IOException {
     return new HdfsIndexInput(name, getFileSystem(), new Path(
-        hdfsDirPath, name), BUFFER_SIZE);
+        hdfsDirPath, name), bufferSize);
   }
   
   @Override
@@ -128,8 +126,8 @@ public class HdfsDirectory extends Directory {
   
   @Override
   public long fileLength(String name) throws IOException {
-    return HdfsFileReader.getLength(getFileSystem(),
-        new Path(hdfsDirPath, name));
+    FileStatus fileStatus = fileSystem.getFileStatus(new Path(hdfsDirPath, name));
+    return fileStatus.getLen();
   }
   
   public long fileModified(String name) throws IOException {
@@ -176,7 +174,7 @@ public class HdfsDirectory extends Directory {
     
     public HdfsIndexInput(String name, FileSystem fileSystem, Path path,
         int bufferSize) throws IOException {
-      super(name);
+      super(name, bufferSize);
       this.path = path;
       LOG.debug("Opening normal index input on {}", path);
       FileStatus fileStatus = fileSystem.getFileStatus(path);

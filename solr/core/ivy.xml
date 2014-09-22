@@ -53,7 +53,7 @@
     <dependency org="org.apache.hadoop" name="hadoop-auth" rev="${hadoop.version}" conf="compile.hadoop->*"/>
     <dependency org="commons-configuration" name="commons-configuration" rev="1.6" conf="compile.hadoop->*"/>
     <dependency org="com.google.protobuf" name="protobuf-java" rev="${protobuf.version}" conf="compile.hadoop->*"/>
-    <dependency org="com.googlecode.concurrentlinkedhashmap" name="concurrentlinkedhashmap-lru" rev="1.2" conf="compile.hadoop->*"/>
+    <dependency org="com.googlecode.concurrentlinkedhashmap" name="concurrentlinkedhashmap-lru" rev="1.4" conf="compile.hadoop->*"/>
     <dependency org="org.apache.curator" name="curator-framework" rev="2.6.0" conf="compile.hadoop->*"/>
     <dependency org="org.apache.curator" name="curator-client" rev="2.6.0" conf="compile.hadoop->*"/>
 
