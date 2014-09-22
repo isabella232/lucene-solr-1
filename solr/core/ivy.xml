@@ -66,6 +66,8 @@
     <dependency org="commons-configuration" name="commons-configuration" rev="${/commons-configuration/commons-configuration}" conf="compile.hadoop"/>
     <dependency org="com.google.protobuf" name="protobuf-java" rev="${/com.google.protobuf/protobuf-java}" conf="compile.hadoop"/>
     <dependency org="com.googlecode.concurrentlinkedhashmap" name="concurrentlinkedhashmap-lru" rev="${/com.googlecode.concurrentlinkedhashmap/concurrentlinkedhashmap-lru}" conf="compile.hadoop"/>
+    <dependency org="org.apache.curator" name="curator-framework" rev="${/org.apache.curator/curator-framework}" conf="compile.hadoop"/>
+    <dependency org="org.apache.curator" name="curator-client" rev="${/org.apache.curator/curator-client}" conf="compile.hadoop"/> 
 
     <!-- Hadoop DfsMiniCluster Dependencies-->
     <dependency org="org.apache.hadoop" name="hadoop-common" rev="${/org.apache.hadoop/hadoop-common}" conf="test.DfsMiniCluster">
