@@ -38,9 +38,11 @@ import org.apache.http.NameValuePair;
 import org.apache.http.NoHttpResponseException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpOptions;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.params.ClientPNames;
 import org.apache.http.conn.ClientConnectionManager;
@@ -261,7 +263,7 @@ public class HttpSolrServer extends SolrServer {
             }
             method = new HttpGet( baseUrl + path + ClientUtils.toQueryString( params, false ) );
           }
-          else if( SolrRequest.METHOD.POST == request.getMethod() ) {
+          else if( SolrRequest.METHOD.POST == request.getMethod() || SolrRequest.METHOD.PUT == request.getMethod() ) {
             sendAuthenticatingRequestIfNecessary();
             String url = baseUrl + path;
             boolean hasNullStreamName = false;
@@ -273,7 +275,8 @@ public class HttpSolrServer extends SolrServer {
                 }
               }
             }
-            boolean isMultipart = (this.useMultiPartPost || ( streams != null && streams.size() > 1 )) && !hasNullStreamName;
+            boolean isMultipart = ((this.useMultiPartPost && SolrRequest.METHOD.POST == request.getMethod())
+              || ( streams != null && streams.size() > 1 )) && !hasNullStreamName;
             
             // only send this list of params as query string params
             ModifiableSolrParams queryParams = new ModifiableSolrParams();
@@ -287,11 +290,13 @@ public class HttpSolrServer extends SolrServer {
               }
             }
             
-            LinkedList<NameValuePair> postParams = new LinkedList<NameValuePair>();
+            LinkedList<NameValuePair> postOrPutParams = new LinkedList<NameValuePair>();
             if (streams == null || isMultipart) {
-              HttpPost post = new HttpPost(url + ClientUtils.toQueryString( queryParams, false ));
+              String fullQueryUrl = url + ClientUtils.toQueryString( queryParams, false );
+              HttpEntityEnclosingRequestBase postOrPut = SolrRequest.METHOD.POST == request.getMethod() ?
+                new HttpPost(fullQueryUrl) : new HttpPut(fullQueryUrl);
               if (!isMultipart) {
-                post.addHeader("Content-Type",
+                postOrPut.addHeader("Content-Type",
                     "application/x-www-form-urlencoded; charset=UTF-8");
               }
 
@@ -305,7 +310,7 @@ public class HttpSolrServer extends SolrServer {
                     if (isMultipart) {
                       parts.add(new FormBodyPart(p, new StringBody(v, Charset.forName("UTF-8"))));
                     } else {
-                      postParams.add(new BasicNameValuePair(p, v));
+                      postOrPutParams.add(new BasicNameValuePair(p, v));
                     }
                   }
                 }
@@ -334,18 +339,19 @@ public class HttpSolrServer extends SolrServer {
                 for(FormBodyPart p: parts) {
                   entity.addPart(p);
                 }
-                post.setEntity(entity);
+                postOrPut.setEntity(entity);
               } else {
                 //not using multipart
-                post.setEntity(new UrlEncodedFormEntity(postParams, "UTF-8"));
+                postOrPut.setEntity(new UrlEncodedFormEntity(postOrPutParams, "UTF-8"));
               }
 
-              method = post;
+              method = postOrPut;
             }
             // It is has one stream, it is the post body, put the params in the URL
             else {
               String pstr = ClientUtils.toQueryString(params, false);
-              HttpPost post = new HttpPost(url + pstr);
+              HttpEntityEnclosingRequestBase postOrPut = SolrRequest.METHOD.POST == request.getMethod() ?
+                new HttpPost(url + pstr) : new HttpPut(url + pstr);
 
               // Single stream as body
               // Using a loop just to get the first one
@@ -355,7 +361,7 @@ public class HttpSolrServer extends SolrServer {
                 break;
               }
               if (contentStream[0] instanceof RequestWriter.LazyContentStream) {
-                post.setEntity(new InputStreamEntity(contentStream[0].getStream(), -1) {
+                postOrPut.setEntity(new InputStreamEntity(contentStream[0].getStream(), -1) {
                   @Override
                   public Header getContentType() {
                     return new BasicHeader("Content-Type", contentStream[0].getContentType());
@@ -368,7 +374,7 @@ public class HttpSolrServer extends SolrServer {
                   
                 });
               } else {
-                post.setEntity(new InputStreamEntity(contentStream[0].getStream(), -1) {
+                postOrPut.setEntity(new InputStreamEntity(contentStream[0].getStream(), -1) {
                   @Override
                   public Header getContentType() {
                     return new BasicHeader("Content-Type", contentStream[0].getContentType());
@@ -380,7 +386,7 @@ public class HttpSolrServer extends SolrServer {
                   }
                 });
               }
-              method = post;
+              method = postOrPut;
             }
           }
           else {
