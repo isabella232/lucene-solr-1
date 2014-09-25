@@ -17,6 +17,13 @@ package org.apache.solr.servlet;
 * limitations under the License.
 */
 
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.api.ACLProvider;
+import org.apache.curator.framework.imps.DefaultACLProvider;
+import org.apache.curator.retry.ExponentialBackoffRetry;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
 import org.apache.hadoop.security.authentication.server.KerberosAuthenticationHandler;
@@ -26,6 +33,8 @@ import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthentica
 import org.apache.hadoop.security.token.delegation.web.KerberosDelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.token.delegation.web.PseudoDelegationTokenAuthenticationHandler;
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
+
+import org.apache.solr.client.solrj.impl.HttpClientUtil;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -55,6 +64,7 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
   
   // The ProxyUserFilter can't handle options, let's handle it here
   private HttpServlet optionsServlet;
+  private CuratorFramework curatorFramework;
 
   private static String superUser = System.getProperty("solr.authorization.superuser", "solr");
 
@@ -94,6 +104,9 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
   @Override
   public void destroy() {
     optionsServlet.destroy();
+    optionsServlet = null;
+    if (curatorFramework != null) curatorFramework.close();
+    curatorFramework = null;
     super.destroy();
   }
 
@@ -126,6 +139,48 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     return conf;
   }
 
+  private String getZkChroot() {
+    String zkHost = System.getProperty("zkHost");
+    return zkHost != null?
+      zkHost.substring(zkHost.indexOf("/"), zkHost.length()) : "/solr";
+  }
+
+  protected void setDefaultDelegationTokenProp(Properties properties, String name, String value) {
+    String currentValue = properties.getProperty(name);
+    if (null == currentValue) {
+      properties.setProperty(name, value);
+    } else if (!value.equals(currentValue)) {
+      LOG.debug("Default delegation token configuration overriden.  Default: " + value
+        + " Actual: " + currentValue);
+    }
+  }
+
+  protected CuratorFramework getCuratorClient() {
+    RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
+    String zkChroot = getZkChroot();
+    String zkNamespace = zkChroot.startsWith("/") ? zkChroot.substring(1) : zkChroot;
+    String zkHost = System.getProperty("zkHost");
+    String zkConnectionString = zkHost != null ? zkHost.substring(0, zkHost.indexOf("/"))  : "localhost:2181";
+
+    // open to everyone -- will need to change when Solr uses ZK acls
+    ACLProvider aclProvider = new DefaultACLProvider();
+    boolean useSASL = System.getProperty("java.security.auth.login.config") != null;
+    if (useSASL) {
+      LOG.info("Connecting to ZooKeeper with SASL/Kerberos");
+      HttpClientUtil.createClient(null); // will set jaas configuration if proper parameters set.
+    } else {
+      LOG.info("Connecting to ZooKeeper without authentication");
+    }
+    curatorFramework = CuratorFrameworkFactory.builder()
+      .namespace(zkNamespace)
+      .connectString(zkConnectionString)
+      .retryPolicy(retryPolicy)
+      .aclProvider(aclProvider)
+      .build();
+    curatorFramework.start();
+    return curatorFramework;
+  }
+
   /**
    * Returns the System properties to be used by the authentication filter.
    * <p/>
@@ -152,6 +207,20 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
         name = name.substring(SOLR_PREFIX.length());
         props.setProperty(name, value);
       }
+    }
+
+    if(null != System.getProperty("zkHost")) {
+      setDefaultDelegationTokenProp(props, "token.validity", "36000");
+      setDefaultDelegationTokenProp(props, "signer.secret.provider", "zookeeper");
+      String chrootPath = getZkChroot();
+      setDefaultDelegationTokenProp(props,
+        "signer.secret.provider.zookeeper.path", chrootPath + "/token");
+      if (filterConfig != null) {
+        filterConfig.getServletContext().setAttribute("signer.secret.provider.zookeeper.curator.client",
+          getCuratorClient());
+      }
+    } else {
+      LOG.info("zkHost is null, not setting ZK-related delegation token properties");
     }
 
     // Ensure we use the DelegationToken-supported versions

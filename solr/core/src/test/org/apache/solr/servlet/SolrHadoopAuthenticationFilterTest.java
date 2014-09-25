@@ -23,12 +23,14 @@ import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHand
 import org.apache.hadoop.security.token.delegation.web.PseudoDelegationTokenAuthenticationHandler;
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 import static org.apache.solr.servlet.SolrHadoopAuthenticationFilter.SOLR_PROXYUSER_PREFIX;
+import static org.apache.solr.servlet.SolrHadoopAuthenticationFilter.SOLR_PREFIX;
 import org.apache.solr.SolrTestCaseJ4;
 
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.Map;
 
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -37,7 +39,13 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
+    System.setProperty("zkHost", "127.0.0.1:2180/solr");
     filter = new SolrHadoopAuthenticationFilter();
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    System.clearProperty("zkHost");
   }
 
   @Test
@@ -46,6 +54,32 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
     assertEquals(props.getProperty(SolrHadoopAuthenticationFilter.AUTH_TYPE),
       PseudoDelegationTokenAuthenticationHandler.class.getName());
     assertEquals("true", props.getProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED));
+    assertEquals("36000", props.getProperty("token.validity"));
+    assertEquals("zookeeper", props.getProperty("signer.secret.provider"));
+    assertEquals("/solr/token", props.getProperty("signer.secret.provider.zookeeper.path"));
+  }
+
+  @Test
+  public void testOverrideDefaults() throws Exception {
+    Map<String, String> map = new HashMap<String, String>();
+    map.put(SOLR_PREFIX + SolrHadoopAuthenticationFilter.AUTH_TYPE, "otherAuthType");
+    map.put(SOLR_PREFIX + PseudoAuthenticationHandler.ANONYMOUS_ALLOWED, "false");
+    map.put(SOLR_PREFIX + "token.validity", "1234");
+    map.put(SOLR_PREFIX + "signer.secret.provider", "notzookeeper");
+    map.put(SOLR_PREFIX + "signer.secret.provider.zookeeper.path", "/notsolr/tokens");
+    for (Map.Entry<String, String> entry : map.entrySet()) {
+      System.setProperty(entry.getKey(), entry.getValue());
+    }
+    Properties props = filter.getConfiguration(null, null);
+
+    for (Map.Entry<String, String> entry : map.entrySet()) {
+      if (entry.getKey().startsWith(SOLR_PROXYUSER_PREFIX)) {
+        String newKey = PROXYUSER_PREFIX + "."
+          + entry.getKey().substring(SOLR_PROXYUSER_PREFIX.length());
+        assertEquals(entry.getValue(), props.get(newKey));
+      }
+      System.clearProperty(entry.getKey());
+    }
   }
 
   @Test
@@ -56,6 +90,7 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
     Properties props = filter.getConfiguration(null, null);
     assertEquals(KerberosDelegationTokenAuthenticationHandler.class.getName(),
       props.getProperty(SolrHadoopAuthenticationFilter.AUTH_TYPE));
+    System.clearProperty(authType);
   }
 
   @Test
@@ -84,7 +119,7 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
       if (entry.getKey().startsWith(SOLR_PROXYUSER_PREFIX)) {
         String newKey = PROXYUSER_PREFIX + "."
           + entry.getKey().substring(SOLR_PROXYUSER_PREFIX.length());
-        assertEquals(conf.get(newKey), entry.getValue());
+        assertEquals(entry.getValue(), conf.get(newKey));
       }
       System.clearProperty(entry.getKey());
     }
