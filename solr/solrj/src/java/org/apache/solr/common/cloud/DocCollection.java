@@ -152,10 +152,7 @@ public class DocCollection extends ZkNodeProps {
     return autoAddReplicas;
   }
   
-  public int getMaxShardsPerNode() {
-    if (maxShardsPerNode == null) {
-      throw new SolrException(ErrorCode.BAD_REQUEST, ZkStateReader.MAX_SHARDS_PER_NODE + " is not in the cluster state.");
-    }
+  public Integer getMaxShardsPerNode() {
     return maxShardsPerNode;
   }
 
