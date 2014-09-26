@@ -174,8 +174,11 @@ public class HttpSolrServer extends SolrServer {
   }
 
   /**
-   * Expert Method.
+   * Expert Method
    * @param queryParams set of param keys to only send via the query string
+   * Note that the param will be sent as a query string if the key is part
+   * of this Set or the SolrRequest's query params.
+   * @see org.apache.solr.client.solrj.SolrRequest#getQueryParams
    */
   public void setQueryParams(Set<String> queryParams) {
     this.queryParams = queryParams;
@@ -207,6 +210,23 @@ public class HttpSolrServer extends SolrServer {
   public NamedList<Object> request(final SolrRequest request,
       final ResponseParser processor) throws SolrServerException, IOException {
     return request(request, null, processor);
+  }
+
+  protected ModifiableSolrParams calculateQueryParams(Set<String> queryParamNames,
+      ModifiableSolrParams wparams) {
+    ModifiableSolrParams queryModParams = new ModifiableSolrParams();
+    if (queryParamNames != null) {
+      for (String param : queryParamNames) {
+        String[] value = wparams.getParams(param) ;
+        if (value != null) {
+          for (String v : value) {
+            queryModParams.add(param, v);
+          }
+          wparams.remove(param);
+        }
+      }
+    }
+    return queryModParams;
   }
 
   /**
@@ -277,19 +297,11 @@ public class HttpSolrServer extends SolrServer {
             }
             boolean isMultipart = ((this.useMultiPartPost && SolrRequest.METHOD.POST == request.getMethod())
               || ( streams != null && streams.size() > 1 )) && !hasNullStreamName;
-            
-            // only send this list of params as query string params
-            ModifiableSolrParams queryParams = new ModifiableSolrParams();
-            for (String param : this.queryParams) {
-              String[] value = wparams.getParams(param) ;
-              if (value != null) {
-                for (String v : value) {
-                  queryParams.add(param, v);
-                }
-                wparams.remove(param);
-              }
-            }
-            
+
+            // send server list and request list as query string params
+            ModifiableSolrParams queryParams = calculateQueryParams(this.queryParams, wparams);
+            queryParams.add(calculateQueryParams(request.getQueryParams(), wparams));
+
             LinkedList<NameValuePair> postOrPutParams = new LinkedList<NameValuePair>();
             if (streams == null || isMultipart) {
               String fullQueryUrl = url + ClientUtils.toQueryString( queryParams, false );
