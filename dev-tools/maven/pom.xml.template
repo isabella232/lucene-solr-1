@@ -52,6 +52,7 @@
     <restlet.version>2.1.1</restlet.version>
     <hadoop.version>${cdh.hadoop.version}</hadoop.version>
     <sentry.version>${cdh.sentry.version}</sentry.version>
+    <jackson.version>${cdh.jackson.version}</jackson.version>
 
     <!-- RandomizedTesting library system properties -->
     <tests.iters>1</tests.iters>
@@ -439,6 +440,16 @@
         <groupId>org.carrot2</groupId>
         <artifactId>morfologik-polish</artifactId>
         <version>1.5.5</version>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.jackson</groupId>
+        <artifactId>jackson-core-asl</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.jackson</groupId>
+        <artifactId>jackson-mapper-asl</artifactId>
+        <version>${jackson.version}</version>
       </dependency>
       <dependency>
         <groupId>org.codehaus.woodstox</groupId>

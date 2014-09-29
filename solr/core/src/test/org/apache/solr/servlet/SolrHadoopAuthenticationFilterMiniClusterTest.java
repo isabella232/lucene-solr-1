@@ -42,6 +42,8 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
+import org.apache.solr.client.solrj.request.DelegationTokenRequest;
+import org.apache.solr.client.solrj.response.DelegationTokenResponse;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -60,6 +62,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
 
 import javax.servlet.FilterChain;
@@ -408,40 +411,55 @@ public class SolrHadoopAuthenticationFilterMiniClusterTest extends SolrTestCaseJ
     return response;
   }
 
-  // Ideally, we would do all of this via solrj, but solrj doesn't support
-  // the delegation token commands yet
-  private String getDelegationToken(String renewer, String user) throws Exception {
-    HttpGet get = new HttpGet(getTokenQueryString(
-      solrServer.getBaseURL(), user, "GETDELEGATIONTOKEN", null, null, renewer));
-    HttpResponse response = getHttpResponse(get);
-    assertNotNull(response);
-    assertEquals(200, response.getStatusLine().getStatusCode());
-    assertTrue(response.getEntity().getContentType().getValue().contains("application/json"));
-    ObjectMapper mapper = new ObjectMapper();
-    Map map = mapper.readValue(response.getEntity().getContent(), Map.class);
-    String dt = (String) ((Map) map.get("Token")).get("urlString");
-    EntityUtils.consumeQuietly(response.getEntity());
-    return dt;
+  private String getDelegationToken(final String renewer, final String user) throws Exception {
+    DelegationTokenRequest.Get get = new DelegationTokenRequest.Get(renewer) {
+      @Override
+      public SolrParams getParams() {
+        ModifiableSolrParams params = new ModifiableSolrParams(super.getParams());
+        params.set(HttpParamToRequestFilter.USER, user);
+        return params;
+      }
+    };
+    DelegationTokenResponse.Get getResponse = get.process(solrServer);
+    return getResponse.getDelegationToken();
   }
 
-  private void renewDelegationToken(String token, int expectedStatusCode, String user)
-  throws Exception {
-    HttpPut put = new HttpPut(getTokenQueryString(
-      solrServer.getBaseURL(), user, "RENEWDELEGATIONTOKEN", null, token, null));
-    HttpResponse response = getHttpResponse(put);
-    assertNotNull(response);
-    assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
-    EntityUtils.consumeQuietly(response.getEntity());
+  private long renewDelegationToken(final String token, final int expectedStatusCode,
+      final String user) throws Exception {
+    DelegationTokenRequest.Renew renew = new DelegationTokenRequest.Renew(token) {
+      @Override
+      public SolrParams getParams() {
+        ModifiableSolrParams params = new ModifiableSolrParams(super.getParams());
+        params.set(HttpParamToRequestFilter.USER, user);
+        return params;
+      }
+
+      @Override
+      public Set<String> getQueryParams() {
+        Set<String> queryParams = super.getQueryParams();
+        queryParams.add(HttpParamToRequestFilter.USER);
+        return queryParams;
+      }
+    };
+    try {
+      DelegationTokenResponse.Renew renewResponse = renew.process(solrServer);
+      assertEquals(200, expectedStatusCode);
+      return renewResponse.getExpirationTime();
+    } catch (HttpSolrServer.RemoteSolrException ex) {
+      assertEquals(expectedStatusCode, ex.code());
+      return -1;
+    }
   }
 
   private void cancelDelegationToken(String token, int expectedStatusCode)
   throws Exception {
-    HttpPut put = new HttpPut(getTokenQueryString(
-      solrServer.getBaseURL(), null, "CANCELDELEGATIONTOKEN", null, token, null));
-    HttpResponse response = getHttpResponse(put);
-    assertNotNull(response);
-    assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
-    EntityUtils.consumeQuietly(response.getEntity());
+    DelegationTokenRequest.Cancel cancel = new DelegationTokenRequest.Cancel(token);
+    try {
+      DelegationTokenResponse.Cancel cancelResponse = cancel.process(solrServer);
+      assertEquals(200, expectedStatusCode);
+    } catch (HttpSolrServer.RemoteSolrException ex) {
+      assertEquals(expectedStatusCode, ex.code());
+    }
   }
 
   private void doSolrRequest(String token, int expectedStatusCode)
@@ -482,8 +500,9 @@ public class SolrHadoopAuthenticationFilterMiniClusterTest extends SolrTestCaseJ
       miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
     doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl);
 
-    // renew token
-    renewDelegationToken(token, 200, user);
+    // renew token, renew time should be past current time
+    long currentTimeMillis = System.currentTimeMillis();
+    assertTrue(renewDelegationToken(token, 200, user) > currentTimeMillis);
 
     // pass with token
     doSolrRequest(token, 200);
@@ -524,7 +543,10 @@ public class SolrHadoopAuthenticationFilterMiniClusterTest extends SolrTestCaseJ
     String user = "bar";
     String token = getDelegationToken(user, user);
     assertNotNull(token);
-    renewDelegationToken(token, 200, user);
+
+    // renew token, renew time should be past current time
+    long currentTimeMillis = System.currentTimeMillis();
+    assertTrue(renewDelegationToken(token, 200, user) > currentTimeMillis);
   }
 
   @Test
