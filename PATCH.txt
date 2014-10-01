@@ -1,0 +1,3 @@
+PATCH-449
+SOLR-6393 Improve transaction log replay speed on HDFS
+SOLR-6403 TransactionLog replay status logging
