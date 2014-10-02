@@ -172,7 +172,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
     Configuration conf = getConf();
     FileSystem fileSystem = null;
     try {
-      fileSystem = FileSystem.newInstance(hdfsDirPath.toUri(), conf);
+      fileSystem = FileSystem.get(hdfsDirPath.toUri(), conf);
       return fileSystem.exists(hdfsDirPath);
     } catch (IOException e) {
       LOG.error("Error checking if hdfs path exists", e);
@@ -186,6 +186,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
     Configuration conf = new Configuration();
     confDir = params.get(CONFIG_DIRECTORY, null);
     HdfsUtil.addHdfsResources(conf, confDir);
+    conf.setBoolean("fs.hdfs.impl.disable.cache", true);
     return conf;
   }
   
@@ -194,7 +195,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
     Configuration conf = getConf();
     FileSystem fileSystem = null;
     try {
-      fileSystem = FileSystem.newInstance(new URI(cacheValue.path), conf);
+      fileSystem = FileSystem.get(new URI(cacheValue.path), conf);
       boolean success = fileSystem.delete(new Path(cacheValue.path), true);
       if (!success) {
         throw new RuntimeException("Could not remove directory");
@@ -272,7 +273,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
     Path hdfsDirPath = new Path(path);
     FileSystem fileSystem = null;
     try {
-      fileSystem = FileSystem.newInstance(hdfsDirPath.toUri(), getConf());
+      fileSystem = FileSystem.get(hdfsDirPath.toUri(), getConf());
       long size = fileSystem.getContentSummary(hdfsDirPath).getLength();
       return size;
     } catch (IOException e) {
