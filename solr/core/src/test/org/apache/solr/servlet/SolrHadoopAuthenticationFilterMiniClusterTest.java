@@ -39,6 +39,8 @@ import org.apache.http.util.EntityUtils;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.cloud.MiniSolrCloudCluster;
 import org.apache.solr.client.solrj.SolrRequest;
+import org.apache.solr.client.solrj.SolrResponse;
+import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
@@ -47,6 +49,7 @@ import org.apache.solr.client.solrj.response.DelegationTokenResponse;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.util.ContentStream;
 import static org.apache.solr.servlet.SolrHadoopAuthenticationFilter.SOLR_PROXYUSER_PREFIX;
 
 import org.codehaus.jackson.map.ObjectMapper;
@@ -58,6 +61,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -476,6 +480,16 @@ public class SolrHadoopAuthenticationFilterMiniClusterTest extends SolrTestCaseJ
     EntityUtils.consumeQuietly(response.getEntity());
   }
 
+  private void doSolrRequest(HttpSolrServer server, SolrRequest request,
+      int expectedStatusCode) throws Exception {
+    try {
+      server.request(request);
+      assertEquals(200, expectedStatusCode);
+    } catch (HttpSolrServer.RemoteSolrException ex) {
+      assertEquals(expectedStatusCode, ex.code());
+    }
+  }
+
   /**
    * Test basic Delegation Token operations
    */
@@ -573,5 +587,57 @@ public class SolrHadoopAuthenticationFilterMiniClusterTest extends SolrTestCaseJ
     byte [] body = IOUtils.toByteArray(response.getEntity().getContent());
     assertTrue(new String(body, "UTF-8").contains("<int name=\"status\">0</int>"));
     EntityUtils.consumeQuietly(response.getEntity());
+  }
+
+  private SolrRequest getAdminCoreRequest(final SolrParams params) {
+    return new SolrRequest(SolrRequest.METHOD.GET, "/admin/cores") {
+      @Override
+      public Collection<ContentStream> getContentStreams() {
+        return null;
+      }
+
+      @Override
+      public SolrParams getParams() {
+        return params;
+      }
+
+      @Override
+      public SolrResponse process(SolrServer server) {
+        return null;
+      }
+    };
+  }
+
+  /**
+   * Test HttpSolrServer's delegation token support
+   */
+  @Test
+  public void testDelegationTokenSystemProperty() throws Exception {
+    // Get token
+    String token = getDelegationToken(null, "bar");
+    assertNotNull(token);
+
+    SolrRequest request = getAdminCoreRequest(new ModifiableSolrParams());
+    JettySolrRunner runner = miniCluster.getJettySolrRunners().get(0);
+
+    // test without token
+    HttpSolrServer ss = new HttpSolrServer(runner.getBaseUrl().toString());
+    doSolrRequest(ss, request, ErrorCode.UNAUTHORIZED.code);
+    ss.shutdown();
+
+    System.setProperty(HttpSolrServer.DELEGATION_TOKEN_PROPERTY, token);
+    try {
+      ss = new HttpSolrServer(runner.getBaseUrl().toString());
+      // test with token via property
+      doSolrRequest(ss, request, 200);
+
+      // test with param -- param should take precendence over system prop
+      ModifiableSolrParams tokenParam = new ModifiableSolrParams();
+      tokenParam.set(HttpSolrServer.DELEGATION_TOKEN_PARAM, "invalidToken");
+      doSolrRequest(ss, getAdminCoreRequest(tokenParam), ErrorCode.FORBIDDEN.code);
+      ss.shutdown();
+    } finally {
+      System.clearProperty(HttpSolrServer.DELEGATION_TOKEN_PROPERTY);
+    }
   }
 }
