@@ -33,6 +33,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.io.IOUtils;
@@ -88,6 +89,9 @@ public class HttpSolrServer extends SolrServer {
   private static final String DEFAULT_PATH = "/select";
   private static final long serialVersionUID = -946812319974801896L;
   
+  public static final String DELEGATION_TOKEN_PROPERTY = "solr.authentication.solrj.token.delegation";
+  public static final String DELEGATION_TOKEN_PARAM = "delegation";
+
   /**
    * User-Agent String.
    */
@@ -134,6 +138,8 @@ public class HttpSolrServer extends SolrServer {
   private volatile boolean useMultiPartPost;
   private final boolean internalClient;
   private final AtomicBoolean needsAuthenticatingRequest;
+  private final String delegationToken;
+  private final Set<String> delegationTokenQueryParams;
 
   private volatile Set<String> queryParams = Collections.emptySet();
 
@@ -176,6 +182,9 @@ public class HttpSolrServer extends SolrServer {
     
     this.parser = parser;
     this.needsAuthenticatingRequest = (isSecure()) ? new AtomicBoolean(true) : null;
+    this.delegationToken = System.getProperty(DELEGATION_TOKEN_PROPERTY);
+    this.delegationTokenQueryParams = new TreeSet<String>();
+    this.delegationTokenQueryParams.add(DELEGATION_TOKEN_PARAM);
   }
   
   public Set<String> getQueryParams() {
@@ -323,6 +332,17 @@ public class HttpSolrServer extends SolrServer {
     if (invariantParams != null) {
       wparams.add(invariantParams);
     }
+    boolean useDelegationTokenAsQueryParam = false;
+    if (delegationToken != null) {
+     if (wparams.getParams(DELEGATION_TOKEN_PARAM) != null) {
+       log.warn("delegation token enabled, but request already contains a parameter with name: "
+         + DELEGATION_TOKEN_PARAM + ", not adding delegation token");
+     } else {
+       wparams.set(DELEGATION_TOKEN_PARAM, delegationToken);
+       useDelegationTokenAsQueryParam = true;
+     }
+    }
+    params = wparams;
     
     int tries = maxRetries + 1;
     try {
@@ -356,11 +376,14 @@ public class HttpSolrServer extends SolrServer {
             boolean isMultipart = ((this.useMultiPartPost && SolrRequest.METHOD.POST == request.getMethod())
               || ( streams != null && streams.size() > 1 )) && !hasNullStreamName;
 
-            LinkedList<NameValuePair> postOrPutParams = new LinkedList<NameValuePair>();
+            LinkedList<NameValuePair> postOrPutParams = new LinkedList<>();
             if (streams == null || isMultipart) {
               // send server list and request list as query string params
               ModifiableSolrParams queryParams = calculateQueryParams(this.queryParams, wparams);
               queryParams.add(calculateQueryParams(request.getQueryParams(), wparams));
+              if (useDelegationTokenAsQueryParam) {
+                queryParams.add(calculateQueryParams(delegationTokenQueryParams, wparams));
+              }
               String fullQueryUrl = url + ClientUtils.toQueryString( queryParams, false );
               HttpEntityEnclosingRequestBase postOrPut = SolrRequest.METHOD.POST == request.getMethod() ?
                 new HttpPost(fullQueryUrl) : new HttpPut(fullQueryUrl);

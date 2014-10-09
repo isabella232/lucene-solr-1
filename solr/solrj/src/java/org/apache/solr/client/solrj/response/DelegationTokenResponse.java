@@ -34,6 +34,10 @@ import java.util.Map;
 public class DelegationTokenResponse extends SolrResponseBase {
 
   public static class Get extends DelegationTokenResponse {
+
+    /**
+     * Get the urlString to be used as the delegation token
+     */
     public String getDelegationToken() {
       try {
         Map map = (Map)getResponse().get("Token");
