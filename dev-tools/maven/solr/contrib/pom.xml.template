@@ -37,6 +37,7 @@
     <module>dataimporthandler-extras</module>
     <module>extraction</module>
     <module>langid</module>
+    <module>security-util</module>
     <module>sentry-handlers</module>
     <module>uima</module>
     <module>velocity</module>

@@ -346,6 +346,11 @@
         <classifier>tests</classifier>
       </dependency>
       <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-mapreduce-client-core</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.apache.sentry</groupId>
         <artifactId>sentry-binding-solr</artifactId>
         <version>${sentry.version}</version>

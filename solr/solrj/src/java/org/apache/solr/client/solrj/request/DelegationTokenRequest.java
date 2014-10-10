@@ -41,7 +41,10 @@ public abstract class DelegationTokenRequest extends SolrRequest
   protected static final String TOKEN_KEY = "token";
 
   public DelegationTokenRequest(METHOD m) {
-    super(m, "/"); // path doesn't matter
+    // path doesn't really matter -- the filter will respond to any path.
+    // setting the path to admin/collections lets us pass through CloudSolrServer
+    // without having to specify a collection (that may not even exist yet).
+    super(m, "/admin/collections");
   }
 
   protected void process(SolrServer server, DelegationTokenResponse res)
