@@ -62,9 +62,10 @@ public class OverseerTest extends SolrTestCaseJ4 {
 
   static final int TIMEOUT = 10000;
   private static final boolean DEBUG = false;
-
-  private List<Overseer> overseers = new ArrayList<Overseer>();
   
+  private List<Overseer> overseers = new ArrayList<Overseer>();
+  private List<ZkStateReader> readers = new ArrayList<ZkStateReader>();
+
   private String collection = "collection1";
   
   public static class MockZKController{
@@ -188,7 +189,6 @@ public class OverseerTest extends SolrTestCaseJ4 {
     Thread.sleep(3000); //XXX wait for threads to die...
   }
   
-  
   @After
   public void tearDown() throws Exception {
     super.tearDown();
@@ -196,6 +196,10 @@ public class OverseerTest extends SolrTestCaseJ4 {
       overseer.close();
     }
     overseers.clear();
+    for (ZkStateReader reader : readers) {
+      reader.close();
+    }
+    readers.clear();
   }
 
   @Test
@@ -978,6 +982,7 @@ public class OverseerTest extends SolrTestCaseJ4 {
       KeeperException, ParserConfigurationException, SAXException {
     SolrZkClient zkClient = new SolrZkClient(address, TIMEOUT);
     ZkStateReader reader = new ZkStateReader(zkClient);
+    readers.add(reader);
     LeaderElector overseerElector = new LeaderElector(zkClient);
     UpdateShardHandler updateShardHandler = new UpdateShardHandler(30000, 60000);
     if (overseers.size() > 0) {

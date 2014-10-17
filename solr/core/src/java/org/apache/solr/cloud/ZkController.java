@@ -45,8 +45,10 @@ import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest.WaitForState;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.cloud.BeforeReconnect;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.ClusterStateUtil;
+import org.apache.solr.common.cloud.DefaultConnectionStrategy;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.DocRouter;
 import org.apache.solr.common.cloud.ImplicitDocRouter;
@@ -215,19 +217,22 @@ public final class ZkController {
     this.leaderConflictResolveWait = leaderConflictResolveWait;
     
     this.clientTimeout = zkClientTimeout;
-    zkClient = new SolrZkClient(zkServerAddress, zkClientTimeout, zkClientConnectTimeout,
+    zkClient = new SolrZkClient(zkServerAddress, zkClientTimeout,
+        zkClientConnectTimeout, new DefaultConnectionStrategy(),
         // on reconnect, reload cloud info
         new OnReconnect() {
-
+          
           @Override
           public void command() {
             try {
               markAllAsNotLeader(registerOnReconnect);
               
-              // this is troublesome - we dont want to kill anything the old leader accepted
-              // though I guess sync will likely get those updates back? But only if
+              // this is troublesome - we dont want to kill anything the old
+              // leader accepted
+              // though I guess sync will likely get those updates back? But
+              // only if
               // he is involved in the sync, and he certainly may not be
-            //  ExecutorUtil.shutdownAndAwaitTermination(cc.getCmdDistribExecutor());
+              // ExecutorUtil.shutdownAndAwaitTermination(cc.getCmdDistribExecutor());
               // we need to create all of our lost watches
               
               // seems we dont need to do this again...
@@ -236,7 +241,7 @@ public final class ZkController {
               String adminPath;
               shardHandler = cc.getShardHandlerFactory().getShardHandler();
               adminPath = cc.getAdminPath();
-
+              
               cc.cancelCoreRecoveries();
               
               registerAllCoresAsDown(registerOnReconnect, false);
@@ -256,12 +261,15 @@ public final class ZkController {
               // we have to register as live first to pick up docs in the buffer
               createEphemeralLiveNode();
               
-              List<CoreDescriptor> descriptors = registerOnReconnect.getCurrentDescriptors();
+              List<CoreDescriptor> descriptors = registerOnReconnect
+                  .getCurrentDescriptors();
               // re register all descriptors
-              if (descriptors  != null) {
+              if (descriptors != null) {
                 for (CoreDescriptor descriptor : descriptors) {
-                  // TODO: we need to think carefully about what happens when it was
-                  // a leader that was expired - as well as what to do about leaders/overseers
+                  // TODO: we need to think carefully about what happens when it
+                  // was
+                  // a leader that was expired - as well as what to do about
+                  // leaders/overseers
                   // with connection loss
                   try {
                     // unload solrcores that have been 'failed over'
@@ -273,7 +281,7 @@ public final class ZkController {
                   }
                 }
               }
-  
+              
             } catch (InterruptedException e) {
               // Restore the interrupted status
               Thread.currentThread().interrupt();
@@ -284,10 +292,18 @@ public final class ZkController {
               throw new ZooKeeperException(
                   SolrException.ErrorCode.SERVER_ERROR, "", e);
             }
-
           }
-
- 
+          
+        }, new BeforeReconnect() {
+          
+          @Override
+          public void command() {
+            try {
+              ZkController.this.overseer.close();
+            } catch (Exception e) {
+              log.error("Error trying to stop any Overseer threads", e);
+            }
+          }
         });
     
     this.overseerJobQueue = Overseer.getInQueue(zkClient);

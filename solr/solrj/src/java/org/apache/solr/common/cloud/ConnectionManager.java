@@ -41,6 +41,7 @@ public class ConnectionManager implements Watcher {
   private final SolrZkClient client;
 
   private final OnReconnect onReconnect;
+  private final BeforeReconnect beforeReconnect;
 
   private volatile boolean isClosed = false;
 
@@ -70,12 +71,13 @@ public class ConnectionManager implements Watcher {
 
   private volatile LikelyExpiredState likelyExpiredState = LikelyExpiredState.EXPIRED;
 
-  public ConnectionManager(String name, SolrZkClient client, String zkServerAddress, ZkClientConnectionStrategy strat, OnReconnect onConnect) {
+  public ConnectionManager(String name, SolrZkClient client, String zkServerAddress, ZkClientConnectionStrategy strat, OnReconnect onConnect, BeforeReconnect beforeReconnect) {
     this.name = name;
     this.client = client;
     this.connectionStrategy = strat;
     this.zkServerAddress = zkServerAddress;
     this.onReconnect = onConnect;
+    this.beforeReconnect = beforeReconnect;
   }
   
   private synchronized void connected() {
@@ -116,7 +118,9 @@ public class ConnectionManager implements Watcher {
       likelyExpiredState = LikelyExpiredState.EXPIRED;
       
       log.info("Our previous ZooKeeper session was expired. Attempting to reconnect to recover relationship with ZooKeeper...");
-      
+      if (beforeReconnect != null) {
+        beforeReconnect.command();
+      }
       try {
         connectionStrategy.reconnect(zkServerAddress,
             client.getZkClientTimeout(), this,
