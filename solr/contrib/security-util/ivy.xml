@@ -24,9 +24,9 @@
     </configurations>
     <dependencies>
       <dependency org="org.apache.hadoop" name="hadoop-common" rev="${hadoop.version}" conf="compile->*"/>
-      <dependency org="org.apache.hadoop" name="hadoop-mapreduce-client-core" rev="${hadoop.version}" conf="compile->*"/>
-      <!-- dependency of hadoop-mapreduce-client-core -->
-      <dependency org="org.apache.hadoop" name="hadoop-yarn-common" rev="${hadoop.version}" conf="compile->*"/>
+      <dependency org="org.apache.hadoop" name="hadoop-core" rev="${hadoop.mr1.version}" conf="compile->*"/>
+      <!-- dependency of hadoop-core -->
+      <dependency org="commons-el" name="commons-el" rev="${commons.el.version}" conf="compile->*"/>
       <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
     </dependencies>
 </ivy-module>
