@@ -51,6 +51,7 @@
     <commons-io.version>2.1</commons-io.version>
     <restlet.version>2.1.1</restlet.version>
     <hadoop.version>${cdh.hadoop.version}</hadoop.version>
+    <hadoop.mr1.version>${cdh.mr1.version}</hadoop.mr1.version>
     <sentry.version>${cdh.sentry.version}</sentry.version>
     <jackson.version>${cdh.jackson.version}</jackson.version>
 
@@ -347,8 +348,8 @@
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-mapreduce-client-core</artifactId>
-        <version>${hadoop.version}</version>
+        <artifactId>hadoop-core</artifactId>
+        <version>${hadoop.mr1.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.sentry</groupId>

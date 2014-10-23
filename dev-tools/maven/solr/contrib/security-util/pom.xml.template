@@ -68,7 +68,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-mapreduce-client-core</artifactId>
+      <artifactId>hadoop-core</artifactId>
     </dependency>
   </dependencies>
   <build>
