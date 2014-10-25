@@ -16,28 +16,42 @@
  */
 package org.apache.solr.security.util.job;
 
+import org.apache.commons.io.IOUtils;
+
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.solr.client.solrj.ResponseParser;
+import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
+import org.apache.solr.client.solrj.request.DelegationTokenRequest;
+import org.apache.solr.client.solrj.response.DelegationTokenResponse;
 import org.apache.solr.cloud.HttpParamDelegationTokenMiniSolrCloudCluster;
 import static org.apache.solr.cloud.HttpParamDelegationTokenMiniSolrCloudCluster.USER_PARAM;
 import org.apache.solr.cloud.MiniSolrCloudCluster;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.util.NamedList;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.UnsupportedEncodingException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +85,7 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testCredentialsPass() throws Exception {
+  public void testCredentialsPassJobBased() throws Exception {
     // with jaas config
     Job job = new Job();
     System.setProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP, "test");
@@ -93,7 +107,16 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
   }
 
   @Test
-  public void testCredentialsFail() throws Exception {
+  public void testCredentialsPassFileBased() throws Exception {
+    // get delegation token in a file.
+    File dtFile = getCredentialsFile();
+    Configuration conf = new Configuration();
+    JobSecurityUtil.initCredentials(dtFile, conf, zkHost);
+    verifyCredentialsPass(dtFile, conf);
+  }
+
+  @Test
+  public void testCredentialsFailJobBased() throws Exception {
     // no jaas config, should fail
     Job job = new Job();
     JobSecurityUtil.initCredentials(userAuthServer, job, zkHost);
@@ -105,14 +128,31 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
     System.setProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP, "test");
     try {
       JobSecurityUtil.initCredentials(userAuthServer, job, zkHost);
+      verifyCredentialsFail(job);
     } finally {
       System.clearProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP);
     }
   }
 
   @Test
-  public void testBadArgs() throws Exception {
-    // test null
+  public void testCredentialsFailFileBased() throws Exception {
+    // file is not correct format
+    File dtFile = File.createTempFile(TestJobSecurityUtil.class.getName(), ".txt");
+    Configuration conf = new Configuration();
+    try {
+      JobSecurityUtil.initCredentials(dtFile, conf, zkHost);
+      fail ("Expected Exception");
+    } catch (Exception e) { }
+
+    // file valid, but disabled via conf
+    dtFile = getCredentialsFile();
+    conf.setBoolean(JobSecurityUtil.USE_SECURE_CREDENTIALS, false);
+    JobSecurityUtil.initCredentials(dtFile, conf, zkHost);
+    verifyCredentialsFail(conf);
+  }
+
+  @Test
+  public void testBadArgsJobBased() throws Exception {
     Job job = new Job();
     job.getConfiguration().setBoolean(JobSecurityUtil.USE_SECURE_CREDENTIALS, true);
     try {
@@ -120,7 +160,8 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
       fail ("Expected IllegalArgumentException");
     } catch (IllegalArgumentException ex) {}
     try {
-      JobSecurityUtil.loadCredentialsForClients(null, zkHost);
+      Job nullJob = null;
+      JobSecurityUtil.loadCredentialsForClients(nullJob, zkHost);
       fail ("Expected IllegalArgumentException");
     } catch (IllegalArgumentException ex) {}
     try {
@@ -129,15 +170,63 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
     } catch (IllegalArgumentException ex) {}
   }
 
-  private void verifyCredentialsPass(Job job) throws Exception {
+  @Test
+  public void testBadArgsFileBased() throws Exception {
+    Configuration conf = new Configuration();
+    conf.setBoolean(JobSecurityUtil.USE_SECURE_CREDENTIALS, true);
+    File file = new File(".");
+    try {
+      JobSecurityUtil.initCredentials(file, conf, null);
+      fail ("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) {}
+    try {
+      Configuration nullConf = null;
+      JobSecurityUtil.loadCredentialsForClients(nullConf, zkHost);
+      fail ("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) {}
+    try {
+      JobSecurityUtil.cleanupCredentials(null, conf, zkHost);
+      fail ("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) {}
+  }
+
+  private static interface CredentialsCleanup {
+    void cleanupCredentials(SolrServer server) throws Exception;
+  }
+
+  private void verifyCredentialsPass(final Job job) throws Exception {
     // Ensure token is present in job credentials
     Token<? extends TokenIdentifier> authToken =
       job.getCredentials().getToken(new Text(zkHost));
     assertNotNull(authToken);
     JobSecurityUtil.loadCredentialsForClients(job, zkHost);
+    CredentialsCleanup cc = new CredentialsCleanup() {
+      @Override
+      public void cleanupCredentials(SolrServer server) throws Exception {
+        JobSecurityUtil.cleanupCredentials(server, job, zkHost);
+      }
+    };
+    verifyCredentialsPass(new String(authToken.getIdentifier(), "UTF-8"), cc);
+  }
+
+  private void verifyCredentialsPass(final File tokenFile, final Configuration conf)
+  throws Exception {
+    String authToken = getCredentialsString(tokenFile.getPath());
+    assertNotNull(authToken);
+    JobSecurityUtil.loadCredentialsForClients(conf, zkHost);
+    CredentialsCleanup cc = new CredentialsCleanup() {
+      @Override
+      public void cleanupCredentials(SolrServer server) throws Exception {
+        JobSecurityUtil.cleanupCredentials(server, conf, zkHost);
+      }
+    };
+    verifyCredentialsPass(authToken, cc);
+  }
+
+  private void verifyCredentialsPass(String authToken, CredentialsCleanup cc) throws Exception {
     String token = System.getProperty(HttpSolrServer.DELEGATION_TOKEN_PROPERTY);
     assertNotNull(token);
-    assertEquals(token, new String(authToken.getIdentifier(), "UTF-8"));
+    assertEquals(token, authToken);
 
     HttpSolrServer server = new HttpSolrServer(baseURL);
     try {
@@ -145,7 +234,7 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
       doSolrRequest(server, 200);
 
       // Cleanup credentials and verify server no longer works
-      JobSecurityUtil.cleanupCredentials(server, job, zkHost);
+      cc.cleanupCredentials(server);
       doSolrRequest(server, ErrorCode.FORBIDDEN.code);
     } finally {
       System.clearProperty(HttpSolrServer.DELEGATION_TOKEN_PROPERTY);
@@ -169,12 +258,49 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
     }
   }
 
-  private void verifyCredentialsFail(Job job) throws Exception {
+  private String getCredentialsString(String tokenFile) throws IOException {
+    DelegationTokenRequest.Get getToken = new DelegationTokenRequest.Get();
+    DelegationTokenResponse.Get getTokenResponse = new DelegationTokenResponse.Get();
+    FileInputStream inputStream = new FileInputStream(tokenFile);
+    try {
+      NamedList<Object> response =
+        getToken.getResponseParser().processResponse(inputStream, "UTF-8");
+      getTokenResponse.setResponse(response);
+      return getTokenResponse.getDelegationToken();
+    } finally {
+      inputStream.close();
+    }
+  }
+
+  private void verifyCredentialsFail(final Job job) throws Exception {
     // Ensure token is not present
     Token<? extends TokenIdentifier> authToken =
       job.getCredentials().getToken(new Text(zkHost));
     assertNull(authToken);
     JobSecurityUtil.loadCredentialsForClients(job, zkHost);
+    CredentialsCleanup cc = new CredentialsCleanup() {
+      @Override
+      public void cleanupCredentials(SolrServer server) throws Exception {
+        JobSecurityUtil.cleanupCredentials(server, job, zkHost);
+      }
+    };
+    verifyCredentialsFail(cc);
+  }
+
+  private void verifyCredentialsFail(final Configuration conf) throws Exception {
+    // Ensure file not present
+    assertNull(conf.get(JobSecurityUtil.CREDENTIALS_FILE_LOCATION, null));
+    JobSecurityUtil.loadCredentialsForClients(conf, zkHost);
+    CredentialsCleanup cc = new CredentialsCleanup() {
+      @Override
+      public void cleanupCredentials(SolrServer server) throws Exception {
+        JobSecurityUtil.cleanupCredentials(server, conf, zkHost);
+      }
+    };
+    verifyCredentialsFail(cc);
+  }
+
+  private void verifyCredentialsFail(CredentialsCleanup cc) throws Exception {
     String token = System.getProperty(HttpSolrServer.DELEGATION_TOKEN_PROPERTY);
     assertNull(token);
 
@@ -183,10 +309,60 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
       // Ensure a normal HttpSolrServer doesn't work
       doSolrRequest(server, ErrorCode.UNAUTHORIZED.code);
 
-      JobSecurityUtil.cleanupCredentials(server, job, zkHost);
+      cc.cleanupCredentials(server);
     } finally {
       server.shutdown();
     }
+  }
+
+  private File getCredentialsFile() throws Exception {
+    DelegationTokenRequest.Get getToken = new DelegationTokenRequest.Get();
+    // create a response parser that maintains the raw response structure, so
+    // we can dump the raw response to a file
+    ResponseParser rawResponseParser = new ResponseParser() {
+      @Override
+      public String getWriterType() {
+        return "raw";
+      }
+
+      @Override
+      public NamedList<Object> processResponse(InputStream body, String encoding) {
+        NamedList<Object> list = new NamedList<Object>();
+        try {
+          byte [] buffer = IOUtils.toByteArray(body);
+          list.add("response", new String(buffer,encoding));
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+        return list;
+      }
+
+      @Override
+      public NamedList<Object> processResponse(Reader reader) {
+        throw new RuntimeException("Cannot handle character stream");
+      }
+
+      @Override
+      public String getContentType() {
+        return "application/json";
+      }
+
+      @Override
+      public String getVersion() {
+        return "1";
+      }
+    };
+    getToken.setResponseParser(rawResponseParser);
+    NamedList<Object> response = getToken.process(userAuthServer).getResponse();
+    String tokenFileData = response.get("response").toString();
+    File dtFile = File.createTempFile(TestJobSecurityUtil.class.getName(), ".txt");
+    PrintWriter writer = new PrintWriter(dtFile, "UTF-8");
+    try {
+      writer.write(tokenFileData);
+    } finally {
+      writer.close();
+    }
+    return dtFile;
   }
 
   private void doSolrRequest(HttpSolrServer server, int expectedStatusCode)
