@@ -36,7 +36,6 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.DelegationTokenRequest;
 import org.apache.solr.client.solrj.response.DelegationTokenResponse;
 import org.apache.solr.common.util.NamedList;
-import static org.apache.solr.servlet.SolrHadoopAuthenticationFilter.TOKEN_KIND;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +47,8 @@ public class JobSecurityUtil {
 
   private static final Logger LOG =
     LoggerFactory.getLogger(JobSecurityUtil.class);
+
+  private static final String TOKEN_KIND = "solr-dt";
 
   /**
    * Property in the job configuration that controls whether
