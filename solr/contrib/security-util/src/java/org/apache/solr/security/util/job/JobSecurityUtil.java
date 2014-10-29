@@ -141,7 +141,7 @@ public class JobSecurityUtil {
    * calling this method will automatically authenticate using the provided credentials.
    *
    * @param conf Configuration that stores the CREDENTIALS_FILE_LOCATION, probably
-   *        passed to {@link #initCredentials(File, Configuration)}
+   *        passed to {@link #initCredentials(File, Configuration, String)}
    * @param serviceName should be the same as passed to {@link #initCredentials}
    */
   public static void loadCredentialsForClients(Configuration conf, String serviceName)
@@ -180,7 +180,7 @@ public class JobSecurityUtil {
    *
    * @param server SolrServer to cleanup the credentials on
    * @param conf Configuration that stores the CREDENTIALS_FILE_LOCATION, probably
-   *        passed to {@link #initCredentials(File, Configuration)}
+   *        passed to {@link #initCredentials(File, Configuration, String)}
    * @param serviceName should be the same as passed to {@link #initCredentials}
    */
   public static void cleanupCredentials(SolrServer server, Configuration conf, String serviceName)
