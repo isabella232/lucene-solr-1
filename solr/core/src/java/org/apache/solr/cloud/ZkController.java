@@ -246,16 +246,19 @@ public final class ZkController {
               
               registerAllCoresAsDown(registerOnReconnect, false);
               
-              ElectionContext context = new OverseerElectionContext(zkClient,
-                  overseer, getNodeName());
-              
-              ElectionContext prevContext = overseerElector.getContext();
-              if (prevContext != null) {
-                prevContext.cancelElection();
+              if (!zkRunOnly) {
+                ElectionContext context = new OverseerElectionContext(zkClient,
+                    overseer, getNodeName());
+                
+                ElectionContext prevContext = overseerElector.getContext();
+                if (prevContext != null) {
+                  prevContext.cancelElection();
+                }
+                
+                overseerElector.setup(context);
+                overseerElector.joinElection(context, true);
               }
-              
-              overseerElector.setup(context);
-              overseerElector.joinElection(context, true);
+
               zkStateReader.createClusterStateWatchersAndUpdate();
               
               // we have to register as live first to pick up docs in the buffer
@@ -723,6 +726,9 @@ public final class ZkController {
 
   private void createEphemeralLiveNode() throws KeeperException,
       InterruptedException {
+    if (zkRunOnly) {
+      return;
+    }
     String nodeName = getNodeName();
     String nodePath = ZkStateReader.LIVE_NODES_ZKNODE + "/" + nodeName;
     log.info("Register node as live in ZooKeeper:" + nodePath);
