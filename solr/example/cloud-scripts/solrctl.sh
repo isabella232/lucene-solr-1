@@ -23,6 +23,10 @@ SOLR_XML='<solr>
     <str name="hostContext">${hostContext:solr}</str>
     <int name="zkClientTimeout">${zkClientTimeout:30000}</int>
     <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
+
+    <!-- ZooKeeper Security -->
+    <str name="zkACLProvider">${zkACLProvider:}</str>
+    <str name="zkCredentialProvider">${zkCredentialProvider:}</str>
   </solrcloud>
 
   <shardHandlerFactory name="shardHandlerFactory"

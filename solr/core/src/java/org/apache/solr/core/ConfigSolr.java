@@ -171,7 +171,15 @@ public abstract class ConfigSolr {
       "org.apache.solr.handler.admin.SecureCoreAdminHandler" :
       "org.apache.solr.handler.admin.CoreAdminHandler");
   }
+  
+  public String getZkCredentialProviderClass() {
+    return get(CfgProp.SOLR_ZKCREDENTIALPROVIDER, null);
+  }
 
+  public String getZkACLProviderClass() {
+    return get(CfgProp.SOLR_ZKACLPROVIDER, null);
+  }
+  
   public String getCollectionsHandlerClass() {
     return get(CfgProp.SOLR_COLLECTIONSHANDLER, SENTRY_ENABLED != null ?
       "org.apache.solr.handler.admin.SecureCollectionsHandler" :
@@ -217,6 +225,9 @@ public abstract class ConfigSolr {
     SOLR_AUTOREPLICAFAILOVERWAITAFTEREXPIRATION,
     SOLR_AUTOREPLICAFAILOVERWORKLOOPDELAY,
     SOLR_AUTOREPLICAFAILOVERBADNODEEXPIRATION,
+    
+    SOLR_ZKCREDENTIALPROVIDER,
+    SOLR_ZKACLPROVIDER,
     
     //TODO: Remove all of these elements for 5.0
     SOLR_PERSISTENT,

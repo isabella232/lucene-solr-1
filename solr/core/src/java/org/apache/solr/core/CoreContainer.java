@@ -1162,7 +1162,10 @@ public class CoreContainer
   String getCoreToOrigName(SolrCore core) {
     return solrCores.getCoreToOrigName(core);
   }
-  
+
+  public SolrResourceLoader getResourceLoader() {
+    return loader;
+  }
 
 }
 

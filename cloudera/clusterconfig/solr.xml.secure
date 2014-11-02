@@ -9,6 +9,10 @@
     <str name="hostContext">${hostContext:solr}</str>
     <int name="zkClientTimeout">${zkClientTimeout:15000}</int>
     <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
+
+    <!-- ZooKeeper Security -->
+    <str name="zkACLProvider">${zkACLProvider:}</str>
+    <str name="zkCredentialProvider">${zkCredentialProvider:}</str>
   </solrcloud>
 
   <shardHandlerFactory name="shardHandlerFactory"

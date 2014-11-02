@@ -956,19 +956,19 @@ public class Overseer implements Closeable {
    */
   public static DistributedQueue getInQueue(final SolrZkClient zkClient) {
     createOverseerNode(zkClient);
-    return new DistributedQueue(zkClient, "/overseer/queue", null);
+    return new DistributedQueue(zkClient, "/overseer/queue");
   }
 
   /* Internal queue, not to be used outside of Overseer */
   static DistributedQueue getInternalQueue(final SolrZkClient zkClient) {
     createOverseerNode(zkClient);
-    return new DistributedQueue(zkClient, "/overseer/queue-work", null);
+    return new DistributedQueue(zkClient, "/overseer/queue-work");
   }
   
   /* Collection creation queue */
   static DistributedQueue getCollectionQueue(final SolrZkClient zkClient) {
     createOverseerNode(zkClient);
-    return new DistributedQueue(zkClient, "/overseer/collection-queue-work", null);
+    return new DistributedQueue(zkClient, "/overseer/collection-queue-work");
   }
   
   private static void createOverseerNode(final SolrZkClient zkClient) {

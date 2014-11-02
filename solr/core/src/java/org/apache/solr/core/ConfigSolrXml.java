@@ -137,6 +137,8 @@ public class ConfigSolrXml extends ConfigSolr {
     propMap.put(CfgProp.SOLR_TRANSIENTCACHESIZE, doSub("solr/int[@name='transientCacheSize']"));
     propMap.put(CfgProp.SOLR_ZKCLIENTTIMEOUT, doSub("solr/solrcloud/int[@name='zkClientTimeout']"));
     propMap.put(CfgProp.SOLR_ZKHOST, doSub("solr/solrcloud/str[@name='zkHost']"));
+    propMap.put(CfgProp.SOLR_ZKACLPROVIDER, doSub("solr/solrcloud/str[@name='zkACLProvider']"));
+    propMap.put(CfgProp.SOLR_ZKCREDENTIALPROVIDER, doSub("solr/solrcloud/str[@name='zkCredentialProvider']"));
 
     propMap.put(CfgProp.SOLR_LOGGING_CLASS, doSub("solr/logging/str[@name='class']"));
     propMap.put(CfgProp.SOLR_LOGGING_ENABLED, doSub("solr/logging/str[@name='enabled']"));

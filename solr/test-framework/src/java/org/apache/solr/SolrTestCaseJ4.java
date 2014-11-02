@@ -415,12 +415,13 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
   private static String factoryProp;
 
-  public static void createTempDir() {
+  public static File createTempDir() {
     String cname = getSimpleClassName();
     dataDir = new File(TEMP_DIR,
             "solrtest-" + cname + "-" + System.currentTimeMillis());
     dataDir.mkdirs();
     System.err.println("Creating dataDir: " + dataDir.getAbsolutePath());
+    return dataDir;
   }
 
   public static void initCore() throws Exception {

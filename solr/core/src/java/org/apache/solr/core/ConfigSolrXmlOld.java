@@ -144,7 +144,10 @@ public class ConfigSolrXmlOld extends ConfigSolr {
         config.getVal("solr/cores/@autoReplicaFailoverWaitAfterExpiration", false));
     propMap.put(CfgProp.SOLR_AUTOREPLICAFAILOVERWORKLOOPDELAY,
         config.getVal("solr/cores/@autoReplicaFailoverWorkLoopDelay", false));
-    
+    propMap.put(CfgProp.SOLR_ZKACLPROVIDER,
+        config.getVal("solr/cores/@zkACLProvider", false));
+    propMap.put(CfgProp.SOLR_ZKCREDENTIALPROVIDER,
+        config.getVal("/solr/cores/@zkCredentialProvider", false));
     propMap.put(CfgProp.SOLR_MANAGEMENTPATH,
         config.getVal("solr/cores/@managementPath", false));
     propMap.put(CfgProp.SOLR_SHARESCHEMA,
