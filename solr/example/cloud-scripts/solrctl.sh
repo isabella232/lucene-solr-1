@@ -26,7 +26,7 @@ SOLR_XML='<solr>
 
     <!-- ZooKeeper Security -->
     <str name="zkACLProvider">${zkACLProvider:}</str>
-    <str name="zkCredentialProvider">${zkCredentialProvider:}</str>
+    <str name="zkCredentialsProvider">${zkCredentialsProvider:}</str>
   </solrcloud>
 
   <shardHandlerFactory name="shardHandlerFactory"
