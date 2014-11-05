@@ -88,6 +88,8 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
   public void testCredentialsPassJobBased() throws Exception {
     // with jaas config
     Job job = new Job();
+    // enable credentials, since disabled by default
+    job.getConfiguration().setBoolean(JobSecurityUtil.USE_SECURE_CREDENTIALS, true);
     System.setProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP, "test");
     try {
       // get a new UserAuthSolrServer for the jaas conf
@@ -111,6 +113,8 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
     // get delegation token in a file.
     File dtFile = getCredentialsFile();
     Configuration conf = new Configuration();
+    // enable credentials, since disabled by default
+    conf.setBoolean(JobSecurityUtil.USE_SECURE_CREDENTIALS, true);
     JobSecurityUtil.initCredentials(dtFile, conf, zkHost);
     verifyCredentialsPass(dtFile, conf);
   }
@@ -139,6 +143,8 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
     // file is not correct format
     File dtFile = File.createTempFile(TestJobSecurityUtil.class.getName(), ".txt");
     Configuration conf = new Configuration();
+    // enable credentials, since disabled by default
+    conf.setBoolean(JobSecurityUtil.USE_SECURE_CREDENTIALS, true);
     try {
       JobSecurityUtil.initCredentials(dtFile, conf, zkHost);
       fail ("Expected Exception");
@@ -188,6 +194,20 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
       JobSecurityUtil.cleanupCredentials(null, conf, zkHost);
       fail ("Expected IllegalArgumentException");
     } catch (IllegalArgumentException ex) {}
+  }
+
+  @Test
+  public void testDisabledByDefault() throws Exception {
+    // Job based
+    Job job = new Job();
+    JobSecurityUtil.initCredentials(userAuthServer, job, zkHost);
+    assertEquals(0, job.getCredentials().numberOfTokens());
+
+    // File based
+    Configuration conf = new Configuration();
+    File file = new File(".");
+    JobSecurityUtil.initCredentials(file, conf, zkHost);
+    assertNull(conf.get(JobSecurityUtil.CREDENTIALS_FILE_LOCATION));
   }
 
   private static interface CredentialsCleanup {
