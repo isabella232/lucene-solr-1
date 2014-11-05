@@ -81,8 +81,7 @@ public class JobSecurityUtil {
   throws SolrServerException, IOException {
     verifyArgs(server, job, serviceName);
     Configuration conf = job.getConfiguration();
-    if (conf.getBoolean(USE_SECURE_CREDENTIALS, false)
-        || (isJaasConfigured() && conf.getBoolean(USE_SECURE_CREDENTIALS, true))) {
+    if (conf.getBoolean(USE_SECURE_CREDENTIALS, false)) {
       LOG.info("Initializing job credentials");
       DelegationTokenRequest.Get getToken = new DelegationTokenRequest.Get();
       DelegationTokenResponse.Get getTokenResponse = getToken.process(server);
@@ -91,7 +90,7 @@ public class JobSecurityUtil {
       job.getCredentials().addToken(credentialsToken.getService(), credentialsToken);
       job.getConfiguration().setBooleanIfUnset(USE_SECURE_CREDENTIALS, true);
     } else {
-      LOG.info("Skipping intitalization of job credentials");
+      LOG.info("Skipping initialization of job credentials");
     }
   }
 
@@ -109,7 +108,7 @@ public class JobSecurityUtil {
   public static void initCredentials(File tokenFile, Configuration conf, String serviceName)
   throws IOException {
     verifyArgs(tokenFile, conf, serviceName);
-    if (conf.getBoolean(USE_SECURE_CREDENTIALS, true)) {
+    if (conf.getBoolean(USE_SECURE_CREDENTIALS, false)) {
       LOG.info("Initializing job credentials");
       // check that the value in the file is reasonable so we
       // can throw an exception before kicking off the job
@@ -117,7 +116,7 @@ public class JobSecurityUtil {
       conf.set(CREDENTIALS_FILE_LOCATION, tokenFile.getPath());
       conf.setBooleanIfUnset(USE_SECURE_CREDENTIALS, true);
     } else {
-      LOG.info("Skipping intitalization of job credentials");
+      LOG.info("Skipping initialization of job credentials");
     }
   }
 
