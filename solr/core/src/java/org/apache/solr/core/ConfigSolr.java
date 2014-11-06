@@ -233,8 +233,8 @@ public abstract class ConfigSolr {
       "org.apache.solr.handler.admin.CoreAdminHandler");
   }
   
-  public String getZkCredentialProviderClass() {
-    return get(CfgProp.SOLR_ZKCREDENTIALPROVIDER, null);
+  public String getZkCredentialsProviderClass() {
+    return get(CfgProp.SOLR_ZKCREDENTIALSPROVIDER, null);
   }
 
   public String getZkACLProviderClass() {
@@ -321,7 +321,7 @@ public abstract class ConfigSolr {
     SOLR_AUTOREPLICAFAILOVERWORKLOOPDELAY,
     SOLR_AUTOREPLICAFAILOVERBADNODEEXPIRATION,
     
-    SOLR_ZKCREDENTIALPROVIDER,
+    SOLR_ZKCREDENTIALSPROVIDER,
     SOLR_ZKACLPROVIDER,
     
     //TODO: Remove all of these elements for 5.0
