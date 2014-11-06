@@ -41,6 +41,7 @@
     <dependency org="joda-time" name="joda-time" rev="2.2" conf="compile->*"/>
     <dependency org="org.codehaus.jackson" name="jackson-core-asl" rev="${jackson.version}" conf="compile->*"/>
     <dependency org="org.codehaus.jackson" name="jackson-mapper-asl" rev="${jackson.version}" conf="compile->*"/>
+    <dependency org="dom4j" name="dom4j" rev="1.6.1" transitive="false"/>
 
     <dependency org="javax.servlet" name="javax.servlet-api" rev="3.0.1" conf="test->*"/>
     <dependency org="org.easymock" name="easymock" rev="3.0" conf="test->*"/>

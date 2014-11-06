@@ -86,9 +86,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
+
 import com.carrotsearch.randomizedtesting.RandomizedContext;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import com.carrotsearch.randomizedtesting.rules.SystemPropertiesRestoreRule;
+
+import javax.xml.xpath.XPathExpressionException;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.regex.Pattern;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A junit4 Solr test harness that extends LuceneTestCaseJ4. To change which core is used when loading the schema and solrconfig.xml, simply
@@ -949,6 +970,28 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     return sd;
   }
 
+  public static List<SolrInputDocument> sdocs(SolrInputDocument... docs) {
+    return Arrays.asList(docs);
+  }
+
+  /** Converts "test JSON" and returns standard JSON.
+   *  Currently this only consists of changing unescaped single quotes to double quotes,
+   *  and escaped single quotes to single quotes.
+   *
+   * The primary purpose is to be able to easily embed JSON strings in a JAVA string
+   * with the best readability.
+   *
+   * This transformation is automatically applied to JSON test srings (like assertJQ).
+   */
+  public static String json(String testJSON) {
+    testJSON = nonEscapedSingleQuotePattern.matcher(testJSON).replaceAll("\"");
+    testJSON = escapedSingleQuotePattern.matcher(testJSON).replaceAll("'");
+    return testJSON;
+  }
+  private static Pattern nonEscapedSingleQuotePattern = Pattern.compile("(?<!\\\\)\'");
+  private static Pattern escapedSingleQuotePattern = Pattern.compile("\\\\\'");
+
+
   /** Creates JSON from a SolrInputDocument.  Doesn't currently handle boosts. */
   public static String json(SolrInputDocument doc) {
      CharArr out = new CharArr();
@@ -1489,7 +1532,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
   }
 
   /** Return a Map from field value to a list of document ids */
-  Map<Comparable, List<Comparable>> invertField(Map<Comparable, Doc> model, String field) {
+  public Map<Comparable, List<Comparable>> invertField(Map<Comparable, Doc> model, String field) {
     Map<Comparable, List<Comparable>> value_to_id = new HashMap<Comparable, List<Comparable>>();
 
     // invert field
