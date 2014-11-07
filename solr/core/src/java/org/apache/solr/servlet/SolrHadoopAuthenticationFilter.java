@@ -91,6 +91,9 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
    */
   @Override
   public void init(FilterConfig filterConfig) throws ServletException {
+    if (filterConfig != null) { // needs to be set before super.init
+      filterConfig.getServletContext().setAttribute("signer.secret.provider.zookeeper.curator.client", getCuratorClient());
+    }
     super.init(filterConfig);
     optionsServlet = new HttpServlet() {};
     optionsServlet.init();
@@ -212,13 +215,11 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     if(null != System.getProperty("zkHost")) {
       setDefaultDelegationTokenProp(props, "token.validity", "36000");
       setDefaultDelegationTokenProp(props, "signer.secret.provider", "zookeeper");
+      setDefaultDelegationTokenProp(props, "zk-dt-secret-manager.enable", "true");
+
       String chrootPath = getZkChroot();
       setDefaultDelegationTokenProp(props,
         "signer.secret.provider.zookeeper.path", chrootPath + "/token");
-      if (filterConfig != null) {
-        filterConfig.getServletContext().setAttribute("signer.secret.provider.zookeeper.curator.client",
-          getCuratorClient());
-      }
     } else {
       LOG.info("zkHost is null, not setting ZK-related delegation token properties");
     }
