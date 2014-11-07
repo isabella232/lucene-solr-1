@@ -152,8 +152,13 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     return getResponse.getDelegationToken();
   }
 
-  private long renewDelegationToken(final String token, final int expectedStatusCode,
+  private long renewDelegationToken(final String token ,final int expectedStatusCode,
       final String user) throws Exception {
+    return renewDelegationToken(token, expectedStatusCode, user, solrServer.getBaseURL());
+  }
+
+  private long renewDelegationToken(final String token, final int expectedStatusCode,
+      final String user, final String url) throws Exception {
     DelegationTokenRequest.Renew renew = new DelegationTokenRequest.Renew(token) {
       @Override
       public SolrParams getParams() {
@@ -169,24 +174,35 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
         return queryParams;
       }
     };
+    HttpSolrServer server = new HttpSolrServer(url);
     try {
-      DelegationTokenResponse.Renew renewResponse = renew.process(solrServer);
+      DelegationTokenResponse.Renew renewResponse = renew.process(server);
       assertEquals(200, expectedStatusCode);
       return renewResponse.getExpirationTime();
     } catch (HttpSolrServer.RemoteSolrException ex) {
       assertEquals(expectedStatusCode, ex.code());
       return -1;
+    } finally {
+      server.shutdown();
     }
   }
 
   private void cancelDelegationToken(String token, int expectedStatusCode)
   throws Exception {
+    cancelDelegationToken(token, expectedStatusCode, solrServer.getBaseURL());
+  }
+
+  private void cancelDelegationToken(String token, int expectedStatusCode, String url)
+  throws Exception {
     DelegationTokenRequest.Cancel cancel = new DelegationTokenRequest.Cancel(token);
+    HttpSolrServer server = new HttpSolrServer(url);
     try {
-      DelegationTokenResponse.Cancel cancelResponse = cancel.process(solrServer);
+      DelegationTokenResponse.Cancel cancelResponse = cancel.process(server);
       assertEquals(200, expectedStatusCode);
     } catch (HttpSolrServer.RemoteSolrException ex) {
       assertEquals(expectedStatusCode, ex.code());
+    } finally {
+      server.shutdown();
     }
   }
 
@@ -214,90 +230,147 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     }
   }
 
+  private void verifyTokenValid(String token) throws Exception {
+     // pass with token
+    doSolrRequest(token, 200);
+
+    // fail without token
+    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code);
+
+    // pass with token on other server
+    String otherServerUrl =
+      miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
+    doSolrRequest(token, 200, otherServerUrl);
+
+    // fail without token on other server
+    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code, otherServerUrl);
+  }
+
   /**
-   * Test basic Delegation Token operations
+   * Test basic Delegation Token get/verify
    */
   @Test
-  public void testDelegationTokens() throws Exception {
+  public void testDelegationTokenVerify() throws Exception {
     final String user = "bar";
 
     // Get token
     String token = getDelegationToken(null, user);
     assertNotNull(token);
 
-    // fail without token
-    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code);
+    verifyTokenValid(token);
+  }
 
-    // pass with token
-    doSolrRequest(token, 200);
-
-    // pass with token on other server
-    // FixMe: this should be 200 if we are using ZK to store the tokens,
-    // see HADOOP-10868
+  private void verifyTokenCancelled(String token) throws Exception {
     String otherServerUrl =
       miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
-    doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl);
 
-    // renew token, renew time should be past current time
-    long currentTimeMillis = System.currentTimeMillis();
-    assertTrue(renewDelegationToken(token, 200, user) > currentTimeMillis);
-
-    // pass with token
-    doSolrRequest(token, 200);
-
-    // pass with token on other server
-    // FixMe: this should be 200 if we are using ZK to store the tokens,
-    // see HADOOP-10868
-    doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl);
-
-    // cancel token, note don't need to be authenticated to cancel (no user specified)
-    cancelDelegationToken(token, 200);
-
-    // fail with token
+    // fail with token on both servers
     doSolrRequest(token, ErrorCode.FORBIDDEN.code);
+    doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl);
 
-    // fail without token
+    // fail without token on both servers
     doSolrRequest(null, ErrorCode.UNAUTHORIZED.code);
+    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code, otherServerUrl);
+  }
+
+  @Test
+  public void testDelegationTokenCancel() throws Exception {
+    {
+      // Get token
+      String token = getDelegationToken(null, "user");
+      assertNotNull(token);
+
+      // cancel token, note don't need to be authenticated to cancel (no user specified)
+      cancelDelegationToken(token, 200);
+      verifyTokenCancelled(token);
+    }
+
+    {
+      // cancel token on different server from where we got it
+      String token = getDelegationToken(null, "user");
+      assertNotNull(token);
+
+      String otherServerUrl =
+        miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
+      cancelDelegationToken(token, 200, otherServerUrl);
+      verifyTokenCancelled(token);
+    }
   }
 
   @Test
   public void testDelegationTokenCancelFail() throws Exception {
-    // cancel twice
-    String token = getDelegationToken(null, "bar");
-    assertNotNull(token);
-    cancelDelegationToken(token, 200);
-    cancelDelegationToken(token, ErrorCode.NOT_FOUND.code);
-
-    // cancel a non-existing token
-    token = getDelegationToken(null, "bar");
-    assertNotNull(token);
-
+    // cancel a bogu token
     cancelDelegationToken("BOGUS", ErrorCode.NOT_FOUND.code);
+
+    String otherServerUrl =
+      miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
+    {
+      // cancel twice, first on same server
+      String token = getDelegationToken(null, "bar");
+      assertNotNull(token);
+      cancelDelegationToken(token, 200);
+      cancelDelegationToken(token, ErrorCode.NOT_FOUND.code, otherServerUrl);
+      cancelDelegationToken(token, ErrorCode.NOT_FOUND.code);
+    }
+
+    {
+      // cancel twice, first on other server
+      String token = getDelegationToken(null, "bar");
+      assertNotNull(token);
+      cancelDelegationToken(token, 200, otherServerUrl);
+      cancelDelegationToken(token, ErrorCode.NOT_FOUND.code, otherServerUrl);
+      cancelDelegationToken(token, ErrorCode.NOT_FOUND.code);
+    }
+  }
+
+  private void verifyDelegationTokenRenew(String renewer, String user)
+  throws Exception {
+    {
+      // renew on same server
+      String token = getDelegationToken(renewer, user);
+      assertNotNull(token);
+      long currentTimeMillis = System.currentTimeMillis();
+      assertTrue(renewDelegationToken(token, 200, user) > currentTimeMillis);
+      verifyTokenValid(token);
+    }
+
+    {
+      String otherServerUrl =
+        miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
+      // renew on different server
+      String token = getDelegationToken(renewer, user);
+      assertNotNull(token);
+      long currentTimeMillis = System.currentTimeMillis();
+      assertTrue(renewDelegationToken(token, 200, user, otherServerUrl) > currentTimeMillis);
+      verifyTokenValid(token);
+    }
   }
 
   @Test
   public void testDelegationTokenRenew() throws Exception {
-    // specify renewer and renew
-    String user = "bar";
-    String token = getDelegationToken(user, user);
-    assertNotNull(token);
+    // test with specifying renewer
+    verifyDelegationTokenRenew("bar", "bar");
 
-    // renew token, renew time should be past current time
-    long currentTimeMillis = System.currentTimeMillis();
-    assertTrue(renewDelegationToken(token, 200, user) > currentTimeMillis);
+    // test without specify renewer
+    verifyDelegationTokenRenew(null, "bar");
   }
 
   @Test
   public void testDelegationTokenRenewFail() throws Exception {
+    String otherServerUrl =
+      miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
+
     // don't set renewer and try to renew as an a different user
     String token = getDelegationToken(null, "bar");
     assertNotNull(token);
     renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "foo");
+    renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "foo", otherServerUrl);
 
     // set renewer and try to renew as different user
     token = getDelegationToken("renewUser", "bar");
     assertNotNull(token);
     renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "notRenewUser");
+    renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "notRenewUser", otherServerUrl);
   }
 
   /**

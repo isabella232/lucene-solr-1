@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.Properties;
 import java.util.TreeMap;
@@ -141,8 +142,11 @@ public class HttpParamDelegationTokenMiniSolrCloudCluster extends MiniSolrCloudC
 
     @Override
     public void init(Properties config) throws ServletException {
-      Properties conf = new Properties(config);
-      conf.setProperty(TOKEN_KIND, "token-kind");
+      Properties conf = new Properties();
+      for (Map.Entry entry : config.entrySet()) {
+        conf.setProperty((String) entry.getKey(), (String) entry.getValue());
+      }
+      conf.setProperty(TOKEN_KIND, "solr-dt");
       initTokenManager(conf);
     }
   }

@@ -54,6 +54,7 @@
     <hadoop.mr1.version>${cdh.mr1.version}</hadoop.mr1.version>
     <sentry.version>${cdh.sentry.version}</sentry.version>
     <jackson.version>${cdh.jackson.version}</jackson.version>
+    <curator.version>2.6.0</curator.version>
 
     <!-- RandomizedTesting library system properties -->
     <tests.iters>1</tests.iters>
@@ -567,12 +568,17 @@
       <dependency>
         <groupId>org.apache.curator</groupId>
         <artifactId>curator-framework</artifactId>
-        <version>2.6.0</version>
+        <version>${curator.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.curator</groupId>
         <artifactId>curator-client</artifactId>
-        <version>2.6.0</version>
+        <version>${curator.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.curator</groupId>
+        <artifactId>curator-recipes</artifactId>
+        <version>${curator.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
