@@ -402,6 +402,10 @@
 
  <fields>
    <field name="id" type="int" indexed="true" stored="true" multiValued="false" required="false"/>
+   <!-- points to the root document of a block of nested documents. Required for nested
+        document support, may be removed otherwise
+   -->
+   <field name="_root_" type="string" indexed="true" stored="false"/>
    <field name="signatureField" type="string" indexed="true" stored="false"/>
    <field name="uuid" type="uuid" stored="true" />
    <field name="name" type="nametext" indexed="true" stored="true"/>

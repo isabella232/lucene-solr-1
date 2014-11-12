@@ -112,6 +112,10 @@
          in solrconfig.xml.
      -->
    <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false" /> 
+    <!-- points to the root document of a block of nested documents. Required for nested
+         document support, may be removed otherwise
+    -->
+   <field name="_root_" type="string" indexed="true" stored="false"/>
    <field name="_version_" type="long" indexed="true" stored="true"/>
 
 
