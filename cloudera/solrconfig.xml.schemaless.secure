@@ -116,7 +116,7 @@
        solr.RAMDirectoryFactory is memory based, not
        persistent, and doesn't work with replication.
     -->
-  <directoryFactory name="DirectoryFactory" class="org.apache.solr.core.HdfsDirectoryFactory">
+  <directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:org.apache.solr.core.HdfsDirectoryFactory}">
     <str name="solr.hdfs.home">${solr.hdfs.home:}</str>
     <str name="solr.hdfs.confdir">${solr.hdfs.confdir:}</str>
     <str name="solr.hdfs.security.kerberos.enabled">${solr.hdfs.security.kerberos.enabled:false}</str>
