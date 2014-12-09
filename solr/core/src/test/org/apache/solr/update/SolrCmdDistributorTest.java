@@ -40,7 +40,6 @@ import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
-import org.apache.solr.core.ConfigSolr;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrEventListener;
@@ -68,7 +67,7 @@ public class SolrCmdDistributorTest extends BaseDistributedSearchTestCase {
   private UpdateShardHandler updateShardHandler;
   
   public SolrCmdDistributorTest() throws ParserConfigurationException, IOException, SAXException {
-    updateShardHandler = new UpdateShardHandler(30000, 30000);
+    updateShardHandler = new UpdateShardHandler(null);
     
     fixShardCount = true;
     shardCount = 4;

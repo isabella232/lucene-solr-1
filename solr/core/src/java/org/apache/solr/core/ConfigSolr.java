@@ -160,6 +160,22 @@ public abstract class ConfigSolr {
     return (node == null) ? null : new PluginInfo(node, "shardHandlerFactory", false, true);
   }
 
+  public int getDistributedConnectionTimeout() {
+    return getInt(CfgProp.SOLR_DISTRIBUPDATECONNTIMEOUT, 0);
+  }
+  
+  public int getDistributedSocketTimeout() {
+    return getInt(CfgProp.SOLR_DISTRIBUPDATESOTIMEOUT, 0);
+  }
+
+  public int getMaxUpdateConnections() {
+    return getInt(CfgProp.SOLR_MAXUPDATECONNECTIONS, 10000);
+  }
+
+  public int getMaxUpdateConnectionsPerHost() {
+    return getInt(CfgProp.SOLR_MAXUPDATECONNECTIONSPERHOST, 100);
+  }
+
   public Node getUnsubsititutedShardHandlerFactoryPluginNode() {
     return config.getUnsubstitutedNode(getShardHandlerFactoryConfigPath(), false);
   }
@@ -204,6 +220,8 @@ public abstract class ConfigSolr {
     SOLR_COREROOTDIRECTORY,
     SOLR_DISTRIBUPDATECONNTIMEOUT,
     SOLR_DISTRIBUPDATESOTIMEOUT,
+    SOLR_MAXUPDATECONNECTIONS,
+    SOLR_MAXUPDATECONNECTIONSPERHOST,
     SOLR_HOST,
     SOLR_HOSTCONTEXT,
     SOLR_HOSTPORT,

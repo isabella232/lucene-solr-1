@@ -255,7 +255,7 @@ public class ChaosMonkeyShardSplitTest extends ShardSplitTest {
     SolrZkClient zkClient = new SolrZkClient(address, TIMEOUT);
     ZkStateReader reader = new ZkStateReader(zkClient);
     LeaderElector overseerElector = new LeaderElector(zkClient);
-    UpdateShardHandler updateShardHandler = new UpdateShardHandler(30000, 60000);
+    UpdateShardHandler updateShardHandler = new UpdateShardHandler(null);
     // TODO: close Overseer
     Overseer overseer = new Overseer(
         new HttpShardHandlerFactory().getShardHandler(), updateShardHandler, "/admin/cores", reader, null, new MockConfigSolr());

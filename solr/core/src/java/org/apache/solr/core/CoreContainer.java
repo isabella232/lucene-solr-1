@@ -57,6 +57,7 @@ import org.apache.solr.logging.LogWatcher;
 import org.apache.solr.logging.jul.JulWatcher;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.schema.IndexSchemaFactory;
+import org.apache.solr.update.UpdateShardHandler;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.FileUtils;
 import org.apache.solr.util.PropertiesUtil;
@@ -107,6 +108,7 @@ public class CoreContainer
   protected ZkContainer zkSys = new ZkContainer();
 
   private ShardHandlerFactory shardHandlerFactory;
+  private UpdateShardHandler updateShardHandler;
   protected LogWatcher logging = null;
   private String zkHost;
   private int transientCacheSize = Integer.MAX_VALUE;
@@ -202,6 +204,8 @@ public class CoreContainer
     }
 
     shardHandlerFactory = ShardHandlerFactory.newInstance(cfg.getShardHandlerFactoryPluginInfo(), loader);
+
+    updateShardHandler = new UpdateShardHandler(cfg);
 
     solrCores.allocateLazyCores(cfg, loader);
 
@@ -485,14 +489,20 @@ public class CoreContainer
       }
 
     } finally {
-      if (shardHandlerFactory != null) {
-        shardHandlerFactory.close();
+      try {
+        if (shardHandlerFactory != null) {
+          shardHandlerFactory.close();
+        }
+      } finally {
+        try {
+          if (updateShardHandler != null) {
+            updateShardHandler.close();
+          }
+        } finally {
+          // we want to close zk stuff last
+          zkSys.close();
+        }
       }
-      
-      // we want to close zk stuff last
-
-      zkSys.close();
-
     }
     org.apache.lucene.util.IOUtils.closeWhileHandlingException(loader); // best effort
   }
@@ -1149,6 +1159,10 @@ public class CoreContainer
     return shardHandlerFactory;
   }
   
+  public UpdateShardHandler getUpdateShardHandler() {
+    return updateShardHandler;
+  }
+
   // Just to tidy up the code where it did this in-line.
   private SolrException recordAndThrow(String name, String msg, Exception ex) {
     synchronized (coreInitFailures) {
