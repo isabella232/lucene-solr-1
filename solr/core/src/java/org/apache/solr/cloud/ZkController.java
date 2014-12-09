@@ -183,8 +183,6 @@ public final class ZkController {
   // and so one that will not be killed or stopped when testing. See developer cloud-scripts.
   private boolean zkRunOnly = Boolean.getBoolean("zkRunOnly"); // expert
 
-  private UpdateShardHandler updateShardHandler;
-
   public ZkController(final CoreContainer cc, String zkServerAddress, int zkClientTimeout, int zkClientConnectTimeout, String localHost, String locaHostPort,
       String localHostContext, String leaderVoteWait, int leaderConflictResolveWait, boolean genericCoreNodeNames, int distribUpdateConnTimeout, int distribUpdateSoTimeout, final CurrentCoreDescriptorProvider registerOnReconnect) throws InterruptedException,
       TimeoutException, IOException {
@@ -196,8 +194,6 @@ public final class ZkController {
     // solr.xml to indicate the root context, instead of hostContext="" 
     // which means the default of "solr"
     localHostContext = trimLeadingAndTrailingSlashes(localHostContext);
-    
-    updateShardHandler = new UpdateShardHandler(distribUpdateConnTimeout, distribUpdateSoTimeout);
     
     this.zkServerAddress = zkServerAddress;
     this.localHostPort = locaHostPort;
@@ -423,8 +419,6 @@ public final class ZkController {
             zkClient.close();
           } catch (Exception e) {
             log.error("Error closing zkClient", e);
-          } finally {
-            updateShardHandler.close();
           }
         }
       }
@@ -563,7 +557,7 @@ public final class ZkController {
       UpdateShardHandler updateShardHandler;
       String adminPath;
       shardHandler = cc.getShardHandlerFactory().getShardHandler();
-      updateShardHandler = this.updateShardHandler;
+      updateShardHandler = cc.getUpdateShardHandler();
       adminPath = cc.getAdminPath();
       
       if (!zkRunOnly) {
@@ -1655,11 +1649,6 @@ public final class ZkController {
   
   public int getClientTimeout() {
     return clientTimeout;
-  }
-
-  // may return null if not in zk mode
-  public UpdateShardHandler getUpdateShardHandler() {
-    return updateShardHandler;
   }
 
   /**

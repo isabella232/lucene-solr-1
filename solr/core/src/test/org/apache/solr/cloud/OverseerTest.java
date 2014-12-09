@@ -979,7 +979,7 @@ public class OverseerTest extends SolrTestCaseJ4 {
     SolrZkClient zkClient = new SolrZkClient(address, TIMEOUT);
     ZkStateReader reader = new ZkStateReader(zkClient);
     LeaderElector overseerElector = new LeaderElector(zkClient);
-    UpdateShardHandler updateShardHandler = new UpdateShardHandler(30000, 60000);
+    UpdateShardHandler updateShardHandler = new UpdateShardHandler(null);
     if (overseers.size() > 0) {
       overseers.get(overseers.size() -1).close();
     }

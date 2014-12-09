@@ -22,10 +22,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.http.client.HttpClient;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.ExecutorUtil;
+import org.apache.solr.core.ConfigSolr;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,15 +40,26 @@ public class UpdateShardHandler {
       Integer.MAX_VALUE, 5, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(),
       new DefaultSolrThreadFactory("cmdDistribExecutor"));
   
+  private PoolingClientConnectionManager clientConnectionManager;
+
   private final HttpClient client;
 
-  public UpdateShardHandler(int distribUpdateConnTimeout, int distribUpdateSoTimeout) {
+  public UpdateShardHandler(ConfigSolr cfg) {
+    clientConnectionManager = new PoolingClientConnectionManager();
+    if (cfg != null) {
+      clientConnectionManager.setDefaultMaxPerRoute(cfg.getMaxUpdateConnections());
+      clientConnectionManager.setDefaultMaxPerRoute(cfg.getMaxUpdateConnectionsPerHost());
+    }
+
     ModifiableSolrParams params = new ModifiableSolrParams();
-    params.set(HttpClientUtil.PROP_MAX_CONNECTIONS, 500);
-    params.set(HttpClientUtil.PROP_MAX_CONNECTIONS_PER_HOST, 16);
-    params.set(HttpClientUtil.PROP_SO_TIMEOUT, distribUpdateSoTimeout);
-    params.set(HttpClientUtil.PROP_CONNECTION_TIMEOUT, distribUpdateConnTimeout);
-    client = HttpClientUtil.createClient(params);
+    if (cfg != null) {
+      params.set(HttpClientUtil.PROP_SO_TIMEOUT,
+          cfg.getDistributedSocketTimeout());
+      params.set(HttpClientUtil.PROP_CONNECTION_TIMEOUT,
+          cfg.getDistributedConnectionTimeout());
+    }
+    params.set(HttpClientUtil.PROP_USE_RETRY, false);
+    client = HttpClientUtil.createClient(params, clientConnectionManager);
   }
   
   
@@ -63,7 +76,8 @@ public class UpdateShardHandler {
       ExecutorUtil.shutdownNowAndAwaitTermination(cmdDistribExecutor);
     } catch (Exception e) {
       SolrException.log(log, e);
+    } finally {
+      clientConnectionManager.shutdown();
     }
-    client.getConnectionManager().shutdown();
   }
 }

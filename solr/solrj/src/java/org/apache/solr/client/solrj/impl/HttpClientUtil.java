@@ -33,6 +33,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.params.ClientParamBean;
+import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.entity.HttpEntityWrapper;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.client.SystemDefaultHttpClient;
@@ -102,6 +103,19 @@ public class HttpClientUtil {
     final ModifiableSolrParams config = new ModifiableSolrParams(params);
     logger.info("Creating new http client, config:" + config);
     final DefaultHttpClient httpClient = new SystemDefaultHttpClient();
+    configureClient(httpClient, config);
+    return httpClient;
+  }
+
+  /**
+   * Creates new http client by using the provided configuration.
+   */
+  public static HttpClient createClient(final SolrParams params, ClientConnectionManager cm) {
+    final ModifiableSolrParams config = new ModifiableSolrParams(params);
+    if (logger.isDebugEnabled()) {
+      logger.debug("Creating new http client, config:" + config);
+    }
+    final DefaultHttpClient httpClient = new DefaultHttpClient(cm);
     configureClient(httpClient, config);
     return httpClient;
   }
