@@ -189,4 +189,12 @@ public class DocCollection extends ZkNodeProps {
     jsonWriter.write(all);
   }
 
+  public Replica getReplica(String coreNodeName) {
+    for (Slice slice : slices.values()) {
+      Replica replica = slice.getReplica(coreNodeName);
+      if (replica != null) return replica;
+    }
+    return null;
+  }
+
 }
