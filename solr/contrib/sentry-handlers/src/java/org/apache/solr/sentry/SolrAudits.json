@@ -1,0 +1,18 @@
+[
+  {
+    "columnName": "COLLECTION_NAME",
+    "fieldName": "collectionName",
+    "displayName": "Collection Name",
+    "type": "varchar",
+    "size": 1024,
+    "nullable": true
+  }
+  ,{
+    "columnName": "SOLR_VERSION",
+    "fieldName": "solrVersion",
+    "displayName": "Solr Version",
+    "type": "varchar",
+    "size": 32,
+    "nullable": false
+  }
+]

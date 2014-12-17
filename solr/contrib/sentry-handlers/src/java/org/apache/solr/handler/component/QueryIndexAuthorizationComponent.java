@@ -46,7 +46,7 @@ public class QueryIndexAuthorizationComponent extends SearchComponent
   @Override
   public void prepare(ResponseBuilder rb) throws IOException {
     sentryInstance.authorizeCollectionAction(
-      rb.req, EnumSet.of(SearchModelAction.QUERY));
+      rb.req, EnumSet.of(SearchModelAction.QUERY), getClass().getName());
     String collections = rb.req.getParams().get("collection");
     if (collections != null) {
       List<String> collectionList = StrUtils.splitSmart(collections, ",", true);
@@ -61,7 +61,7 @@ public class QueryIndexAuthorizationComponent extends SearchComponent
       // correct sentry check
       for (String coll : collectionList) {
         sentryInstance.authorizeCollectionAction(rb.req, EnumSet.of(SearchModelAction.QUERY),
-          coll, true);
+          getClass().getName(), coll, true);
       }
     }
   }
