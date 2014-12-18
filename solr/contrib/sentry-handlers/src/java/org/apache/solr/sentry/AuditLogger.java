@@ -23,8 +23,6 @@ import org.noggit.JSONWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-
 
 /**
  * Writes audit events to the audit log. This helps answer questions such as:
@@ -66,8 +64,6 @@ final class AuditLogger {
     if (!isLogEnabled()) {
       return;
     }
-    Preconditions.checkNotNull(collectionName);
-    Preconditions.checkNotNull(operation);
     CharArr chars = new CharArr(256);
     JSONWriter writer = new JSONWriter(chars, -1);
     writer.startObject();
