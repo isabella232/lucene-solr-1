@@ -97,7 +97,7 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
   }
 
   private SolrQueryRequest getCoreAdminRequest(String collection, String user,
-      CoreAdminAction action) {
+      CoreAdminAction action) throws Exception {
     SolrQueryRequest req = getRequest();
     prepareCollAndUser(core, req, collection, user, false);
     ModifiableSolrParams modParams = new ModifiableSolrParams(req.getParams());

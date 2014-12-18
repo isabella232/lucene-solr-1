@@ -44,7 +44,6 @@ import org.junit.Test;
 /**
  * Test for UpdateIndexAuthorizationProcessor
  */
-@org.junit.Ignore
 public class UpdateIndexAuthorizationProcessorTest extends SentryTestBase {
 
   private List<String> methodNames = Arrays.asList("processAdd", "processDelete",
@@ -131,7 +130,7 @@ public class UpdateIndexAuthorizationProcessorTest extends SentryTestBase {
     assertEquals(methodNames.size(), numExceptions.intValue());
   }
 
-  private UpdateIndexAuthorizationProcessor getProcessor(String collection, String user) {
+  private UpdateIndexAuthorizationProcessor getProcessor(String collection, String user) throws Exception {
     SolrQueryRequest request = getRequest();
     prepareCollAndUser(core, request, collection, user);
     return new UpdateIndexAuthorizationProcessor(

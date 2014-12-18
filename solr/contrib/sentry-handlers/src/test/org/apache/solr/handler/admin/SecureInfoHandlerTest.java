@@ -55,7 +55,7 @@ public class SecureInfoHandlerTest extends SentryTestBase {
     super.setUp(core);
   }
 
-  private SolrQueryRequest getInfoRequest(String collection, String user, String path) {
+  private SolrQueryRequest getInfoRequest(String collection, String user, String path) throws Exception {
     SolrQueryRequest req = getRequest();
     prepareCollAndUser(core, req, collection, user, false);
     req.getContext().put("path", path);

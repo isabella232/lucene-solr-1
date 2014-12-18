@@ -22,21 +22,26 @@ import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequestBase;
 import org.apache.solr.request.SolrRequestHandler;
 import org.apache.solr.response.SolrQueryResponse;
-import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.easymock.EasyMock;
 import org.easymock.IExpectationSetters;
+
+import java.lang.reflect.Field;
+
 import org.junit.Assert;
 
 /**
  * Base class for Sentry tests
  */
 public abstract class SentryTestBase extends SolrTestCaseJ4 {
+
+  private static final String USER_NAME = "solr.user.name";
 
   private SolrQueryRequest request;
 
@@ -56,9 +61,13 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
     return h.getCoreContainer().getCore("collection1");
   }
 
-  public static void closeCore(SolrCore coreToClose, CloudDescriptor cloudDescriptor) {
+  public static void closeCore(SolrCore coreToClose, CloudDescriptor cloudDescriptor)
+      throws Exception {
     if (cloudDescriptor != null) {
-      coreToClose.getCoreDescriptor().setCloudDescriptor(cloudDescriptor);
+      CoreDescriptor coreDescriptor = coreToClose.getCoreDescriptor();
+      Field cloudDescField = CoreDescriptor.class.getDeclaredField("cloudDesc");
+      cloudDescField.setAccessible(true);
+      cloudDescField.set(coreDescriptor, cloudDescriptor);
     }
     coreToClose.close();
   }
@@ -68,23 +77,26 @@ public abstract class SentryTestBase extends SolrTestCaseJ4 {
   }
 
   protected SolrQueryRequest prepareCollAndUser(SolrCore core, SolrQueryRequest request,
-      String collection, String user) {
+      String collection, String user) throws Exception {
     return prepareCollAndUser(core, request, collection, user, true);
   }
 
   protected SolrQueryRequest prepareCollAndUser(SolrCore core, SolrQueryRequest request,
-      String collection, String user, boolean onlyOnce) {
+      String collection, String user, boolean onlyOnce) throws Exception {
     CloudDescriptor mCloudDescriptor = EasyMock.createMock(CloudDescriptor.class);
     IExpectationSetters getCollNameExpect = EasyMock.expect(mCloudDescriptor.getCollectionName()).andReturn(collection);
     getCollNameExpect.anyTimes();
     IExpectationSetters getShardIdExpect = EasyMock.expect(mCloudDescriptor.getShardId()).andReturn("shard1");
     getShardIdExpect.anyTimes();
     EasyMock.replay(mCloudDescriptor);
-    core.getCoreDescriptor().setCloudDescriptor(mCloudDescriptor);
+    CoreDescriptor coreDescriptor = core.getCoreDescriptor();
+    Field cloudDescField = CoreDescriptor.class.getDeclaredField("cloudDesc");
+    cloudDescField.setAccessible(true);
+    cloudDescField.set(coreDescriptor, mCloudDescriptor);
 
     HttpServletRequest httpServletRequest = EasyMock.createMock(HttpServletRequest.class);
     IExpectationSetters getAttributeExpect =
-      EasyMock.expect(httpServletRequest.getAttribute(SolrHadoopAuthenticationFilter.USER_NAME)).andReturn(user);
+      EasyMock.expect(httpServletRequest.getAttribute(USER_NAME)).andReturn(user);
     if(!onlyOnce) getAttributeExpect.anyTimes();
     EasyMock.replay(httpServletRequest);
     request.getContext().put("httpRequest", httpServletRequest);

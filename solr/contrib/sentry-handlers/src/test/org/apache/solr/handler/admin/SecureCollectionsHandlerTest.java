@@ -56,7 +56,7 @@ public class SecureCollectionsHandlerTest extends SentryTestBase {
   }
 
   private SolrQueryRequest getCollectionsRequest(String collection, String user,
-      CollectionAction action) {
+      CollectionAction action) throws Exception {
     SolrQueryRequest req = getRequest();
     prepareCollAndUser(core, req, collection, user, false);
     ModifiableSolrParams modParams = new ModifiableSolrParams(req.getParams());

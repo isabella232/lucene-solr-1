@@ -42,7 +42,6 @@ import com.google.common.collect.ImmutableSet;
 /**
  * Test for SentryIndexAuthorizationSingleton
  */
-@org.junit.Ignore
 public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
 
   private static SolrCore core;

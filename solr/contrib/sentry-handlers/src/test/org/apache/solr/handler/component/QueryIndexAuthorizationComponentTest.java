@@ -32,7 +32,6 @@ import org.junit.Test;
 /**
  * Test for QueryIndexAuthorizationComponent
  */
-@org.junit.Ignore
 public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
   private static SolrCore core;
   private static CloudDescriptor cloudDescriptor;

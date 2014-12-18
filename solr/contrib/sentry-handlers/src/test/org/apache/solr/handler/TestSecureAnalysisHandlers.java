@@ -53,7 +53,8 @@ public class TestSecureAnalysisHandlers extends SentryTestBase {
     super.setUp(core);
   }
 
-  private SolrQueryRequest getAnalysisRequest(String collection, String user) {
+  private SolrQueryRequest getAnalysisRequest(String collection, String user)
+      throws Exception {
     SolrQueryRequest request = getRequest();
     return prepareCollAndUser(core, request, collection, user);
   }
