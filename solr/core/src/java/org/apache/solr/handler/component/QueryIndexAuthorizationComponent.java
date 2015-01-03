@@ -17,6 +17,7 @@
 
 package org.apache.solr.handler.component;
 
+import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.sentry.core.model.search.SearchModelAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,7 @@ public class QueryIndexAuthorizationComponent extends SearchComponent
   @Override
   public void prepare(ResponseBuilder rb) throws IOException {
     SentryIndexAuthorizationSingleton.getInstance().authorizeCollectionAction(
-      rb, EnumSet.of(SearchModelAction.QUERY));
+      rb.req, EnumSet.of(SearchModelAction.QUERY));
   }
 
   @Override
