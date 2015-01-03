@@ -20,11 +20,13 @@ import org.apache.solr.handler.component.ResponseBuilder;
 import org.apache.solr.sentry.SentryTestBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * Test for QueryIndexAuthorizationComponent
  */
+@Ignore
 public class QueryIndexAuthorizationComponentTest extends SentryTestBase {
 
   private void doExpectUnauthorized(SearchComponent component,

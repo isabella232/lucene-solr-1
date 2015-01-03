@@ -21,16 +21,19 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
 import java.util.TreeSet;
+
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.sentry.SentryTestBase;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * Test for UpdateIndexAuthorizationProcessor
  */
+@Ignore
 public class UpdateIndexAuthorizationProcessorTest extends SentryTestBase {
 
   private UpdateIndexAuthorizationProcessorFactory factory =

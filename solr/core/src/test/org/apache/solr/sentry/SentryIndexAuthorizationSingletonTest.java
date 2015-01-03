@@ -19,6 +19,7 @@ package org.apache.solr.sentry;
 import java.lang.reflect.Constructor;
 import java.util.EnumSet;
 import java.util.Set;
+
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.sentry.core.model.search.SearchModelAction;
@@ -28,11 +29,13 @@ import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.apache.solr.request.SolrQueryRequest;
 import org.easymock.EasyMock;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /**
  * Test for SentryIndexAuthorizationSingleton
  */
+@Ignore
 public class SentryIndexAuthorizationSingletonTest extends SentryTestBase {
 
   /**
