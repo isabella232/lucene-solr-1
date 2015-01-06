@@ -24,6 +24,7 @@ import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpOptions;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
@@ -120,8 +121,10 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   protected String pathPrefix = null; // strip this from the beginning of a path
   protected String abortErrorMessage = null;
   protected final HttpClient httpClient = HttpClientUtil.createClient(new ModifiableSolrParams());
-  
+
   private static final Charset UTF8 = StandardCharsets.UTF_8;
+
+  private static final boolean isSecure = System.getProperty("java.security.auth.login.config") != null;
 
   public SolrDispatchFilter() {
   }
@@ -533,6 +536,11 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       
       URL url = new URL(urlstr);
       boolean isPostOrPutRequest = "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod());
+      if (isSecure) {
+        // Required for SPNego authentication
+        HttpOptions options = new HttpOptions(urlstr);
+        httpClient.execute(options);
+      }
 
       if ("GET".equals(req.getMethod())) {
         method = new HttpGet(urlstr);
@@ -601,8 +609,8 @@ public class SolrDispatchFilter extends BaseSolrFilter {
           SolrException.ErrorCode.SERVER_ERROR,
           "Error trying to proxy request for url: " + coreUrl, e));
     } finally {
-      EntityUtils.consumeQuietly(httpEntity);
       if (method != null && !success) {
+        EntityUtils.consumeQuietly(httpEntity);
         method.abort();
       }
     }
