@@ -19,6 +19,7 @@ package org.apache.solr.core;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
 import java.net.URLEncoder;
 
 import org.apache.hadoop.conf.Configuration;
@@ -46,7 +47,7 @@ import org.apache.solr.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HdfsDirectoryFactory extends CachingDirectoryFactory {
+public class HdfsDirectoryFactory extends CachingDirectoryFactory implements SolrInfoMBean {
   public static Logger LOG = LoggerFactory
       .getLogger(HdfsDirectoryFactory.class);
   
@@ -81,6 +82,12 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
   public static Metrics metrics;
   private static Boolean kerberosInit;
   
+  private final static class MetricsHolder {
+    // [JCIP SE, Goetz, 16.6] Lazy initialization
+    // Won't load until MetricsHolder is referenced
+    public static final Metrics metrics = new Metrics();
+  }
+
   @Override
   public void init(NamedList args) {
     params = SolrParams.toSolrParams(args);
@@ -105,7 +112,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
     Configuration conf = getConf();
     
     if (metrics == null) {
-      metrics = new Metrics(conf);
+      metrics = MetricsHolder.metrics;
     }
     
     boolean blockCacheEnabled = params.getBool(BLOCKCACHE_ENABLED, true);
@@ -359,5 +366,46 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory {
         LOG.info("Got Kerberos ticket");
       }
     }
+  }
+
+  // SolrInfoMBean methods
+
+  @Override
+  public String getName() {
+    return getClass().getSimpleName() + "BlockCache";
+  }
+
+  @Override
+  public String getVersion() {
+    return SolrCore.version;
+  }
+
+  @Override
+  public String getDescription() {
+    return "Provides metrics for the HdfsDirectoryFactory BlockCache.";
+  }
+
+  @Override
+  public Category getCategory() {
+    return Category.CACHE;
+  }
+
+  @Override
+  public String getSource() {
+    return null;
+  }
+
+  @Override
+  public URL[] getDocs() {
+    return null;
+  }
+
+  @Override
+  public NamedList<?> getStatistics() {
+    if (metrics == null) {
+      return new NamedList<Object>();
+    }
+
+    return metrics.getStatistics();
   }
 }
