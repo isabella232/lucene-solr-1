@@ -32,6 +32,7 @@ import java.util.Properties;
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.cloud.CloudConfigSetService;
 import org.apache.solr.cloud.ZkController;
+import org.apache.solr.sentry.SentryIndexAuthorizationSingleton;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.logging.LogWatcherConfig;
 import org.apache.solr.util.DOMUtil;
@@ -226,15 +227,21 @@ public abstract class ConfigSolr {
   }
 
   public String getCoreAdminHandlerClass() {
-    return get(CfgProp.SOLR_ADMINHANDLER, "org.apache.solr.handler.admin.CoreAdminHandler");
+    return get(CfgProp.SOLR_ADMINHANDLER, SentryIndexAuthorizationSingleton.getInstance().isEnabled() ?
+      "org.apache.solr.handler.admin.SecureCoreAdminHandler" :
+      "org.apache.solr.handler.admin.CoreAdminHandler");
   }
 
   public String getCollectionsHandlerClass() {
-    return get(CfgProp.SOLR_COLLECTIONSHANDLER, "org.apache.solr.handler.admin.CollectionsHandler");
+    return get(CfgProp.SOLR_COLLECTIONSHANDLER, SentryIndexAuthorizationSingleton.getInstance().isEnabled() ?
+      "org.apache.solr.handler.admin.SecureCollectionsHandler" :
+      "org.apache.solr.handler.admin.CollectionsHandler");
   }
 
   public String getInfoHandlerClass() {
-    return get(CfgProp.SOLR_INFOHANDLER, "org.apache.solr.handler.admin.InfoHandler");
+    return get(CfgProp.SOLR_INFOHANDLER, SentryIndexAuthorizationSingleton.getInstance().isEnabled() ?
+      "org.apache.solr.handler.admin.SecureInfoHandler":
+      "org.apache.solr.handler.admin.InfoHandler");
   }
 
   public boolean hasSchemaCache() {
