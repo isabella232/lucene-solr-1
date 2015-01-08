@@ -125,6 +125,7 @@ public class SentryIndexAuthorizationSingleton {
     Subject superUser = new Subject(System.getProperty("solr.authorization.superuser", "solr"));
     Subject userName = new Subject(getUserName(req));
     long eventTime = req.getStartTime();
+    String paramString = req.getParamString();
     String impersonator = null; // FIXME
 
     String ipAddress = null;
@@ -147,12 +148,12 @@ public class SentryIndexAuthorizationSingleton {
           + "no SolrCore attached to request";
         if (errorIfNoCollection) {
           auditLogger.log(userName.getName(), impersonator, ipAddress,
-              operation, eventTime, AuditLogger.UNAUTHORIZED, collectionName);
+              operation, paramString, eventTime, AuditLogger.UNAUTHORIZED, collectionName);
           throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, msg);
         } else { // just warn
           log.warn(msg);
           auditLogger.log(userName.getName(), impersonator, ipAddress,
-              operation, eventTime, AuditLogger.ALLOWED, collectionName);
+              operation, paramString, eventTime, AuditLogger.ALLOWED, collectionName);
           return;
         }
       }
@@ -166,12 +167,12 @@ public class SentryIndexAuthorizationSingleton {
       }
     } catch (SentrySolrAuthorizationException ex) {
       auditLogger.log(userName.getName(), impersonator, ipAddress,
-          operation, eventTime, AuditLogger.UNAUTHORIZED, collectionName);
+          operation, paramString, eventTime, AuditLogger.UNAUTHORIZED, collectionName);
       throw new SolrException(SolrException.ErrorCode.UNAUTHORIZED, ex);
     }
 
     auditLogger.log(userName.getName(), impersonator, ipAddress,
-        operation, eventTime, AuditLogger.ALLOWED, collectionName);
+        operation, paramString, eventTime, AuditLogger.ALLOWED, collectionName);
   }
 
   /**

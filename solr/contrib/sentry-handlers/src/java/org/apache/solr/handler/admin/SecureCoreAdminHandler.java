@@ -68,7 +68,7 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
         SecureRequestHandlerUtil.checkSentryAdmin(
             req,
             SecureRequestHandlerUtil.QUERY_AND_UPDATE,
-            getClass().getName() + "/" + a,
+            "CoreAdminAction." + a,
             true,
             null);
       }
@@ -121,7 +121,7 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
           SecureRequestHandlerUtil.checkSentryAdmin(
               req,
               SecureRequestHandlerUtil.QUERY_ONLY,
-              action.toString(),
+              "CoreAdminAction." + action.toString(),
               checkCollection,
               collection);
           break;
@@ -148,7 +148,7 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
           SecureRequestHandlerUtil.checkSentryAdmin(
               req,
               SecureRequestHandlerUtil.UPDATE_ONLY,
-              action.toString(),
+              "CoreAdminAction." + action.toString(),
               checkCollection,
               collection);
           break;
@@ -158,7 +158,7 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
           SecureRequestHandlerUtil.checkSentryAdmin(
               req,
               SecureRequestHandlerUtil.QUERY_AND_UPDATE,
-              action.toString(),
+              "CoreAdminAction." + action.toString(),
               checkCollection,
               collection);
           break;

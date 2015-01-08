@@ -57,6 +57,7 @@ final class AuditLogger {
     String impersonator,
     String ipAddress,
     String operation,
+    String operationParams,
     long eventTime,
     int allowed,
     String collectionName) {
@@ -76,6 +77,8 @@ final class AuditLogger {
     writeField("collectionName", collectionName, writer);
     writer.writeValueSeparator();
     writeField("operation", operation, writer);
+    writer.writeValueSeparator();
+    writeField("operationParams", operationParams, writer);
     writer.writeValueSeparator();
     writeField("ipAddress", ipAddress, writer);
     writer.writeValueSeparator();
