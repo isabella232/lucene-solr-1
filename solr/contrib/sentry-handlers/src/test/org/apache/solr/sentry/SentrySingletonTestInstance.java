@@ -18,6 +18,9 @@ package org.apache.solr.sentry;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.handler.SecureRequestHandlerUtil;
@@ -63,7 +66,7 @@ public class SentrySingletonTestInstance {
     addPropertyToSentry(sentrySiteData, "sentry.solr.provider.resource",
        new File(authProviderDir.toString(), "test-authz-provider.ini").toURI().toURL().toString());
     sentrySiteData.append("</configuration>\n");
-    FileUtils.writeStringToFile(sentrySite,sentrySiteData.toString());
+    FileUtils.writeStringToFile(sentrySite,sentrySiteData.toString(), StandardCharsets.UTF_16.name());
   }
 
   private SentrySingletonTestInstance() {

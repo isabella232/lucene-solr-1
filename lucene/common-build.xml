@@ -92,17 +92,17 @@
 
   <!-- Suffix of the version, by default SNAPSHOT: -->
   <property name="version.suffix" value="${dev.version.suffix}"/>
-  <property name="version" value="${version.base}-${version.suffix}"/>
+  <property name="version" value="${cdh.solr.version}"/>
   
   <!-- must be in format x.y with only digits, so we use version.base: -->
   <property name="spec.version" value="${version.base}"/>
 
 
-  <fail message="If you pass -Dversion=... to set a release version, it must match &quot;${version.base}&quot;, optionally followed by a suffix (e.g., &quot;-SNAPSHOT&quot;).">
+  <!--<fail message="If you pass -Dversion=... to set a release version, it must match &quot;${version.base}&quot;, optionally followed by a suffix (e.g., &quot;-SNAPSHOT&quot;).">
     <condition>
       <not><matches pattern="^\Q${version.base}\E(|\-.*)$" casesensitive="true" string="${version}"/></not>
     </condition>
-  </fail>
+  </fail>-->
 
   <property name="year" value="2000-${current.year}"/>
   

@@ -16,17 +16,22 @@
    specific language governing permissions and limitations
    under the License.
 -->
-<ivy-module version="2.0">
+<ivy-module version="2.0" xmlns:maven="http://ant.apache.org/ivy/maven" >
     <info organisation="org.apache.solr" module="security-util"/>
-    <configurations>
-      <conf name="compile" transitive="false"/>
-      <conf name="test" transitive="false"/>
+
+    <configurations defaultconfmapping="compile->master;test->master;test.DfsMiniCluster->master">
+    <!-- artifacts in the "compile" configuration will go into security-util/lib/ -->
+    <conf name="compile" transitive="false" />
+    <!-- artifacts in the "test" and "test.DfsMiniCluster" configuration will go into security-util/test-lib/ -->
+    <conf name="test" transitive="false" />
+    <conf name="test.DfsMiniCluster" transitive="false" />
     </configurations>
+
     <dependencies>
-      <dependency org="org.apache.hadoop" name="hadoop-common" rev="${hadoop.version}" conf="compile->*"/>
-      <dependency org="org.apache.hadoop" name="hadoop-core" rev="${hadoop.mr1.version}" conf="compile->*"/>
+      <dependency org="org.apache.hadoop" name="hadoop-common" rev="${/org.apache.hadoop/hadoop-common}" conf="compile"/>
+      <dependency org="org.apache.hadoop" name="hadoop-core" rev="${/org.apache.hadoop/hadoop-core}" conf="compile"/>
       <!-- dependency of hadoop-core -->
-      <dependency org="commons-el" name="commons-el" rev="${commons.el.version}" conf="compile->*"/>
+      <dependency org="commons-el" name="commons-el" rev="${/commons-el/commons-el}" conf="compile"/>
       <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
     </dependencies>
 </ivy-module>

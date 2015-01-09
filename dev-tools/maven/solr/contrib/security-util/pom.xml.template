@@ -62,14 +62,10 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-core</artifactId>
-    </dependency>
+@solr-security-util.internal.dependencies@
+@solr-security-util.external.dependencies@
+@solr-security-util.internal.test.dependencies@
+@solr-security-util.external.test.dependencies@
   </dependencies>
   <build>
     <sourceDirectory>${module-path}/src/java</sourceDirectory>

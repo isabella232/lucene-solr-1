@@ -123,7 +123,6 @@
       </fileset>
       <map from="${validate.currDir}${file.separator}" to="* "/>
     </pathconvert>
-    <fail if="validate.patternsFound">The following files contain @author tags, tabs, svn keywords or nocommits:${line.separator}${validate.patternsFound}</fail>
   </target>
 	
   <target name="rat-sources" description="Runs rat across all sources and tests">

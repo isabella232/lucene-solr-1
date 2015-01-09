@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeoutException;
 
 /*
@@ -251,11 +252,11 @@ public class ZkCLI {
                for (Replica replica : slice.getReplicas()) {
                  String nodeName = replica.getNodeName().split(":")[0];
                  if (hostname == null) {
-                   System.out.printf(nodeName + "\t");
+                   System.out.printf(Locale.ENGLISH, nodeName + "\t");
                  } else if (!hostname.equals(nodeName)) {
                    continue;
                  }
-                 System.out.printf("    <core schema=\"schema.xml\" loadOnStartup=\"true\" shard=\"%s\" instanceDir=\"%s/\" transient=\"false\" name=\"%s\" config=\"solrconfig.xml\" collection=\"%s\"/>\n",
+                 System.out.printf(Locale.ENGLISH, "    <core schema=\"schema.xml\" loadOnStartup=\"true\" shard=\"%s\" instanceDir=\"%s/\" transient=\"false\" name=\"%s\" config=\"solrconfig.xml\" collection=\"%s\"/>\n",
                                    replica.getStr("shard"),
                                    replica.getStr("core"),
                                    replica.getStr("core"),
