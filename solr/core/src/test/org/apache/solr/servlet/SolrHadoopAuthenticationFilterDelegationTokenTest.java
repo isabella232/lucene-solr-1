@@ -59,6 +59,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Test the delegation token support in the {@link SolrHadoopAuthenticationFilter}.
  */
+@org.apache.solr.SolrTestCaseJ4.SuppressSSL
 public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestCaseJ4 {
   private static Logger log = LoggerFactory.getLogger(SolrHadoopAuthenticationFilterDelegationTokenTest.class);
   private static final int NUM_SERVERS = 2;

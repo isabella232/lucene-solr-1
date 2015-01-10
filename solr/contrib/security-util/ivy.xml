@@ -32,6 +32,7 @@
       <dependency org="org.apache.hadoop" name="hadoop-core" rev="${/org.apache.hadoop/hadoop-core}" conf="compile"/>
       <!-- dependency of hadoop-core -->
       <dependency org="commons-el" name="commons-el" rev="${/commons-el/commons-el}" conf="compile"/>
+      <dependency org="org.slf4j" name="jcl-over-slf4j" rev="${/org.slf4j/jcl-over-slf4j}" conf="compile, test" />
       <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
     </dependencies>
 </ivy-module>

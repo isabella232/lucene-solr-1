@@ -370,9 +370,9 @@ public class SolrRequestParserTest extends SolrTestCaseJ4 {
     replay(request);
     
     SolrRequestParsers parsers = new SolrRequestParsers(h.getCore().getSolrConfig());
-    assertFalse(parsers.isAddRequestHeadersToContext());
+    assertTrue(parsers.isAddRequestHeadersToContext());
     SolrQueryRequest solrReq = parsers.parse(h.getCore(), "/select", request);
-    assertFalse(solrReq.getContext().containsKey("httpRequest"));
+    assertTrue(solrReq.getContext().containsKey("httpRequest"));
 
     parsers.setAddRequestHeadersToContext(true);
     solrReq = parsers.parse(h.getCore(), "/select", request);

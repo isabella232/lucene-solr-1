@@ -56,6 +56,7 @@ import java.io.UnsupportedEncodingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@org.apache.solr.SolrTestCaseJ4.SuppressSSL
 public class TestJobSecurityUtil extends SolrTestCaseJ4 {
   private static Logger log = LoggerFactory.getLogger(TestJobSecurityUtil.class);
   private static final int NUM_SERVERS = 2;

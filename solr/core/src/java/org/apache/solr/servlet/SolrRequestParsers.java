@@ -115,7 +115,7 @@ public class SolrRequestParsers
   private SolrRequestParsers() {
     enableRemoteStreams = false;
     handleSelect = false;
-    addHttpRequestToContext = false;
+    addHttpRequestToContext = true;
     init(2048, 2048);
   }
 

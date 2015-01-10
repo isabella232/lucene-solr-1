@@ -36,7 +36,7 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
   private static SolrCore core;
   private static CloudDescriptor cloudDescriptor;
 
-  public final static List<CoreAdminAction> QUERY_ACTIONS = Arrays.asList(CoreAdminAction.STATUS);
+  public final static List<CoreAdminAction> QUERY_ACTIONS = Arrays.asList(CoreAdminAction.STATUS, CoreAdminAction.REQUESTSTATUS);
   public final static List<CoreAdminAction> UPDATE_ACTIONS = Arrays.asList(
     CoreAdminAction.LOAD,
     CoreAdminAction.UNLOAD,
@@ -56,7 +56,9 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
     CoreAdminAction.TRANSIENT,
     // RELOAD needs to go last, because our bogus calls leaves things in a bad state for later calls.
     // We could handle this more cleanly at the cost of a lot more creating and deleting cores.
-    CoreAdminAction.RELOAD
+    CoreAdminAction.RELOAD,
+    CoreAdminAction.OVERSEEROP,
+    CoreAdminAction.REQUESTBUFFERUPDATES
   );
 
   // only specify the collection on these, no cores

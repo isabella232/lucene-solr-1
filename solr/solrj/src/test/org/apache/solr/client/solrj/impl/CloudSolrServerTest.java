@@ -307,12 +307,6 @@ public class CloudSolrServerTest extends AbstractFullDistribZkTestBase {
     QueryRequest req = new QueryRequest(params);
     NamedList<Object> resp = server.request(req);
     return (Long) resp.findRecursive("solr-mbeans", "QUERYHANDLER", "standard", "stats", "requests");
-    
-    /*NamedList mbeans = (NamedList) resp.get("solr-mbeans");
-    NamedList queryHandler = (NamedList) mbeans.get("QUERYHANDLER");
-    NamedList select = (NamedList) queryHandler.get("org.apache.solr.handler.StandardRequestHandler");
-    NamedList stats = (NamedList) select.get("stats");
-    return (Long) stats.get("requests");*/
   }
   
   @Override

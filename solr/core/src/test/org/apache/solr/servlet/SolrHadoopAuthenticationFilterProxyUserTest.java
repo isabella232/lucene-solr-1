@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Test the proxy user support in the {@link SolrHadoopAuthenticationFilter}.
  */
+@org.apache.solr.SolrTestCaseJ4.SuppressSSL
 public class SolrHadoopAuthenticationFilterProxyUserTest extends SolrTestCaseJ4 {
   private static Logger log = LoggerFactory.getLogger(SolrHadoopAuthenticationFilterProxyUserTest.class);
   private static final int NUM_SERVERS = 2;

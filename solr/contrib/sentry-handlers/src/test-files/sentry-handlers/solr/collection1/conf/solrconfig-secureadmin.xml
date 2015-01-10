@@ -316,14 +316,6 @@
 
   <searchComponent name="termsComp" class="org.apache.solr.handler.component.TermsComponent"/>
 
-  <!-- enable streaming for testing... -->
-  <requestDispatcher handleSelect="true" >
-    <requestParsers addHttpRequestToContext="true" enableRemoteStreaming="true" multipartUploadLimitInKB="2048" />
-    <httpCaching lastModifiedFrom="openTime" etagSeed="Solr" never304="false">
-      <cacheControl>max-age=30, public</cacheControl>
-    </httpCaching>
-  </requestDispatcher>
-
   <requestHandler name="/terms" class="org.apache.solr.handler.component.SearchHandler">
     <arr name="components">
       <str>termsComp</str>
