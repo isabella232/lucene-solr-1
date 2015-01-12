@@ -301,16 +301,18 @@ public class CloudSolrServerTest extends AbstractFullDistribZkTestBase {
     ModifiableSolrParams params = new ModifiableSolrParams();
     params.set("qt", "/admin/mbeans");
     params.set("stats", "true");
-    params.set("key", "org.apache.solr.handler.StandardRequestHandler");
+    params.set("key", "standard");
     params.set("cat", "QUERYHANDLER");
     // use generic request to avoid extra processing of queries
     QueryRequest req = new QueryRequest(params);
     NamedList<Object> resp = server.request(req);
-    NamedList mbeans = (NamedList) resp.get("solr-mbeans");
+    return (Long) resp.findRecursive("solr-mbeans", "QUERYHANDLER", "standard", "stats", "requests");
+    
+    /*NamedList mbeans = (NamedList) resp.get("solr-mbeans");
     NamedList queryHandler = (NamedList) mbeans.get("QUERYHANDLER");
     NamedList select = (NamedList) queryHandler.get("org.apache.solr.handler.StandardRequestHandler");
     NamedList stats = (NamedList) select.get("stats");
-    return (Long) stats.get("requests");
+    return (Long) stats.get("requests");*/
   }
   
   @Override
