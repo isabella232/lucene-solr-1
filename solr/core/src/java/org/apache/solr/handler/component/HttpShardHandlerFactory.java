@@ -18,6 +18,8 @@ package org.apache.solr.handler.component;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.LBHttpSolrServer;
@@ -74,6 +76,7 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
   int keepAliveTime = 5;
   int queueSize = -1;
   boolean accessPolicy = false;
+  boolean useRetries = false;
 
   private String scheme = null;
 
@@ -96,7 +99,11 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
 
   // Configure if the threadpool favours fairness over throughput
   static final String INIT_FAIRNESS_POLICY = "fairnessPolicy";
-
+  
+  // Turn on retries for certain IOExceptions, many of which can happen
+  // due to connection pooling limitations / races
+  static final String USE_RETRIES = "useRetries";
+  
   /**
    * Get {@link ShardHandler} that uses the default http client.
    */
@@ -127,6 +134,7 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
     this.keepAliveTime = getParameter(args, MAX_THREAD_IDLE_TIME, keepAliveTime);
     this.queueSize = getParameter(args, INIT_SIZE_OF_QUEUE, queueSize);
     this.accessPolicy = getParameter(args, INIT_FAIRNESS_POLICY, accessPolicy);
+    this.useRetries = getParameter(args, USE_RETRIES, useRetries);
     
     // magic sysprop to make tests reproducible: set by SolrTestCaseJ4.
     String v = System.getProperty("tests.shardhandler.randomSeed");
@@ -151,8 +159,18 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
     clientParams.set(HttpClientUtil.PROP_MAX_CONNECTIONS, 10000);
     clientParams.set(HttpClientUtil.PROP_SO_TIMEOUT, soTimeout);
     clientParams.set(HttpClientUtil.PROP_CONNECTION_TIMEOUT, connectionTimeout);
-    clientParams.set(HttpClientUtil.PROP_USE_RETRY, false);
+    if (!useRetries) {
+      clientParams.set(HttpClientUtil.PROP_USE_RETRY, false);
+    }
     this.defaultClient = HttpClientUtil.createClient(clientParams);
+    
+    // must come after createClient
+    if (useRetries) {
+      // our default retry handler will never retry on IOException if the request has been sent already,
+      // but for these read only requests we can use the standard DefaultHttpRequestRetryHandler rules
+      ((DefaultHttpClient) this.defaultClient).setHttpRequestRetryHandler(new DefaultHttpRequestRetryHandler());
+    }
+    
     this.loadbalancer = createLoadbalancer(defaultClient);
   }
 
