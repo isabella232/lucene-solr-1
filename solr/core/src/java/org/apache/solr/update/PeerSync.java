@@ -87,7 +87,6 @@ public class PeerSync  {
     params.set(HttpClientUtil.PROP_MAX_CONNECTIONS, 10000);
     params.set(HttpClientUtil.PROP_CONNECTION_TIMEOUT, 30000);
     params.set(HttpClientUtil.PROP_SO_TIMEOUT, 30000);
-    params.set(HttpClientUtil.PROP_USE_RETRY, false);
     client = HttpClientUtil.createClient(params);
   }
 
