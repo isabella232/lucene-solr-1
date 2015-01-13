@@ -73,7 +73,6 @@ public class SyncStrategy {
     params.set(HttpClientUtil.PROP_MAX_CONNECTIONS_PER_HOST, 20);
     params.set(HttpClientUtil.PROP_CONNECTION_TIMEOUT, 30000);
     params.set(HttpClientUtil.PROP_SO_TIMEOUT, 30000);
-    params.set(HttpClientUtil.PROP_USE_RETRY, false);
     client = HttpClientUtil.createClient(params);
   }
   
