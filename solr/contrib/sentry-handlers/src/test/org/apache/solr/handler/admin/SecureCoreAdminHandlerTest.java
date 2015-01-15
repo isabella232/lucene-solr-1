@@ -68,12 +68,16 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
 
   // actions which don't check the actual collection
   public final static List<CoreAdminAction> NO_CHECK_COLLECTIONS = Arrays.asList(
+    CoreAdminAction.STATUS,
+    CoreAdminAction.REQUESTSTATUS,
     CoreAdminAction.LOAD,
     CoreAdminAction.PERSIST,
     CoreAdminAction.CREATEALIAS,
     CoreAdminAction.DELETEALIAS,
     CoreAdminAction.LOAD_ON_STARTUP,
-    CoreAdminAction.TRANSIENT
+    CoreAdminAction.TRANSIENT,
+    CoreAdminAction.OVERSEEROP,
+    CoreAdminAction.REQUESTBUFFERUPDATES
   );
 
   @BeforeClass
@@ -122,12 +126,11 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
     return req;
   }
 
-  private void verifyQueryAccess(CoreAdminAction action) throws Exception {
+  private void verifyQueryAccess(CoreAdminAction action, boolean checkCollection) throws Exception {
     CoreAdminHandler handler = new SecureCoreAdminHandler(h.getCoreContainer());
     verifyAuthorized(handler, getCoreAdminRequest("collection1", "junit", action));
     verifyAuthorized(handler, getCoreAdminRequest("queryCollection", "junit", action));
-    if (action.equals(CoreAdminAction.STATUS)) {
-      // STATUS doesn't check collection permissions
+    if (!checkCollection) {
       verifyAuthorized(handler, getCoreAdminRequest("bogusCollection", "junit", action));
       verifyAuthorized(handler, getCoreAdminRequest("updateCollection", "junit", action));
     } else {
@@ -149,7 +152,7 @@ public class SecureCoreAdminHandlerTest extends SentryTestBase {
   @Test
   public void testSecureAdminHandler() throws Exception {
     for (CoreAdminAction action : QUERY_ACTIONS) {
-      verifyQueryAccess(action);
+      verifyQueryAccess(action, !NO_CHECK_COLLECTIONS.contains(action));
     }
     for (CoreAdminAction action : UPDATE_ACTIONS) {
       verifyUpdateAccess(action, !NO_CHECK_COLLECTIONS.contains(action));

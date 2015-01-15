@@ -85,7 +85,8 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
         case SPLIT:
         case PREPRECOVERY:
         case REQUESTRECOVERY:
-        case REQUESTSYNCSHARD: {
+        case REQUESTSYNCSHARD:
+        case REQUESTBUFFERUPDATES: {
           String cname = params.get(CoreAdminParams.CORE,"");
           collection = getCollectionFromCoreName(cname);
           break;
@@ -108,6 +109,8 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
         case DELETEALIAS:
         case LOAD_ON_STARTUP:
         case TRANSIENT:
+        case REQUESTSTATUS:
+        case OVERSEEROP:
         default: {
           // these are actions that are not core related or not actually
           // handled by the CoreAdminHandler
@@ -117,7 +120,8 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
       }
 
       switch (action) {
-        case STATUS: {
+        case STATUS:
+        case REQUESTSTATUS: {
           SecureRequestHandlerUtil.checkSentryAdmin(
               req,
               SecureRequestHandlerUtil.QUERY_ONLY,
@@ -144,7 +148,9 @@ public class SecureCoreAdminHandler extends CoreAdminHandler {
         case CREATEALIAS:
         case DELETEALIAS:
         case LOAD_ON_STARTUP:
-        case TRANSIENT: {
+        case TRANSIENT:
+        case REQUESTBUFFERUPDATES:
+        case OVERSEEROP: {
           SecureRequestHandlerUtil.checkSentryAdmin(
               req,
               SecureRequestHandlerUtil.UPDATE_ONLY,
