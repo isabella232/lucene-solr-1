@@ -56,7 +56,6 @@ import java.io.UnsupportedEncodingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@org.apache.solr.SolrTestCaseJ4.SuppressSSL
 public class TestJobSecurityUtil extends SolrTestCaseJ4 {
   private static Logger log = LoggerFactory.getLogger(TestJobSecurityUtil.class);
   private static final int NUM_SERVERS = 2;
@@ -69,7 +68,7 @@ public class TestJobSecurityUtil extends SolrTestCaseJ4 {
   public static void startup() throws Exception {
     File solrXml = SolrTestCaseJ4.getFile("solr/solr-no-core.xml");
     miniCluster = new HttpParamDelegationTokenMiniSolrCloudCluster(NUM_SERVERS, null,
-      solrXml, null);
+      solrXml, null, sslConfig);
     JettySolrRunner runner = miniCluster.getJettySolrRunners().get(0);
     baseURL = runner.getBaseUrl().toString();
     userAuthServer = new UserAuthHttpSolrServer(baseURL);

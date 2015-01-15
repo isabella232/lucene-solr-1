@@ -46,6 +46,7 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
+import org.apache.solr.client.solrj.embedded.SSLConfig;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -59,14 +60,15 @@ public class HttpParamDelegationTokenMiniSolrCloudCluster extends MiniSolrCloudC
   public static final String REMOTE_HOST_PARAM = "remoteHost";
 
   public HttpParamDelegationTokenMiniSolrCloudCluster(int numServers, String hostContext,
-      File solrXml, SortedMap<ServletHolder, String> extraServlets) throws Exception {
-    super(numServers, hostContext, solrXml, extraServlets, null);
+      File solrXml, SortedMap<ServletHolder, String> extraServlets,
+      SSLConfig sslConfig) throws Exception {
+    super(numServers, hostContext, solrXml, extraServlets, null, sslConfig);
   }
 
   @Override
   public JettySolrRunner startJettySolrRunner(String hostContext,
       SortedMap<ServletHolder, String> extraServlets,
-      SortedMap<Class, String> extraRequestFilters) throws Exception {
+      SortedMap<Class, String> extraRequestFilters, SSLConfig sslConfig) throws Exception {
     if (extraRequestFilters != null) {
       throw new IllegalArgumentException("non-null extra request filters not supported");
     }
@@ -81,7 +83,7 @@ public class HttpParamDelegationTokenMiniSolrCloudCluster extends MiniSolrCloudC
       }
     });
     extraFilters.put(HttpParamToRequestFilter.class, "*");
-    return super.startJettySolrRunner(hostContext, extraServlets, extraFilters);
+    return super.startJettySolrRunner(hostContext, extraServlets, extraFilters, sslConfig);
   }
 
   private static String getHttpParam(HttpServletRequest request, String param) {

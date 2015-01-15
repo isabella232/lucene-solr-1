@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 /**
  * Test the proxy user support in the {@link SolrHadoopAuthenticationFilter}.
  */
-@org.apache.solr.SolrTestCaseJ4.SuppressSSL
 public class SolrHadoopAuthenticationFilterProxyUserTest extends SolrTestCaseJ4 {
   private static Logger log = LoggerFactory.getLogger(SolrHadoopAuthenticationFilterProxyUserTest.class);
   private static final int NUM_SERVERS = 2;
@@ -86,7 +85,7 @@ public class SolrHadoopAuthenticationFilterProxyUserTest extends SolrTestCaseJ4 
     }
     String testHome = SolrTestCaseJ4.TEST_HOME();
     miniCluster = new HttpParamDelegationTokenMiniSolrCloudCluster(NUM_SERVERS, null,
-      new File(testHome, "solr-no-core.xml"), null);
+      new File(testHome, "solr-no-core.xml"), null, sslConfig);
     JettySolrRunner runner = miniCluster.getJettySolrRunners().get(0);
     solrServer = new HttpSolrServer(runner.getBaseUrl().toString());
   }

@@ -59,7 +59,6 @@ import org.slf4j.LoggerFactory;
 /**
  * Test the delegation token support in the {@link SolrHadoopAuthenticationFilter}.
  */
-@org.apache.solr.SolrTestCaseJ4.SuppressSSL
 public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestCaseJ4 {
   private static Logger log = LoggerFactory.getLogger(SolrHadoopAuthenticationFilterDelegationTokenTest.class);
   private static final int NUM_SERVERS = 2;
@@ -70,7 +69,7 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
   public static void startup() throws Exception {
     String testHome = SolrTestCaseJ4.TEST_HOME();
     miniCluster = new HttpParamDelegationTokenMiniSolrCloudCluster(NUM_SERVERS, null,
-      new File(testHome, "solr-no-core.xml"), null);
+      new File(testHome, "solr-no-core.xml"), null, sslConfig);
     JettySolrRunner runner = miniCluster.getJettySolrRunners().get(0);
     solrServer = new HttpSolrServer(runner.getBaseUrl().toString());
   }
