@@ -17,9 +17,11 @@ package org.apache.solr.client.solrj.impl;
  * limitations under the License.
  */
 
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpConnectionParams;
 import org.apache.solr.SolrJettyTestBase;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -54,14 +56,14 @@ public class ExternalHttpClientTest extends SolrJettyTestBase {
    */
   @Test
   public void testTimeoutWithExternalClient() throws Exception {
-    HttpClientBuilder builder = HttpClientBuilder.create();
-    RequestConfig config = RequestConfig.custom().setSocketTimeout(2000).build();
-    builder.setDefaultRequestConfig(config);
+    HttpParams httpParams=new BasicHttpParams();
+    HttpConnectionParams.setSoTimeout(httpParams, 2000);
+    HttpClient httpClient = new DefaultHttpClient(httpParams);
     HttpSolrServer server = null;
-    try (CloseableHttpClient httpClient = builder.build()) {
-      server = new HttpSolrServer(jetty.getBaseUrl().toString() +
-          "/slow/foo", httpClient);
 
+    try {
+      server = new HttpSolrServer(jetty.getBaseUrl().toString() +
+          "/slow/foo", httpClient);    
       SolrQuery q = new SolrQuery("*:*");
       try {
         QueryResponse response = server.query(q, SolrRequest.METHOD.GET);
@@ -70,6 +72,7 @@ public class ExternalHttpClientTest extends SolrJettyTestBase {
         assertTrue(e.getMessage().contains("Timeout"));
       }
     } finally {
+      httpClient.getConnectionManager().shutdown();
       if (server != null) {
         server.shutdown();
       }
