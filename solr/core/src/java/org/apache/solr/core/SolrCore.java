@@ -146,7 +146,8 @@ public final class SolrCore implements SolrInfoMBean {
   public static Map<SolrCore,Exception> openHandles = Collections.synchronizedMap(new IdentityHashMap<SolrCore, Exception>());
 
   
-  public static Logger log = LoggerFactory.getLogger(SolrCore.class);
+  public static final Logger log = LoggerFactory.getLogger(SolrCore.class);
+  public static final Logger requestLog = LoggerFactory.getLogger(SolrCore.class.getName() + ".Request");
 
   private String name;
   private String logid; // used to show what name is set
@@ -1939,6 +1940,11 @@ public final class SolrCore implements SolrInfoMBean {
 
     preDecorateResponse(req, rsp);
 
+    if (requestLog.isDebugEnabled() && rsp.getToLog().size() > 0) {
+      // log request at debug in case something goes wrong and we aren't able to log later
+      requestLog.debug(rsp.getToLogAsString(logid));
+    }
+
     // TODO: this doesn't seem to be working correctly and causes problems with the example server and distrib (for example /spell)
     // if (req.getParams().getBool(ShardParams.IS_SHARD,false) && !(handler instanceof SearchHandler))
     //   throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,"isShard is only acceptable with search handlers");
@@ -1947,8 +1953,8 @@ public final class SolrCore implements SolrInfoMBean {
     handler.handleRequest(req,rsp);
     postDecorateResponse(handler, req, rsp);
 
-    if (log.isInfoEnabled() && rsp.getToLog().size() > 0) {
-      log.info(rsp.getToLogAsString(logid));
+    if (requestLog.isInfoEnabled() && rsp.getToLog().size() > 0) {
+      requestLog.info(rsp.getToLogAsString(logid));
     }
   }
 
