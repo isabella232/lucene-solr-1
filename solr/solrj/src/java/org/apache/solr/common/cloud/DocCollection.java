@@ -32,7 +32,14 @@ import org.noggit.JSONWriter;
  * Models a Collection in zookeeper (but that Java name is obviously taken, hence "DocCollection")
  */
 public class DocCollection extends ZkNodeProps {
-  public static final String DOC_ROUTER = "router";
+  /*
+   * Router spec post-4.5 format
+   */
+  public static final String DOC_ROUTER = System.getProperty("solr.docrouter.format","routerSpec");
+  /*
+   * Router spec pre-4.5 format
+   */
+  public static final String DOC_ROUTER_OLD = System.getProperty("solr.docrouter.format.old", "router");
   public static final String SHARDS = "shards";
   private int version;
 

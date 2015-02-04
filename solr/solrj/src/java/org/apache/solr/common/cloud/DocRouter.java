@@ -78,6 +78,24 @@ public abstract class DocRouter {
     return  map;
   }
 
+  /**
+   * SOLR-4421 introduced a format change for the router spec.  Previously,
+   * only a name string was written; now, a map is written.  Returns the old
+   * format if possible (i.e., the spec contains only a name), otherwise
+   * returns the new format.
+   */
+  public static Object getCompatibleRouterFormatIfPossible(
+      Map<String, Object> spec, String routerName) {
+    if (spec != null && spec.containsKey("name") && spec.size() == 1) {
+      // we can write out the old format
+      return routerName;
+    }
+
+    // can't write out old format.  Just write out the new format and
+    // cause old clients to error out.
+    return spec;
+  }
+
   // currently just an implementation detail...
   private final static Map<String, DocRouter> routerMap;
   static {

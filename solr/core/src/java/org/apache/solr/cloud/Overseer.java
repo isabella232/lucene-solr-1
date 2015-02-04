@@ -871,6 +871,7 @@ public class Overseer implements Closeable {
           if(val != null) collectionProps.put(e.getKey(),val);
         }
         collectionProps.put(DocCollection.DOC_ROUTER, routerSpec);
+        collectionProps.put(DocCollection.DOC_ROUTER_OLD, DocRouter.getCompatibleRouterFormatIfPossible(routerSpec, routerName));
 
         if(message.getStr("fromApi") == null) collectionProps.put("autoCreated","true");
         DocCollection newCollection = new DocCollection(collectionName, newSlices, collectionProps, router);
@@ -932,6 +933,8 @@ public class Overseer implements Closeable {
           slices = new HashMap<>(1);
           props = new HashMap<>(1);
           props.put(DocCollection.DOC_ROUTER, ZkNodeProps.makeMap("name",ImplicitDocRouter.NAME));
+          // write old format as well so that old clients can read it
+          props.put(DocCollection.DOC_ROUTER_OLD, ImplicitDocRouter.NAME);
           router = new ImplicitDocRouter();
         } else {
           props = coll.getProperties();
