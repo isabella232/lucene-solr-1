@@ -40,7 +40,7 @@
     <vc-anonymous-base-url>http://svn.apache.org/repos/asf/lucene/dev/branches/branch_4x</vc-anonymous-base-url>
     <vc-dev-base-url>https://svn.apache.org/repos/asf/lucene/dev/branches/branch_4x</vc-dev-base-url>
     <vc-browse-base-url>http://svn.apache.org/viewvc/lucene/dev/branches/branch_4x</vc-browse-base-url>
-    <specification.version>@spec.version@</specification.version>
+    <specification.version>@version@</specification.version>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
     <java.compat.version>1.7</java.compat.version>
     <jetty.version>8.1.10.v20130312</jetty.version>
