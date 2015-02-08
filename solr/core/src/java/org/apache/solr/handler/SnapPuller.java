@@ -38,6 +38,7 @@ import static org.apache.solr.handler.ReplicationHandler.OFFSET;
 import static org.apache.solr.handler.ReplicationHandler.SIZE;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -768,9 +769,25 @@ public class SnapPuller {
     if (LOG.isDebugEnabled()) {
       LOG.debug("Download files to dir: " + Arrays.asList(indexDir.listAll()));
     }
+
     for (Map<String,Object> file : filesToDownload) {
-      if (!indexDir.fileExists((String) file.get(NAME))
-          || downloadCompleteIndex) {
+      
+      String filename = (String) file.get(NAME);
+      long size = (Long) file.get(SIZE);
+      
+      long indexFileLen = 0;
+      
+      if (indexDir.fileExists(filename)) {
+        try {
+          indexFileLen = indexDir.fileLength(filename);
+        } catch (FileNotFoundException e) {
+          // okay
+        }
+      }
+
+      if (!indexDir.fileExists(filename) || indexFileLen != size
+          || downloadCompleteIndex || filesToAlwaysDownload(filename, size)) {
+        
         dirFileFetcher = new DirectoryFileFetcher(tmpIndexDir, file,
             (String) file.get(NAME), false, latestGeneration);
         currentFile = file;
@@ -781,6 +798,13 @@ public class SnapPuller {
             + " because it already exists");
       }
     }
+  }
+  
+  private boolean filesToAlwaysDownload(String filename, long size) {
+    // we always download .si, .liv, segments_N,
+    // and any file under 100kb
+    return filename.endsWith(".si") || filename.endsWith(".liv")
+           || filename.startsWith("segments_") || size < 100000;
   }
 
   /**
