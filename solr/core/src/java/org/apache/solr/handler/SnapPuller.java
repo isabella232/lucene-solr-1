@@ -76,7 +76,9 @@ import java.util.zip.InflaterInputStream;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
@@ -575,11 +577,12 @@ public class SnapPuller {
 
   private boolean hasUnusedFiles(Directory indexDir, IndexCommit commit) throws IOException {
     String segmentsFileName = commit.getSegmentsFileName();
-    SegmentInfos infos = SegmentInfos.readCommit(indexDir, segmentsFileName);
-    Set<String> currentFiles = new HashSet<>(infos.files(indexDir, true));
+    SegmentInfos infos = new SegmentInfos();
+    infos.read(indexDir, segmentsFileName);
+    Set<String> currentFiles = new HashSet<String>(infos.files(indexDir, true));
     String[] allFiles = indexDir.listAll();
     for (String file : allFiles) {
-      if (!file.equals(segmentsFileName) && !currentFiles.contains(file) && !file.endsWith(".lock")) {
+      if (!file.equals(segmentsFileName) && !currentFiles.contains(file) && !file.endsWith(".lock") && !file.equals(IndexFileNames.SEGMENTS_GEN)) {
         LOG.info("Found unused file: " + file);
         return true;
       }
