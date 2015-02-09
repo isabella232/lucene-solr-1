@@ -97,6 +97,7 @@ public class SolrHadoopAuthenticationFilterProxyUserTest extends SolrTestCaseJ4 
     }
     miniCluster = null;
     solrServer.shutdown();
+    solrServer = null;
     Map<String, String> filterProps = getFilterProps();
     for (Map.Entry<String, String> entry : filterProps.entrySet()) {
       System.clearProperty(entry.getKey());

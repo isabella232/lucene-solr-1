@@ -81,6 +81,7 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     }
     miniCluster = null;
     solrServer.shutdown();
+    solrServer = null;
   }
 
   private SolrRequest getProxyRequest(String user, String doAs, String remoteHost) {
