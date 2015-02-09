@@ -60,7 +60,6 @@ import org.apache.http.client.HttpClient;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
@@ -588,8 +587,9 @@ public class SnapPuller {
 
   private boolean hasUnusedFiles(Directory indexDir, IndexCommit commit) throws IOException {
     String segmentsFileName = commit.getSegmentsFileName();
-    SegmentInfos infos = SegmentInfos.readCommit(indexDir, segmentsFileName);
-    Set<String> currentFiles = new HashSet<>(infos.files(indexDir, true));
+    SegmentInfos infos = new SegmentInfos();
+    infos.read(indexDir, segmentsFileName);
+    Set<String> currentFiles = new HashSet<String>(infos.files(indexDir, true));
     String[] allFiles = indexDir.listAll();
     for (String file : allFiles) {
       if (!file.equals(segmentsFileName) && !currentFiles.contains(file) && !file.endsWith(".lock")) {
