@@ -63,6 +63,7 @@
     <dependency org="org.apache.hadoop" name="hadoop-hdfs" rev="${/org.apache.hadoop/hadoop-hdfs}" conf="compile.hadoop"/>
     <dependency org="org.apache.hadoop" name="hadoop-annotations" rev="${/org.apache.hadoop/hadoop-annotations}" conf="compile.hadoop"/>
     <dependency org="org.apache.hadoop" name="hadoop-auth" rev="${/org.apache.hadoop/hadoop-auth}" conf="compile.hadoop"/>
+    <dependency org="org.htrace" name="htrace-core" rev="${/org.htrace/htrace-core}" conf="compile.hadoop"/>
     <dependency org="commons-configuration" name="commons-configuration" rev="${/commons-configuration/commons-configuration}" conf="compile.hadoop"/>
     <dependency org="commons-collections" name="commons-collections" rev="${/commons-collections/commons-collections}" conf="compile.hadoop"/>
     
