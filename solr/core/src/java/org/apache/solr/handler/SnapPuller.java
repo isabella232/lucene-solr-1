@@ -593,7 +593,7 @@ public class SnapPuller {
     Set<String> currentFiles = new HashSet<String>(infos.files(indexDir, true));
     String[] allFiles = indexDir.listAll();
     for (String file : allFiles) {
-      if (!file.equals(segmentsFileName) && !currentFiles.contains(file) && !file.endsWith(".lock")) {
+      if (!file.equals(segmentsFileName) && !currentFiles.contains(file) && !file.endsWith(".lock") && !file.equals("segments.gen")) {
         LOG.info("Found unused file: " + file);
         return true;
       }
