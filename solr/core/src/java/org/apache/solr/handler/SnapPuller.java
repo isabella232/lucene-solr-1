@@ -59,6 +59,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
@@ -593,7 +594,7 @@ public class SnapPuller {
     Set<String> currentFiles = new HashSet<String>(infos.files(indexDir, true));
     String[] allFiles = indexDir.listAll();
     for (String file : allFiles) {
-      if (!file.equals(segmentsFileName) && !currentFiles.contains(file) && !file.endsWith(".lock") && !file.equals("segments.gen")) {
+      if (!file.equals(segmentsFileName) && !currentFiles.contains(file) && !file.endsWith(".lock") && !file.equals(IndexFileNames.SEGMENTS_GEN)) {
         LOG.info("Found unused file: " + file);
         return true;
       }
