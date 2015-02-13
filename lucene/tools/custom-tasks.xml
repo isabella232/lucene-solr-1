@@ -87,6 +87,8 @@
 
   <macrodef name="lib-versions-check-macro">
     <attribute name="dir"/>
+    <!-- CLOUDERA BUILD -->
+    <attribute name="build.overrides.file"/>
     <attribute name="centralized.versions.file"/>
     <attribute name="ivy.settings.file"/>
     <attribute name="common.build.dir"/>
@@ -98,7 +100,8 @@
          dependencies in all ivy.xml files use rev="${/org/name}" format.
         -->
       <echo>Lib versions check under: @{dir}</echo>
-      <libversions centralizedVersionsFile="@{centralized.versions.file}"
+      <libversions buildOverridesFile="@{build.overrides.file}"
+                   centralizedVersionsFile="@{centralized.versions.file}"
                    ivySettingsFile="@{ivy.settings.file}"
                    commonBuildDir="@{common.build.dir}"
                    ignoreConflictsFile="@{ignore.conflicts.file}">
@@ -118,12 +121,15 @@
 
   <macrodef name="get-maven-dependencies-macro">
     <attribute name="dir"/>
+    <!-- CLOUDERA BUILD -->
+    <attribute name="build.overrides.file"/>
     <attribute name="centralized.versions.file"/>
     <attribute name="module.dependencies.properties.file"/>
     <attribute name="maven.dependencies.filters.file"/>
     <sequential>
       <echo>Get maven dependencies called under: @{dir}</echo>
-      <mvndeps centralizedVersionsFile="@{centralized.versions.file}"
+      <mvndeps buildOverridesFile="@{build.overrides.file}"
+               centralizedVersionsFile="@{centralized.versions.file}"
                moduleDependenciesPropertiesFile="@{module.dependencies.properties.file}"
                mavenDependenciesFiltersFile="@{maven.dependencies.filters.file}">
         <fileset dir="@{dir}">

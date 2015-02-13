@@ -131,6 +131,13 @@ public class GetMavenDependenciesTask extends Task {
   private Resources ivyXmlResources = new Resources();
 
   /**
+   * CLOUDERA BUILD
+   * A properties file specifying CDH versions for jar files shared by
+   * multiple components.
+   */
+  private File buildOverridesFile;
+
+  /**
    * Centralized Ivy versions properties file
    */
   private File centralizedVersionsFile;
@@ -151,6 +158,12 @@ public class GetMavenDependenciesTask extends Task {
   private int verboseLevel = Project.MSG_VERBOSE;
 
   /**
+   * CLOUDERA BUILD
+   * All properties defined in the {@link #buildOverridesFile}
+   */
+  private Properties buildOverrides = new Properties();
+
+  /**
    * Adds a set of ivy.xml resources to check.
    */
   public void add(ResourceCollection rc) {
@@ -163,6 +176,10 @@ public class GetMavenDependenciesTask extends Task {
 
   public void setCentralizedVersionsFile(File file) {
     centralizedVersionsFile = file;
+  }
+
+  public void setBuildOverridesFile(File buildOverridesFile) {
+    this.buildOverridesFile = buildOverridesFile;
   }
 
   public void setModuleDependenciesPropertiesFile(File file) {
@@ -194,10 +211,27 @@ public class GetMavenDependenciesTask extends Task {
     internalJarPattern = Pattern.compile(".*(lucene|solr)([^/]*?)-"
         + Pattern.quote(getProject().getProperty("version")) + "\\.jar");
 
+    initializeBuildOverrides();
     setInternalDependencyProperties();            // side-effect: all modules' internal deps are recorded
     setExternalDependencyProperties();            // side-effect: all modules' external deps are recorded
     setGrandparentDependencyManagementProperty(); // uses deps recorded in above two methods
     writeFiltersFile();
+  }
+
+  /**
+   * CLOUDERA BUILD
+   */
+  private void initializeBuildOverrides() {
+    if(null == buildOverridesFile) {
+      throw new BuildException("buildOverridesFile parameter not specified.");
+    }
+
+    try (InputStream inputStream = new FileInputStream(buildOverridesFile);
+         Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
+      buildOverrides.load(reader);
+    } catch (IOException e) {
+      throw new BuildException("Exception reading " + buildOverridesFile + ": " + e.toString(), e);
+    }
   }
 
   /**
@@ -439,7 +473,7 @@ public class GetMavenDependenciesTask extends Task {
   private void appendAllExternalDependencies(StringBuilder dependenciesBuilder, Map<String,String> versionsMap) {
     log("Loading centralized ivy versions from: " + centralizedVersionsFile, verboseLevel);
     ivyCacheDir = getIvyCacheDir();
-    Properties versions = new InterpolatedProperties();
+    Properties versions = new InterpolatedProperties(buildOverrides);
     try (InputStream inputStream = new FileInputStream(centralizedVersionsFile);
          Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
       versions.load(reader);

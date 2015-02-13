@@ -1668,6 +1668,7 @@ ${ant.project.name}.test.dependencies=${test.classpath.list}
     <ant dir="${common.dir}/.." target="-append-all-modules-dependencies-properties" inheritall="false"/>
     <get-maven-dependencies-macro
         dir="${common.dir}/.."
+        build.overrides.file="${common.dir}/../cdh.build.properties"
         centralized.versions.file="${common.dir}/ivy-versions.properties"
         module.dependencies.properties.file="${module.dependencies.properties.file}"
         maven.dependencies.filters.file="${maven.dependencies.filters.file}"/>
