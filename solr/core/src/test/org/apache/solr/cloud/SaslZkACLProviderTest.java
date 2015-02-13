@@ -211,7 +211,7 @@ public class SaslZkACLProviderTest extends SolrTestCaseJ4 {
         System.setProperty("zookeeper.kerberos.removeHostFromPrincipal", "true");
         File keytabFile = new File(kdcDir, "keytabs");
         String zkClientPrincipal = "solr";
-        String zkServerPrincipal = "zookeeper/127.0.0.1";
+        String zkServerPrincipal = "zookeeper/localhost";
 
         kdc.start();
         // Create ZK client and server principals and load them into the Configuration
