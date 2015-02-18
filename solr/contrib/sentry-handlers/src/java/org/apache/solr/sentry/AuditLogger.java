@@ -64,7 +64,7 @@ final class AuditLogger {
     if (!isLogEnabled()) {
       return;
     }
-    CharArr chars = new CharArr(256);
+    CharArr chars = new CharArr(512);
     JSONWriter writer = new JSONWriter(chars, -1);
     writer.startObject();
     writeField("solrVersion", SOLR_VERSION, writer);
