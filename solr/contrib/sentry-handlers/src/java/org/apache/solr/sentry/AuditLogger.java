@@ -40,8 +40,7 @@ final class AuditLogger {
     Boolean.valueOf(
       System.getProperty(AuditLogger.class.getName() + ".isEnabled", "true"));
 
-  private static final String SOLR_VERSION = Version.LUCENE_44.toString();
-//  private static final String SOLR_VERSION = Version.LATEST.toString(); // FIXME for solr-4.10
+  private static final String SOLR_VERSION = Version.LATEST.toString();
 
 
   public AuditLogger() {
