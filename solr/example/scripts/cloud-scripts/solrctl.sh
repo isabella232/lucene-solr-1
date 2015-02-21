@@ -126,9 +126,10 @@ local_coreconfig() {
 solr_webapi() {
   # If SOLR_ADMIN_URI wasn't given explicitly via --solr we need to guess it
   if [ -z "$SOLR_ADMIN_URI" ] ; then
+    local SOLR_PROTOCOL=`get_solr_protocol`
     for node in `get_solr_state | sed -ne 's#/live_nodes/\(.*:[0-9][0-9]*\).*$#\1#p'` localhost:$SOLR_PORT ; do
-      if $SOLR_ADMIN_CURL "http://$node/solr" >/dev/null 2>&1 ; then
-        SOLR_ADMIN_URI="http://$node/solr"
+      if $SOLR_ADMIN_CURL "$SOLR_PROTOCOL://$node/solr" >/dev/null 2>&1 ; then
+        SOLR_ADMIN_URI="$SOLR_PROTOCOL://$node/solr"
         break
       fi
     done
@@ -144,6 +145,18 @@ solr_webapi() {
   fi
 
   die "Error: A call to SolrCloud WEB APIs failed: $WEB_OUT"
+}
+
+get_solr_protocol() {
+  if [ -z "$SOLR_STATE" ] ; then
+    SOLR_STATE=`eval $SOLR_ADMIN_ZK_CMD -cmd list 2>/dev/null`
+  fi
+
+  if echo "$SOLR_STATE" | grep -i 'urlScheme' | grep -q -i 'https' ; then
+    echo "https"
+  else
+    echo "http"
+  fi
 }
 
 get_solr_state() {
