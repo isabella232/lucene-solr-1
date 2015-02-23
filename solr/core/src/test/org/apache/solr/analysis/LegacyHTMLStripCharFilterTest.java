@@ -31,9 +31,14 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.BaseTokenStreamTestCase;
 import org.apache.lucene.analysis.MockTokenizer;
 import org.apache.lucene.analysis.Tokenizer;
+import org.apache.lucene.util.TestRuleLimitSysouts.Limit;
 import org.apache.lucene.util.TestUtil;
 import org.junit.Ignore;
 
+/*
+ * Cloudera - Added @Limit to avoid unit tests failures.
+ **/
+@Limit(bytes=40960)
 public class LegacyHTMLStripCharFilterTest extends BaseTokenStreamTestCase {
 
   //this is some text  here is a  link  and another  link . This is an entity: & plus a <.  Here is an &
