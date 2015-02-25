@@ -226,8 +226,15 @@ public class SolrZkClient implements Closeable {
         log.warn("VM param zkACLProvider does not point to a class implementing ZkACLProvider and with a non-arg constructor", t);
       }
     }
-    log.info("Using default ZkACLProvider");
-    return new DefaultZkACLProvider();
+    // CLOUDERA: Use a sasl provider if kerberos is enabled
+    if ("kerberos".equals(System.getProperty("solr.authentication.type"))) {
+      ConfigAwareSaslZkACLProvider provider = new ConfigAwareSaslZkACLProvider();
+      log.info("Since kerberos is enabled, using " + provider.getClass().getName() + " as ZkACLProvider");
+      return provider;
+    } else {
+      log.info("Using default ZkACLProvider");
+      return new DefaultZkACLProvider();
+    }
   }
   
   /**

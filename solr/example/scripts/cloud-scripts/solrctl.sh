@@ -45,6 +45,7 @@ usage: $0 [options] command [command-arg] [command [command-arg]] ...
 Options:
     --solr solr_uri
     --zk   zk_ensemble
+    --jaas jaas.conf
     --help
     --quiet
 
@@ -198,6 +199,12 @@ while test $# != 0 ; do
       SOLR_ZK_ENSEMBLE="$2"
       shift 2
       ;;
+    --jaas)
+      [ $# -gt 1 ] || usage "Error: $1 requires an argument"
+      [ -e "$2" ] || usage "Error: $2 must be a file"
+      ZKCLI_JVM_FLAGS="-Djava.security.auth.login.config=$2 -DzkACLProvider=org.apache.solr.common.cloud.ConfigAwareSaslZkACLProvider"
+      shift 2
+      ;;
     *)
       break
       ;;
@@ -213,7 +220,7 @@ if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
 	If you running remotely, please use --zk zk_ensemble.
 	__EOT__
 else
-  SOLR_ADMIN_ZK_CMD='${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
+  ZKCLI_JVM_FLAGS="$ZKCLI_JVM_FLAGS" SOLR_ADMIN_ZK_CMD='${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
 fi
 
 
@@ -244,6 +251,7 @@ while test $# != 0 ; do
       eval $SOLR_ADMIN_ZK_CMD -cmd clear /    || die "Error: failed to initialize Solr"
 
       eval $SOLR_ADMIN_ZK_CMD -cmd put /solr.xml "'$SOLR_XML'"
+      eval $SOLR_ADMIN_ZK_CMD -cmd makepath /configs
 
       shift 1
       ;;
