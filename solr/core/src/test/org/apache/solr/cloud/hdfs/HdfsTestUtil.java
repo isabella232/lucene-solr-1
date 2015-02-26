@@ -18,6 +18,10 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.solr.cloud.AbstractFullDistribZkTestBase;
+import org.eclipse.jetty.util.log.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -37,6 +41,7 @@ import org.apache.solr.SolrTestCaseJ4;
  */
 
 public class HdfsTestUtil {
+  private static Logger log = LoggerFactory.getLogger(HdfsTestUtil.class);
   
   private static Locale savedLocale;
   
@@ -116,7 +121,11 @@ public class HdfsTestUtil {
     System.clearProperty("solr.hdfs.blockcache.global");
     if (dfsCluster != null) {
       timers.remove(dfsCluster);
-      dfsCluster.shutdown();
+      try {
+        dfsCluster.shutdown();
+      } catch (Error e) {
+        log.warn("Exception shutting down dfsCluster", e);
+      }
     }
     
     if (badTlogOutStream != null) {

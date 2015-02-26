@@ -107,7 +107,7 @@ public class ChaosMonkey {
     if (solrDispatchFilter != null) {
       CoreContainer cores = solrDispatchFilter.getCores();
       if (cores != null) {
-        causeConnectionLoss(jetty, cores.getZkController().getClientTimeout() + 200);
+        causeConnectionLoss(jetty);
       }
     }
     
@@ -159,18 +159,13 @@ public class ChaosMonkey {
   }
   
   public static void causeConnectionLoss(JettySolrRunner jetty) {
-    causeConnectionLoss(jetty, ZkTestServer.TICK_TIME * 2 + 200);
-  }
-  
-  public static void causeConnectionLoss(JettySolrRunner jetty, int pauseTime) {
     SolrDispatchFilter solrDispatchFilter = (SolrDispatchFilter) jetty
         .getDispatchFilter().getFilter();
     if (solrDispatchFilter != null) {
       CoreContainer cores = solrDispatchFilter.getCores();
       if (cores != null) {
         SolrZkClient zkClient = cores.getZkController().getZkClient();
-        // must be at least double tick time...
-        zkClient.getSolrZooKeeper().pauseCnxn(pauseTime);
+        zkClient.getSolrZooKeeper().closeCnxn();
       }
     }
   }
