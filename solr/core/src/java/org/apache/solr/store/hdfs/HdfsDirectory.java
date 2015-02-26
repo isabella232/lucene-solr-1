@@ -174,7 +174,7 @@ public class HdfsDirectory extends Directory {
     
     public HdfsIndexInput(String name, FileSystem fileSystem, Path path,
         int bufferSize) throws IOException {
-      super(name, bufferSize);
+      super(name);
       this.path = path;
       LOG.debug("Opening normal index input on {}", path);
       FileStatus fileStatus = fileSystem.getFileStatus(path);

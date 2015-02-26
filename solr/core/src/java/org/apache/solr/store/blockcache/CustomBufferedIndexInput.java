@@ -28,7 +28,9 @@ import org.apache.lucene.store.IndexOutput;
  */
 public abstract class CustomBufferedIndexInput extends IndexInput {
   
-  private final int bufferSize;
+  public static final int BUFFER_SIZE = Integer.getInteger("solr.hdfs.readbuffer.size.default", 32768);
+  
+  private int bufferSize = BUFFER_SIZE;
   
   protected byte[] buffer;
   
@@ -42,6 +44,10 @@ public abstract class CustomBufferedIndexInput extends IndexInput {
   public byte readByte() throws IOException {
     if (bufferPosition >= bufferLength) refill();
     return buffer[bufferPosition++];
+  }
+  
+  public CustomBufferedIndexInput(String resourceDesc) {
+    this(resourceDesc, BUFFER_SIZE);
   }
   
   public CustomBufferedIndexInput(String resourceDesc, int bufferSize) {
