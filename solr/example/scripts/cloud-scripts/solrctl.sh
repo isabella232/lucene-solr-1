@@ -168,11 +168,12 @@ get_solr_state() {
 }
 
 SOLR_CONF_DIR=${SOLR_CONF_DIR:-/etc/solr/conf}
+SOLR_DEFAULTS=${SOLR_DEFAULTS:-/etc/default/solr}
 
 if [ -e "$SOLR_CONF_DIR/solr-env.sh" ] ; then
   . "$SOLR_CONF_DIR/solr-env.sh"
-elif [ -e /etc/default/solr ] ; then
-  . /etc/default/solr
+elif [ -e ${SOLR_DEFAULTS} ] ; then
+  . ${SOLR_DEFAULTS}
 else
   SOLR_PORT=8983
 fi
@@ -229,7 +230,7 @@ if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
   cat >&2 <<-__EOT__
 	Warning: Non-SolrCloud mode has been completely deprecated
 	Please configure SolrCloud via SOLR_ZK_ENSEMBLE setting in 
-	/etc/default/solr
+	SOLR_DEFAULTS file
 	If you running remotely, please use --zk zk_ensemble.
 	__EOT__
 else
