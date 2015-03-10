@@ -234,7 +234,7 @@ if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
 	If you running remotely, please use --zk zk_ensemble.
 	__EOT__
 else
-  ZKCLI_JVM_FLAGS="$ZKCLI_JVM_FLAGS" SOLR_ADMIN_ZK_CMD='${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
+  SOLR_ADMIN_ZK_CMD='ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} ${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
 fi
 
 
