@@ -357,7 +357,13 @@ public class CloudSolrServer extends SolrServer {
       }
 
       if (exceptions.size() > 0) {
-        throw new RouteException(ErrorCode.SERVER_ERROR, exceptions, routes);
+        Throwable firstException = exceptions.getVal(0);
+        if(firstException instanceof SolrException) {
+          SolrException e = (SolrException)firstException;
+          throw new RouteException(ErrorCode.getErrorCode(e.code()), exceptions, routes);
+        } else {
+          throw new RouteException(ErrorCode.SERVER_ERROR, exceptions, routes);
+        }
       }
     } else {
       for (Map.Entry<String, LBHttpSolrServer.Req> entry : routes.entrySet()) {
