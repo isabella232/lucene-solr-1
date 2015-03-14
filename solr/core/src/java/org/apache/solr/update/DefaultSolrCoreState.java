@@ -63,6 +63,8 @@ public final class DefaultSolrCoreState extends SolrCoreState implements Recover
   
   protected final ReentrantLock commitLock = new ReentrantLock();
 
+  private boolean lastReplicationSuccess = true;
+
   public DefaultSolrCoreState(DirectoryFactory directoryFactory) {
     this.directoryFactory = directoryFactory;
   }
@@ -387,6 +389,16 @@ public final class DefaultSolrCoreState extends SolrCoreState implements Recover
   @Override
   public ActionThrottle getLeaderThrottle() {
     return leaderThrottle;
+  }
+
+  @Override
+  public boolean getLastReplicateIndexSuccess() {
+    return lastReplicationSuccess;
+  }
+
+  @Override
+  public void setLastReplicateIndexSuccess(boolean success) {
+    this.lastReplicationSuccess = success;
   }
   
   

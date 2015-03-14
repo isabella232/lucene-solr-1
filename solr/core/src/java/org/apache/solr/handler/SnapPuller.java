@@ -307,16 +307,22 @@ public class SnapPuller {
 
   private boolean successfulInstall = false;
 
+  boolean fetchLatestIndex(final SolrCore core, boolean forceReplication) throws IOException, InterruptedException {
+    return fetchLatestIndex(core, forceReplication, false);
+  }
+  
   /**
    * This command downloads all the necessary files from master to install a index commit point. Only changed files are
    * downloaded. It also downloads the conf files (if they are modified).
    *
    * @param core the SolrCore
    * @param forceReplication force a replication in all cases 
+   * @param forceCoreReload force a core reload in all cases
    * @return true on success, false if slave is already in sync
    * @throws IOException if an exception occurs
    */
-  boolean fetchLatestIndex(final SolrCore core, boolean forceReplication) throws IOException, InterruptedException {
+  boolean fetchLatestIndex(final SolrCore core, boolean forceReplication, boolean forceCoreReload) throws IOException, InterruptedException {
+    boolean cleanupDone = false;
     successfulInstall = false;
     replicationStartTime = System.currentTimeMillis();
     Directory tmpIndexDir = null;
@@ -324,6 +330,11 @@ public class SnapPuller {
     Directory indexDir = null;
     String indexDirPath = null;
     boolean deleteTmpIdxDir = true;
+    
+    if (!core.getSolrCoreState().getLastReplicateIndexSuccess()) {
+      forceReplication = true;
+    }
+    
     try {
       //get the current 'replicateable' index version in the master
       NamedList response = null;
@@ -475,6 +486,7 @@ public class SnapPuller {
               + " secs");
           Collection<Map<String,Object>> modifiedConfFiles = getModifiedConfFiles(confFilesToDownload);
           if (!modifiedConfFiles.isEmpty()) {
+            reloadCore = true;
             downloadConfFiles(confFilesToDownload, latestGeneration);
             if (isFullCopyNeeded) {
               successfulInstall = modifyIndexProps(tmpIdxDirName);
@@ -497,7 +509,6 @@ public class SnapPuller {
               logReplicationTimeAndConfFiles(modifiedConfFiles,
                   successfulInstall);// write to a file time of replication and
                                      // conf files.
-              reloadCore = true;
             }
           } else {
             terminateAndWaitFsyncService();
@@ -519,7 +530,8 @@ public class SnapPuller {
         }
         
         // we must reload the core after we open the IW back up
-        if (reloadCore) {
+        if (successfulInstall && (reloadCore || forceCoreReload)) {
+          LOG.info("Reloading SolrCore");
           reloadCore();
         }
 
@@ -537,10 +549,19 @@ public class SnapPuller {
             solrCore.getUpdateHandler().newIndexWriter(isFullCopyNeeded);
           }
           
-          openNewSearcherAndUpdateCommitPoint(isFullCopyNeeded);
+          openNewSearcherAndUpdateCommitPoint();
         }
         
         replicationStartTime = 0;
+        
+        if (!isFullCopyNeeded && !forceReplication && !successfulInstall) {
+          cleanup(core, tmpIndexDir, indexDir, deleteTmpIdxDir);
+          cleanupDone = true;
+          // we try with a full copy of the index
+          LOG.warn("Replication attempt was not successful - trying a full index replication reloadCore={}", reloadCore);
+          successfulInstall = fetchLatestIndex(core, true, reloadCore);
+        }
+        
         return successfulInstall;
       } catch (ReplicationHandlerException e) {
         LOG.error("User aborted Replication");
@@ -553,36 +574,46 @@ public class SnapPuller {
         throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Index fetch failed : ", e);
       }
     } finally {
-      try {
-        if (!successfulInstall) {
-          logReplicationTimeAndConfFiles(null, successfulInstall);
+      if (!cleanupDone) {
+        cleanup(core, tmpIndexDir, indexDir, deleteTmpIdxDir);
+      }
+    }
+  }
+
+  private void cleanup(final SolrCore core, Directory tmpIndexDir,
+      Directory indexDir, boolean deleteTmpIdxDir) throws IOException {
+    try {
+      if (!successfulInstall) {
+        logReplicationTimeAndConfFiles(null, successfulInstall);
+      }
+      
+      filesToDownload = filesDownloaded = confFilesDownloaded = confFilesToDownload = null;
+      replicationStartTime = 0;
+      dirFileFetcher = null;
+      localFileFetcher = null;
+      if (fsyncService != null && !fsyncService.isShutdown()) fsyncService
+          .shutdownNow();
+      fsyncService = null;
+      stop = false;
+      fsyncException = null;
+    } finally {
+      if (deleteTmpIdxDir && tmpIndexDir != null) {
+        try {
+          core.getDirectoryFactory().doneWithDirectory(tmpIndexDir);
+          core.getDirectoryFactory().remove(tmpIndexDir);
+        } catch (IOException e) {
+          SolrException.log(LOG, "Error removing directory " + tmpIndexDir, e);
         }
-        filesToDownload = filesDownloaded = confFilesDownloaded = confFilesToDownload = null;
-        replicationStartTime = 0;
-        dirFileFetcher = null;
-        localFileFetcher = null;
-        if (fsyncService != null && !fsyncService.isShutdown()) fsyncService
-            .shutdownNow();
-        fsyncService = null;
-        stop = false;
-        fsyncException = null;
-      } finally {
-        if (deleteTmpIdxDir && tmpIndexDir != null) {
-          try {
-            core.getDirectoryFactory().doneWithDirectory(tmpIndexDir);
-            core.getDirectoryFactory().remove(tmpIndexDir);
-          } catch (IOException e) {
-            SolrException.log(LOG, "Error removing directory " + tmpIndexDir, e);
-          }
-        }
-        
-        if (tmpIndexDir != null) {
-          core.getDirectoryFactory().release(tmpIndexDir);
-        }
-        
-        if (indexDir != null) {
-          core.getDirectoryFactory().release(indexDir);
-        }
+      }
+      
+      core.getUpdateHandler().getSolrCoreState().setLastReplicateIndexSuccess(successfulInstall);
+      
+      if (tmpIndexDir != null) {
+        core.getDirectoryFactory().release(tmpIndexDir);
+      }
+      
+      if (indexDir != null) {
+        core.getDirectoryFactory().release(indexDir);
       }
     }
   }
@@ -724,9 +755,7 @@ public class SnapPuller {
     return sb;
   }
 
-  private void openNewSearcherAndUpdateCommitPoint(boolean isFullCopyNeeded) throws IOException {
-    SolrQueryRequest req = new LocalSolrQueryRequest(solrCore,
-        new ModifiableSolrParams());
+  private void openNewSearcherAndUpdateCommitPoint() throws IOException {
     
     RefCounted<SolrIndexSearcher> searcher = null;
     IndexCommit commitPoint;
@@ -744,7 +773,6 @@ public class SnapPuller {
       }
       commitPoint = searcher.get().getIndexReader().getIndexCommit();
     } finally {
-      req.close();
       if (searcher != null) {
         searcher.decref();
       }
@@ -963,7 +991,10 @@ public class SnapPuller {
     boolean success = false;
     try {
       if (slowFileExists(indexDir, fname)) {
-        LOG.info("Skipping move file - it already exists:" + fname);
+        LOG.warn("Cannot complete replication attempt because file already exists:" + fname);
+
+        // we fail - we downloaded the files we need, if we can't move one in, we can't
+        // count on the correct index
         return true;
       }
     } catch (IOException e) {

@@ -71,15 +71,15 @@ public class RecoveryZkTest extends AbstractFullDistribZkTestBase {
       maxDoc = maxDocNightlyList[random().nextInt(maxDocList.length - 1)];
     }
     
-    indexThread = new StopableIndexingThread(controlClient, cloudClient, "1", true, maxDoc);
+    indexThread = new StopableIndexingThread(controlClient, cloudClient, "1", true, maxDoc, random().nextInt(49) + 1, true);
     indexThread.start();
     
-    indexThread2 = new StopableIndexingThread(controlClient, cloudClient, "2", true, maxDoc);
+    indexThread2 = new StopableIndexingThread(controlClient, cloudClient, "2", true, maxDoc, random().nextInt(49) + 1, true);
     
     indexThread2.start();
 
     // give some time to index...
-    int[] waitTimes = new int[] {200, 2000, 3000};
+    int[] waitTimes = new int[] {2000, 3000, 5000};
     Thread.sleep(waitTimes[random().nextInt(waitTimes.length - 1)]);
      
     // bring shard replica down

@@ -17,6 +17,14 @@ package org.apache.solr.cloud;
  * limitations under the License.
  */
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.store.Directory;
@@ -57,14 +65,6 @@ import org.apache.solr.util.RefCounted;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 public class RecoveryStrategy extends Thread implements ClosableThread {
   private static final int WAIT_FOR_UPDATES_WITH_STALE_STATE_PAUSE = Integer.getInteger("solr.cloud.wait-for-updates-with-stale-state-pause", 7000);
@@ -167,7 +167,7 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
       throw new SolrException(ErrorCode.SERVER_ERROR,
           "Replication for recovery failed.");
     }
-    
+
     // solrcloud_debug
     if (log.isDebugEnabled()) {
       try {
@@ -183,7 +183,7 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
               + " from "
               + leaderUrl
               + " gen:"
-              + core.getDeletionPolicy().getLatestCommit().getGeneration()
+              + core.getDeletionPolicy().getLatestCommit() != null ? "null" : core.getDeletionPolicy().getLatestCommit().getGeneration()
               + " data:" + core.getDataDir()
               + " index:" + core.getIndexDir()
               + " newIndex:" + core.getNewIndexDir()
@@ -193,10 +193,10 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
           searchHolder.decref();
         }
       } catch (Exception e) {
-        throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+        log.error("Error in solrcloud_debug block", e);
       }
     }
-
+    
   }
 
   private void commitOnLeader(String leaderUrl) throws SolrServerException,
@@ -385,7 +385,7 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
         }
 
         // first thing we just try to sync
-        if (firstTime) {
+        if (firstTime && core.getSolrCoreState().getLastReplicateIndexSuccess()) {
           firstTime = false; // only try sync the first time through the loop
           log.info("Attempting to PeerSync from " + leaderUrl + " core=" + coreName + " - recoveringAfterStartup="+recoveringAfterStartup);
           // System.out.println("Attempting to PeerSync from " + leaderUrl
@@ -416,7 +416,7 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
                   searchHolder.decref();
                 }
               } catch (Exception e) {
-                throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+                log.error("Error in solrcloud_debug block", e);
               }
             }
 
@@ -446,11 +446,6 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
 
           replicate(zkController.getNodeName(), core, leaderprops);
 
-          if (isClosed()) {
-            log.info("Recovery was cancelled");
-            break;
-          }
-          
           replay(core);
           replayed = true;
           
@@ -564,7 +559,7 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
           searchHolder.decref();
         }
       } catch (Exception e) {
-        throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+        log.error("Error in solrcloud_debug block", e);
       }
     }
     
