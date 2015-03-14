@@ -34,6 +34,7 @@ import java.util.concurrent.Future;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.IOUtils;
 import org.apache.solr.cloud.CloudDescriptor;
@@ -66,6 +67,7 @@ import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.search.SolrIndexSearcher;
+import org.apache.solr.update.CommitUpdateCommand;
 import org.apache.solr.update.MergeIndexesCommand;
 import org.apache.solr.update.SplitIndexCommand;
 import org.apache.solr.update.UpdateLog;
@@ -879,20 +881,23 @@ public class CoreAdminHandler extends RequestHandlerBase {
         
         boolean success = syncStrategy.sync(zkController, core, new ZkNodeProps(props));
         // solrcloud_debug
-//         try {
-//         RefCounted<SolrIndexSearcher> searchHolder =
-//         core.getNewestSearcher(false);
-//         SolrIndexSearcher searcher = searchHolder.get();
-//         try {
-//         System.out.println(core.getCoreDescriptor().getCoreContainer().getZkController().getNodeName()
-//         + " synched "
-//         + searcher.search(new MatchAllDocsQuery(), 1).totalHits);
-//         } finally {
-//         searchHolder.decref();
-//         }
-//         } catch (Exception e) {
-//        
-//         }
+        if (log.isDebugEnabled()) {
+          try {
+            RefCounted<SolrIndexSearcher> searchHolder = core
+                .getNewestSearcher(false);
+            SolrIndexSearcher searcher = searchHolder.get();
+            try {
+              log.debug(core.getCoreDescriptor().getCoreContainer()
+                  .getZkController().getNodeName()
+                  + " synched "
+                  + searcher.search(new MatchAllDocsQuery(), 1).totalHits);
+            } finally {
+              searchHolder.decref();
+            }
+          } catch (Exception e) {
+            log.error("Error in solrcloud_debug block", e);
+          }
+        }
         if (!success) {
           throw new SolrException(ErrorCode.SERVER_ERROR, "Sync Failed");
         }
@@ -1001,27 +1006,31 @@ public class CoreAdminHandler extends RequestHandlerBase {
         }
         
         // solrcloud_debug
-//        try {;
-//        LocalSolrQueryRequest r = new LocalSolrQueryRequest(core, new
-//        ModifiableSolrParams());
-//        CommitUpdateCommand commitCmd = new CommitUpdateCommand(r, false);
-//        commitCmd.softCommit = true;
-//        core.getUpdateHandler().commit(commitCmd);
-//        RefCounted<SolrIndexSearcher> searchHolder =
-//        core.getNewestSearcher(false);
-//        SolrIndexSearcher searcher = searchHolder.get();
-//        try {
-//        System.out.println(core.getCoreDescriptor().getCoreContainer().getZkController().getNodeName()
-//        + " to replicate "
-//        + searcher.search(new MatchAllDocsQuery(), 1).totalHits + " gen:" +
-//        core.getDeletionPolicy().getLatestCommit().getGeneration() + " data:" +
-//        core.getDataDir());
-//        } finally {
-//        searchHolder.decref();
-//        }
-//        } catch (Exception e) {
-//       
-//        }
+        if (log.isDebugEnabled()) {
+          try {
+            LocalSolrQueryRequest r = new LocalSolrQueryRequest(core,
+                new ModifiableSolrParams());
+            CommitUpdateCommand commitCmd = new CommitUpdateCommand(r, false);
+            commitCmd.softCommit = true;
+            core.getUpdateHandler().commit(commitCmd);
+            RefCounted<SolrIndexSearcher> searchHolder = core
+                .getNewestSearcher(false);
+            SolrIndexSearcher searcher = searchHolder.get();
+            try {
+              log.debug(core.getCoreDescriptor().getCoreContainer()
+                  .getZkController().getNodeName()
+                  + " to replicate "
+                  + searcher.search(new MatchAllDocsQuery(), 1).totalHits
+                  + " gen:"
+                  + core.getDeletionPolicy().getLatestCommit().getGeneration()
+                  + " data:" + core.getDataDir());
+            } finally {
+              searchHolder.decref();
+            }
+          } catch (Exception e) {
+            log.error("Error in solrcloud_debug block", e);
+          }
+        }
       } finally {
         if (core != null) {
           core.close();

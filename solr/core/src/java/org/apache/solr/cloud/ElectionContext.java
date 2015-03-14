@@ -2,7 +2,6 @@ package org.apache.solr.cloud;
 
 import java.io.IOException;
 import java.util.Map;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -19,7 +18,9 @@ import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.update.UpdateLog;
+import org.apache.solr.util.RefCounted;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
@@ -241,20 +242,23 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
       }
       
       // solrcloud_debug
-      // try {
-      // RefCounted<SolrIndexSearcher> searchHolder =
-      // core.getNewestSearcher(false);
-      // SolrIndexSearcher searcher = searchHolder.get();
-      // try {
-      // System.out.println(core.getCoreDescriptor().getCoreContainer().getZkController().getNodeName()
-      // + " synched "
-      // + searcher.search(new MatchAllDocsQuery(), 1).totalHits);
-      // } finally {
-      // searchHolder.decref();
-      // }
-      // } catch (Exception e) {
-      //
-      // }
+      if (log.isDebugEnabled()) {
+        try {
+          RefCounted<SolrIndexSearcher> searchHolder = core
+              .getNewestSearcher(false);
+          SolrIndexSearcher searcher = searchHolder.get();
+          try {
+            log.debug(core.getCoreDescriptor().getCoreContainer()
+                .getZkController().getNodeName()
+                + " synched "
+                + searcher.search(new MatchAllDocsQuery(), 1).totalHits);
+          } finally {
+            searchHolder.decref();
+          }
+        } catch (Exception e) {
+          log.error("Error in solrcloud_debug block", e);
+        }
+      }
       if (!success) {
         rejoinLeaderElection(leaderSeqPath, core);
         return;

@@ -27,6 +27,7 @@ import java.util.Map;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.client.solrj.SolrResponse;
 import org.apache.solr.cloud.CloudDescriptor;
@@ -35,6 +36,7 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Slice;
@@ -94,6 +96,25 @@ public class RealTimeGetComponent extends SearchComponent
 
     val = params.get("getUpdates");
     if (val != null) {
+      // solrcloud_debug
+      if (log.isDebugEnabled()) {
+        try {
+          RefCounted<SolrIndexSearcher> searchHolder = req.getCore()
+              .getNewestSearcher(false);
+          SolrIndexSearcher searcher = searchHolder.get();
+          try {
+            log.debug(req.getCore().getCoreDescriptor()
+                .getCoreContainer().getZkController().getNodeName()
+                + " min count to sync to (from most recent searcher view) "
+                + searcher.search(new MatchAllDocsQuery(), 1).totalHits);
+          } finally {
+            searchHolder.decref();
+          }
+        } catch (Exception e) {
+          log.error("Error in solrcloud_debug block", e);
+        }
+      }
+      
       processGetUpdates(rb);
       return;
     }
