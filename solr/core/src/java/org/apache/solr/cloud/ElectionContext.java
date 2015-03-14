@@ -1,5 +1,7 @@
 package org.apache.solr.cloud;
 
+import java.io.IOException;
+import java.util.Map;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -28,10 +30,8 @@ import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -308,7 +308,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
             searchHolder.decref();
           }
         } catch (Exception e) {
-          throw new SolrException(ErrorCode.SERVER_ERROR, null, e);
+          log.error("Error in solrcloud_debug block", e);
         }
       }
       if (!success) {
