@@ -207,6 +207,11 @@ public class QueryComponent extends SearchComponent
     if (params.getBool(GroupParams.GROUP, false)) {
       prepareGrouping(rb);
     }
+
+    //Input validation
+    if (rb.getQueryCommand().getOffset() < 0) {
+      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "'start' parameter cannot be negative");
+    }
   }
 
   private void prepareGrouping(ResponseBuilder rb) throws IOException {
@@ -280,10 +285,6 @@ public class QueryComponent extends SearchComponent
       return;
     }
     SolrIndexSearcher searcher = req.getSearcher();
-
-    if (rb.getQueryCommand().getOffset() < 0) {
-      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "'start' parameter cannot be negative");
-    }
 
     // -1 as flag if not set.
     long timeAllowed = (long)params.getInt( CommonParams.TIME_ALLOWED, -1 );
