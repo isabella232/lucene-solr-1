@@ -27,6 +27,7 @@ import static org.apache.solr.cloud.OverseerCollectionProcessor.NUM_SLICES;
 import static org.apache.solr.cloud.OverseerCollectionProcessor.REQUESTID;
 import static org.apache.solr.cloud.OverseerCollectionProcessor.SHARDS_PROP;
 import static org.apache.solr.common.cloud.DocCollection.DOC_ROUTER;
+import static org.apache.solr.common.cloud.DocCollection.DOC_ROUTER_OLD;
 import static org.apache.solr.common.cloud.ZkNodeProps.makeMap;
 import static org.apache.solr.common.cloud.ZkStateReader.COLLECTION_PROP;
 import static org.apache.solr.common.cloud.ZkStateReader.SHARD_ID_PROP;
@@ -59,6 +60,7 @@ import org.apache.solr.cloud.OverseerSolrResponse;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.ClusterState;
+import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.ImplicitDocRouter;
 import org.apache.solr.common.cloud.ZkCoreNodeProps;
 import org.apache.solr.common.cloud.ZkNodeProps;
@@ -500,7 +502,12 @@ public class CollectionsHandler extends RequestHandlerBase {
     log.info("Create shard: " + req.getParamString());
     req.getParams().required().check(COLLECTION_PROP, SHARD_ID_PROP);
     ClusterState clusterState = coreContainer.getZkController().getClusterState();
-    if(!ImplicitDocRouter.NAME.equals( ((Map) clusterState.getCollection(req.getParams().get(COLLECTION_PROP)).get(DOC_ROUTER)).get("name") )  )
+    DocCollection docCollection = clusterState.getCollection(req.getParams().get(COLLECTION_PROP));
+    Object docRouterObj = docCollection.get(DOC_ROUTER);
+    // This could be either new format (i.e. "routerSpec: {name:routerName}" or old format "router: routerName").
+    String routerName = (docRouterObj != null) ?
+      ((Map)docRouterObj).get("name").toString() :  docCollection.get(DOC_ROUTER_OLD).toString();
+    if(!ImplicitDocRouter.NAME.equals( routerName ))
       throw new SolrException(ErrorCode.BAD_REQUEST, "shards can be added only to 'implicit' collections" );
 
     Map<String, Object> map = makeMap(QUEUE_OPERATION, CREATESHARD);
