@@ -218,8 +218,13 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
       setDefaultDelegationTokenProp(props, "zk-dt-secret-manager.enable", "true");
 
       String chrootPath = getZkChroot();
+      //Note - Curator complains if the znodeWorkingPath starts with /
+      String relativePath = chrootPath.startsWith("/") ? chrootPath.substring(1) : chrootPath;
+      setDefaultDelegationTokenProp(props,
+        "zk-dt-secret-manager.znodeWorkingPath", relativePath + "/zkdtsm");
       setDefaultDelegationTokenProp(props,
         "signer.secret.provider.zookeeper.path", chrootPath + "/token");
+
     } else {
       LOG.info("zkHost is null, not setting ZK-related delegation token properties");
     }
