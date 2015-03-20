@@ -313,6 +313,10 @@ public class ClusterState implements JSONWriter.Writable {
     }
 
     Object routerObj = props.get(DocCollection.DOC_ROUTER);
+    if (routerObj == null) {
+      // check if the old format exists
+      routerObj = props.get(DocCollection.DOC_ROUTER_OLD);
+    }
     DocRouter router;
     if (routerObj == null) {
       router = DocRouter.DEFAULT;
