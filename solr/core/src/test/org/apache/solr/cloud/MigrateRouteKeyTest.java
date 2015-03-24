@@ -52,41 +52,6 @@ public class MigrateRouteKeyTest extends BasicDistributedZkTest {
   }
 
   @Override
-  @Before
-  public void setUp() throws Exception {
-    super.setUp();
-    System.setProperty("numShards", Integer.toString(sliceCount));
-    System.setProperty("solr.xml.persist", "true");
-  }
-
-  @Override
-  @After
-  public void tearDown() throws Exception {
-    super.tearDown();
-
-    if (VERBOSE || printLayoutOnTearDown) {
-      super.printLayout();
-    }
-    if (controlClient != null) {
-      controlClient.shutdown();
-    }
-    if (cloudClient != null) {
-      cloudClient.shutdown();
-    }
-    if (controlClientCloud != null) {
-      controlClientCloud.shutdown();
-    }
-    super.tearDown();
-
-    System.clearProperty("zkHost");
-    System.clearProperty("numShards");
-    System.clearProperty("solr.xml.persist");
-
-    // insurance
-    DirectUpdateHandler2.commitOnClose = true;
-  }
-
-  @Override
   public void doTest() throws Exception {
     waitForThingsToLevelOut(15);
 
