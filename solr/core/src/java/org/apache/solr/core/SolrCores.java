@@ -21,6 +21,7 @@ import com.google.common.collect.Lists;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.util.DefaultSolrThreadFactory;
+import org.apache.solr.logging.MDCLoggingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,21 +118,24 @@ class SolrCores {
         coreList.addAll(pendingCloses);
         pendingCloses.clear();
       }
-      
-      ExecutorService coreCloseExecutor = Executors.newFixedThreadPool(Integer.MAX_VALUE,
-          new DefaultSolrThreadFactory("coreCloseExecutor"));
+
+      ExecutorService coreCloseExecutor = ExecutorUtil.newMDCAwareFixedThreadPool(Integer.MAX_VALUE,
+              new DefaultSolrThreadFactory("coreCloseExecutor"));
       try {
         for (final SolrCore core : coreList) {
           coreCloseExecutor.submit(new Callable<SolrCore>() {
             @Override
             public SolrCore call() throws Exception {
               try {
+                MDCLoggingContext.setCore(core);
                 core.close();
               } catch (Throwable e) {
                 SolrException.log(logger, "Error shutting down core", e);
                 if (e instanceof Error) {
                   throw (Error) e;
                 }
+              } finally {
+                MDCLoggingContext.clear();
               }
               return core;
             }
@@ -140,9 +144,11 @@ class SolrCores {
       } finally {
         ExecutorUtil.shutdownAndAwaitTermination(coreCloseExecutor);
       }
+      
     } while (coreList.size() > 0);
   }
 
+  
   //WARNING! This should be the _only_ place you put anything into the list of transient cores!
   protected SolrCore putTransientCore(ConfigSolr cfg, String name, SolrCore core, SolrResourceLoader loader) {
     SolrCore retCore;

@@ -11,10 +11,14 @@ import org.apache.log4j.spi.LoggingEvent;
 import org.apache.log4j.spi.ThrowableInformation;
 import org.apache.solr.cloud.ZkController;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.StringUtils;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrRequestInfo;
+import org.slf4j.MDC;
+
+import static org.apache.solr.common.cloud.ZkStateReader.*;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -104,7 +108,7 @@ public class SolrLogLayout extends Layout {
     sb.append(" T");
     sb.append(th.getId());
   }
-  
+
   @Override
   public String format(LoggingEvent event) {
     return _format(event);
@@ -180,7 +184,9 @@ public class SolrLogLayout extends Layout {
     // useful for sequencing when looking at multiple parts of a log file, but
     // ms since start should be fine.
     appendThread(sb, event);
-    
+
+    appendMDC(sb);
+
     if (info != null) {
       sb.append(' ').append(info.shortId); // core
     }
@@ -357,5 +363,24 @@ public class SolrLogLayout extends Layout {
   @Override
   public boolean ignoresThrowable() {
     return false;
+  }
+
+
+  private void appendMDC(StringBuilder sb) {
+    if (!StringUtils.isEmpty(MDC.get(NODE_NAME_PROP)))  {
+      sb.append(" n:").append(MDC.get(NODE_NAME_PROP));
+    }
+    if (!StringUtils.isEmpty(MDC.get(COLLECTION_PROP)))  {
+      sb.append(" c:").append(MDC.get(COLLECTION_PROP));
+    }
+    if (!StringUtils.isEmpty(MDC.get(SHARD_ID_PROP))) {
+      sb.append(" s:").append(MDC.get(SHARD_ID_PROP));
+    }
+    if (!StringUtils.isEmpty(MDC.get(REPLICA_PROP))) {
+      sb.append(" r:").append(MDC.get(REPLICA_PROP));
+    }
+    if (!StringUtils.isEmpty(MDC.get(CORE_NAME_PROP))) {
+      sb.append(" x:").append(MDC.get(CORE_NAME_PROP));
+    }
   }
 }

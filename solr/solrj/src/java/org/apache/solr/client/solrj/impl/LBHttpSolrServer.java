@@ -25,6 +25,7 @@ import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SolrjNamedThreadFactory;
 import org.apache.solr.common.SolrException;
+import org.slf4j.MDC;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -302,10 +303,16 @@ public class LBHttpSolrServer extends SolrServer {
       }
       rsp.server = serverStr;
       HttpSolrServer server = makeServer(serverStr);
+      try {
+        MDC.put("LBHttpSolrClient.url", serverStr);
+        HttpSolrServer client = makeServer(serverStr);
 
-      ex = doRequest(server, req, rsp, isUpdate, false, null);
-      if (ex == null) {
-        return rsp; // SUCCESS
+        ex = doRequest(server, req, rsp, isUpdate, false, null);
+        if (ex == null) {
+          return rsp; // SUCCESS
+        }
+      } finally {
+        MDC.remove("LBHttpSolrClient.url");
       }
     }
 

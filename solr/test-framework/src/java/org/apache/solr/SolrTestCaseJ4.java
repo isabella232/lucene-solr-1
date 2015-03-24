@@ -19,6 +19,41 @@ package org.apache.solr;
 import java.security.SecureRandom;
 
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Properties;
+import java.util.logging.Level;
+
+import javax.xml.xpath.XPathExpressionException;
+
 import com.carrotsearch.randomizedtesting.RandomizedContext;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import com.carrotsearch.randomizedtesting.rules.SystemPropertiesRestoreRule;
@@ -169,7 +204,6 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
     System.setProperty("enable.update.log", usually() ? "true" : "false");
     System.setProperty("tests.shardhandler.randomSeed", Long.toString(random().nextLong()));
     System.setProperty("solr.clustering.enabled", "false");
-    setupLogging();
     startTrackingSearchers();
     startTrackingZkClients();
     ignoreException("ignore_exception");
@@ -331,33 +365,6 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
   public void tearDown() throws Exception {
     log.info("###Ending " + getTestName());    
     super.tearDown();
-  }
-
-  public static SolrLogFormatter formatter;
-
-  public static void setupLogging() {
-    boolean register = false;
-    Handler[] handlers = java.util.logging.Logger.getLogger("").getHandlers();
-    ConsoleHandler consoleHandler = null;
-    for (Handler handler : handlers) {
-      if (handler instanceof ConsoleHandler) {
-        consoleHandler = (ConsoleHandler)handler;
-        break;
-      }
-    }
-
-    if (consoleHandler == null) {
-      consoleHandler = new ConsoleHandler();
-      register = true;
-    }
-
-    consoleHandler.setLevel(Level.ALL);
-    formatter = new SolrLogFormatter();
-    consoleHandler.setFormatter(formatter);
-
-    if (register) {
-      java.util.logging.Logger.getLogger("").addHandler(consoleHandler);
-    }
   }
 
   public static void setLoggingLevel(Level level) {

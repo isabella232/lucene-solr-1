@@ -3,6 +3,8 @@ package org.apache.solr.common.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.Collection;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -20,12 +22,13 @@ import java.util.List;
  * limitations under the License.
  */
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 
 public class ExecutorUtil {
@@ -117,4 +120,88 @@ public class ExecutorUtil {
       }
     }
   }
+
+  /**
+   * See {@link java.util.concurrent.Executors#newFixedThreadPool(int, ThreadFactory)}
+   */
+  public static ExecutorService newMDCAwareFixedThreadPool(int nThreads, ThreadFactory threadFactory) {
+    return new MDCAwareThreadPoolExecutor(nThreads, nThreads,
+        0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<Runnable>(),
+        threadFactory);
+  }
+
+  /**
+   * See {@link java.util.concurrent.Executors#newSingleThreadExecutor(ThreadFactory)}
+   */
+  public static ExecutorService newMDCAwareSingleThreadExecutor(ThreadFactory threadFactory) {
+    return new MDCAwareThreadPoolExecutor(1, 1,
+        0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<Runnable>(),
+        threadFactory);
+  }
+
+  /**
+   * See {@link java.util.concurrent.Executors#newCachedThreadPool(ThreadFactory)}
+   */
+  public static ExecutorService newMDCAwareCachedThreadPool(ThreadFactory threadFactory) {
+    return new MDCAwareThreadPoolExecutor(0, Integer.MAX_VALUE,
+        60L, TimeUnit.SECONDS,
+        new SynchronousQueue<Runnable>(),
+        threadFactory);
+  }
+
+  public static class MDCAwareThreadPoolExecutor extends ThreadPoolExecutor {
+
+    private static final int MAX_THREAD_NAME_LEN = 512;
+
+    public MDCAwareThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory, RejectedExecutionHandler handler) {
+      super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler);
+    }
+
+    public MDCAwareThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue) {
+      super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
+    }
+
+    public MDCAwareThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory) {
+      super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory);
+    }
+
+    public MDCAwareThreadPoolExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, RejectedExecutionHandler handler) {
+      super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, handler);
+    }
+
+    @Override
+    public void execute(final Runnable command) {
+      final Map<String, String> submitterContext = MDC.getCopyOfContextMap();
+      String ctxStr = submitterContext != null && !submitterContext.isEmpty() ?
+          submitterContext.toString().replace("/", "//") : "";
+      final String submitterContextStr = ctxStr.length() <= MAX_THREAD_NAME_LEN ? ctxStr : ctxStr.substring(0, MAX_THREAD_NAME_LEN);
+      super.execute(new Runnable() {
+        @Override
+        public void run() {
+          Map<String, String> threadContext = MDC.getCopyOfContextMap();
+          final Thread currentThread = Thread.currentThread();
+          final String oldName = currentThread.getName();
+          if (submitterContext != null && !submitterContext.isEmpty()) {
+            MDC.setContextMap(submitterContext);
+            currentThread.setName(oldName + "-processing-" + submitterContextStr);
+          } else {
+            MDC.clear();
+          }
+          try {
+            command.run();
+          } finally {
+            if (threadContext != null) {
+              MDC.setContextMap(threadContext);
+            } else {
+              MDC.clear();
+            }
+            currentThread.setName(oldName);
+          }
+        }
+      });
+    }
+  }
+
 }

@@ -4,6 +4,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -23,6 +24,7 @@ import org.apache.solr.common.util.RetryUtil;
 import org.apache.solr.common.util.RetryUtil.RetryCmd;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.logging.MDCLoggingContext;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.update.UpdateLog;
 import org.apache.solr.util.RefCounted;
@@ -37,6 +39,7 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -123,7 +126,7 @@ class ShardLeaderElectionContextBase extends ElectionContext {
     this.zkClient = zkStateReader.getZkClient();
     this.shardId = shardId;
     this.collection = collection;
-    
+
     try {
       new ZkCmdExecutor(zkStateReader.getZkClient().getZkClientTimeout())
           .ensureExists(ZkStateReader.COLLECTIONS_ZKNODE + "/" + collection,
@@ -278,26 +281,22 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
    */
   @Override
   void runLeaderProcess(boolean weAreReplacement, int pauseBeforeStart) throws KeeperException,
-      InterruptedException, IOException {
-    log.info("Running the leader process for shard " + shardId);
-    
+ InterruptedException, IOException {
     String coreName = leaderProps.getStr(ZkStateReader.CORE_NAME_PROP);
     ActionThrottle lt;
     try (SolrCore core = cc.getCore(coreName)) {
-
       if (core == null) {
         cancelElection();
-        throw new SolrException(ErrorCode.SERVER_ERROR,
-            "SolrCore not found:" + coreName + " in "
-                + cc.getCoreNames());
+        throw new SolrException(ErrorCode.SERVER_ERROR, "SolrCore not found:" + coreName + " in " + cc.getCoreNames());
       }
-      
+      MDCLoggingContext.setCore(core);
       lt = core.getUpdateHandler().getSolrCoreState().getLeaderThrottle();
     }
-    
+    try {
     lt.minimumWaitBetweenActions();
     lt.markAttemptingAction();
-    
+
+    log.info("Running the leader process for shard " + shardId);
     // clear the leader in clusterstate
     ZkNodeProps m = new ZkNodeProps(Overseer.QUEUE_OPERATION, ZkStateReader.LEADER_PROP,
         ZkStateReader.SHARD_ID_PROP, shardId, ZkStateReader.COLLECTION_PROP,
@@ -375,7 +374,8 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
           // we failed sync, but we have no versions - we can't sync in that case
           // - we were active
           // before, so become leader anyway
-          log.info("We failed sync, but we have no versions - we can't sync in that case - we were active before, so become leader anyway");
+          log.info(
+              "We failed sync, but we have no versions - we can't sync in that case - we were active before, so become leader anyway");
           success = true;
         }
       }
@@ -448,7 +448,10 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
         // don't want leader election to fail because of
         // an error trying to tell others to recover
       }
-    }    
+    } 
+    } finally {
+      MDCLoggingContext.clear();
+    }
   }
   
   public void checkLIR(String coreName, boolean allReplicasInLine) {
@@ -648,8 +651,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
   }
 
   private boolean shouldIBeLeader(ZkNodeProps leaderProps, SolrCore core, boolean weAreReplacement) {
-    log.info("Checking if I (core={},coreNodeName={}) should try and be the leader.", core.getName(),
-        core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
+    log.info("Checking if I should try and be the leader.");
     
     if (isClosed) {
       log.info("Bailing on leader process because we have been closed");
@@ -677,7 +679,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
 }
 
 final class OverseerElectionContext extends ElectionContext {
-  
+  private static Logger log = LoggerFactory.getLogger(OverseerElectionContext.class);
   private final SolrZkClient zkClient;
   private Overseer overseer;
   public static final String PATH = "/overseer_elect";

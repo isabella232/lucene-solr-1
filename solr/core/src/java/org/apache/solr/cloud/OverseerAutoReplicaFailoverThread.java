@@ -47,6 +47,7 @@ import org.apache.solr.core.ConfigSolr;
 import org.apache.solr.update.UpdateShardHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -253,25 +254,28 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
       // need an async request - full shard goes down leader election
       final String coreName = badReplica.replica.getStr(ZkStateReader.CORE_NAME_PROP);
       log.debug("submit call to {}", createUrl);
-      Future<Boolean> f = updateExecutor.submit(new Callable<Boolean>() {
-        
-        @Override
-        public Boolean call() {
-          return createSolrCore(collection, createUrl, dataDir, ulogDir, coreNodeName, coreName, shardId);
-        }
-      });
+      MDC.put("OverseerAutoReplicaFailoverThread.createUrl", createUrl);
       boolean success = false;
-      try {
-        success = f.get(30, TimeUnit.SECONDS);
+        try {
+          Future<Boolean> f = updateExecutor.submit(new Callable<Boolean>() {
+
+          @Override
+          public Boolean call() {
+            return createSolrCore(collection, createUrl, dataDir, ulogDir, coreNodeName, coreName, shardId);
+          }
+          });
+          success = f.get(30, TimeUnit.SECONDS);    
       } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(e);
       } catch (ExecutionException e) {
-        throw new RuntimeException(e);
+          throw new RuntimeException(e);
       } catch (TimeoutException e) {
-        throw new RuntimeException(e);
+          throw new RuntimeException(e);
+      } finally {
+        MDC.remove("OverseerAutoReplicaFailoverThread.createUrl");
       }
-      
+
       if (!success) {
         failedCoreCreates.add(badReplica);
       }

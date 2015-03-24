@@ -91,6 +91,7 @@ import org.apache.solr.util.TestInjection;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 // NOT mt-safe... create a new processor for each add thread
 // TODO: we really should not wait for distrib after local? unless a certain replication factor is asked for
@@ -924,7 +925,12 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
               maxTries,
               req.getCore().getCoreDescriptor()); // core node name of current leader
       ExecutorService executor = coreContainer.getUpdateShardHandler().getUpdateExecutor();
-      executor.execute(lirThread);
+      try {
+        MDC.put("DistributedUpdateProcessor.replicaUrlToRecover", error.req.node.getNodeProps().getCoreUrl());
+        executor.execute(lirThread);
+      } finally {
+        MDC.remove("DistributedUpdateProcessor.replicaUrlToRecover");
+      }
     }
 
     if (replicationTracker != null) {

@@ -91,6 +91,7 @@ import org.apache.solr.update.SolrCoreState.IndexWriterCloser;
 import org.apache.solr.update.SolrIndexWriter;
 import org.apache.solr.update.UpdateHandler;
 import org.apache.solr.update.VersionInfo;
+import org.apache.solr.logging.MDCLoggingContext;
 import org.apache.solr.update.processor.DistributedUpdateProcessorFactory;
 import org.apache.solr.update.processor.LogUpdateProcessorFactory;
 import org.apache.solr.update.processor.RunUpdateProcessorFactory;
@@ -793,6 +794,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
   public SolrCore(String name, String dataDir, SolrConfig config, IndexSchema schema, NamedList configSetProperties, CoreDescriptor cd, UpdateHandler updateHandler, IndexDeletionPolicyWrapper delPolicy, SolrCore prev) {
     coreDescriptor = cd;
     this.setName( name );
+    MDCLoggingContext.setCore(this);
     resourceLoader = config.getResourceLoader();
     this.solrConfig = config;
     this.configSetProperties = configSetProperties;

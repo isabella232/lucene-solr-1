@@ -56,6 +56,7 @@ import org.apache.solr.handler.admin.ConfigSetsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
+import org.apache.solr.logging.MDCLoggingContext;
 import org.apache.solr.logging.LogWatcher;
 import org.apache.solr.update.UpdateShardHandler;
 import org.apache.solr.util.DefaultSolrThreadFactory;
@@ -261,9 +262,12 @@ public class CoreContainer {
     logging = LogWatcher.newRegisteredLogWatcher(cfg.getLogWatcherConfig(), loader);
 
     hostName = cfg.getHost();
-    log.info("Host Name: " + hostName);
 
     zkSys.initZooKeeper(this, solrHome, cfg);
+
+    if (isZooKeeperAware()) {
+      MDCLoggingContext.setNode(this);
+    }
 
     this.backupRepoFactory = new BackupRepositoryFactory(cfg.getBackupRepositoryPluginInfos());
 
@@ -534,19 +538,19 @@ public class CoreContainer {
     }
 
     ZkNodeProps prevProps = null;
+    SolrCore core = null;
     try {
-
+      MDCLoggingContext.setCoreDescriptor(dcore);
       if (zkSys.getZkController() != null) {
         prevProps = zkSys.getZkController().preRegister(dcore);
       }
 
       ConfigSet coreConfig = coreConfigService.getConfig(dcore);
       log.info("Creating SolrCore '{}' using configuration from {}", dcore.getName(), coreConfig.getName());
-      SolrCore core;
       try {
         core = new SolrCore(dcore, coreConfig);
       } catch (SolrException e) {
-	      core = processCoreCreateException(e, dcore, coreConfig);
+	core = processCoreCreateException(e, dcore, coreConfig);
       }
       solrCores.addCreated(core);
 
@@ -590,6 +594,8 @@ public class CoreContainer {
       }
       coreInitFailures.put(dcore.getName(), new CoreLoadFailure(dcore, e));
       throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to create core [" + dcore.getName() + "]", e);
+    } finally {
+        MDCLoggingContext.clear();
     }
 
   }

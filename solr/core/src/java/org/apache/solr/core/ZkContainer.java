@@ -29,6 +29,8 @@ import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.solr.logging.MDCLoggingContext;
+import org.slf4j.MDC;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,6 +40,8 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
+
+import static org.apache.solr.common.cloud.ZkStateReader.CORE_NAME_PROP;
 
 public class ZkContainer {
   protected static Logger log = LoggerFactory.getLogger(ZkContainer.class);
@@ -225,6 +229,8 @@ public class ZkContainer {
     Thread thread = new Thread() {
       @Override
       public void run() {
+        MDCLoggingContext.setCore(core);
+        try {
           try {
             zkController.register(core.getName(), core.getCoreDescriptor());
           } catch (InterruptedException e) {
@@ -242,15 +248,23 @@ public class ZkContainer {
             }
             SolrException.log(log, "", e);
           }
+        } finally {
+          MDC.clear();
         }
-      
+      }
+
     };
-    
+
     if (zkController != null) {
       if (background) {
         coreZkRegister.execute(thread);
       } else {
-        thread.run();
+        MDCLoggingContext.setCore(core);
+        try {
+          thread.run();
+        } finally {
+          MDC.clear();
+        }
       }
     }
   }

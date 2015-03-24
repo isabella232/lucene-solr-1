@@ -46,6 +46,7 @@ import org.apache.solr.handler.component.ShardHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
+import org.apache.solr.logging.MDCLoggingContext;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
@@ -69,7 +70,6 @@ public class PeerSync  {
   private ShardHandler shardHandler;
   private List<SyncShardRequest> requests = new ArrayList<>();
 
-  private UpdateLog.RecentUpdates recentUpdates;
   private List<Long> startingVersions;
 
   private List<Long> ourUpdates;
@@ -182,11 +182,11 @@ public class PeerSync  {
     if (ulog == null) {
       return false;
     }
-    // FUTURE MDCLoggingContext.setCore(core);
+    MDCLoggingContext.setCore(core);
     try {
       log.info(msg() + "START replicas=" + replicas + " nUpdates=" + nUpdates);
-
-      if (debug) {
+      
+        if (debug) {
         if (startingVersions != null) {
           log.debug(msg() + "startingVersions=" + startingVersions.size() + " " + startingVersions);
         }
@@ -203,7 +203,6 @@ public class PeerSync  {
       try (UpdateLog.RecentUpdates recentUpdates = ulog.getRecentUpdates()) {
         ourUpdates = recentUpdates.getVersions(nUpdates);
       }
-
       Collections.sort(ourUpdates, absComparator);
 
       if (startingVersions != null) {
@@ -252,7 +251,7 @@ public class PeerSync  {
 
       ourHighest = ourUpdates.get(0);
       ourUpdateSet = new HashSet<>(ourUpdates);
-      requestedUpdateSet = new HashSet<>();
+      requestedUpdateSet = new HashSet<>(ourUpdates);
 
       for (;;) {
         ShardResponse srsp = shardHandler.takeCompletedOrError();
@@ -277,7 +276,7 @@ public class PeerSync  {
       log.info(msg() + "DONE. sync " + (success ? "succeeded" : "failed"));
       return success;
     } finally {
-      // FUTURE MDCLoggingContext.clear();
+      MDCLoggingContext.clear();
     }
   }
 
