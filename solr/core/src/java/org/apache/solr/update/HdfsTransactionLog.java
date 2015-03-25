@@ -34,6 +34,7 @@ import org.apache.solr.common.util.FastInputStream;
 import org.apache.solr.common.util.FastOutputStream;
 import org.apache.solr.common.util.JavaBinCodec;
 import org.apache.solr.util.FSHDFSUtils;
+import org.apache.solr.util.FSHDFSUtils.CallerInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +65,8 @@ public class HdfsTransactionLog extends TransactionLog {
   private FSDataOutputStream tlogOutStream;
   private FileSystem fs;
 
+  private volatile boolean isClosed = false;
+
   HdfsTransactionLog(FileSystem fs, Path tlogFile, Collection<String> globalStrings) {
     this(fs, tlogFile, globalStrings, false);
   }
@@ -80,7 +83,12 @@ public class HdfsTransactionLog extends TransactionLog {
       this.tlogFile = tlogFile;
       
       if (fs.exists(tlogFile) && openExisting) {
-        FSHDFSUtils.recoverFileLease(fs, tlogFile, fs.getConf());
+        FSHDFSUtils.recoverFileLease(fs, tlogFile, fs.getConf(), new CallerInfo(){
+
+          @Override
+          public boolean isCallerClosed() {
+            return isClosed;
+          }});
         
         tlogOutStream = fs.append(tlogFile);
       } else {
@@ -307,6 +315,7 @@ public class HdfsTransactionLog extends TransactionLog {
       log.error("Exception closing tlog.", e);
       throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, e);
     } finally {
+      isClosed = true;
       if (deleteOnClose) {
         try {
           fs.delete(tlogFile, true);
