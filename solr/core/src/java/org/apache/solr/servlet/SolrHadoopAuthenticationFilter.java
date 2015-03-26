@@ -32,9 +32,13 @@ import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthentica
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.token.delegation.web.KerberosDelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.token.delegation.web.PseudoDelegationTokenAuthenticationHandler;
+import org.apache.hadoop.security.UserGroupInformation;
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
+import org.apache.solr.common.util.StrUtils;
+import org.apache.solr.core.HdfsDirectoryFactory;
+import org.apache.solr.util.HdfsUtil;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -91,6 +95,13 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
    */
   @Override
   public void init(FilterConfig filterConfig) throws ServletException {
+    // be consistent with HdfsDirectoryFactory
+    String kerberosEnabledProp = System.getProperty(HdfsDirectoryFactory.KERBEROS_ENABLED);
+    if (kerberosEnabledProp != null && StrUtils.parseBoolean(kerberosEnabledProp)) {
+      Configuration conf = getConf();
+      conf.set("hadoop.security.authentication", "kerberos");
+      UserGroupInformation.setConfiguration(conf);
+    }
     if (filterConfig != null) { // needs to be set before super.init
       filterConfig.getServletContext().setAttribute("signer.secret.provider.zookeeper.curator.client", getCuratorClient());
     }
@@ -280,5 +291,12 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     };
 
     super.doFilter(request, response, filterChainWrapper);
+  }
+
+  private Configuration getConf() {
+    Configuration conf = new Configuration();
+    String confDir = System.getProperty(HdfsDirectoryFactory.CONFIG_DIRECTORY);
+    HdfsUtil.addHdfsResources(conf, confDir);
+    return conf;
   }
 }
