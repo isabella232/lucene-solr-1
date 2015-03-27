@@ -352,9 +352,18 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
     synchronized (HdfsDirectoryFactory.class) {
       if (kerberosInit == null) {
         kerberosInit = new Boolean(true);
-        Configuration conf = new Configuration();
-        conf.set("hadoop.security.authentication", "kerberos");
-        UserGroupInformation.setConfiguration(conf);
+        final Configuration conf = getConf();
+        final String authVal = conf.get(HADOOP_SECURITY_AUTHENTICATION);
+        final String kerberos = "kerberos";
+        if (authVal != null && !authVal.equals(kerberos)) {
+          throw new IllegalArgumentException(HADOOP_SECURITY_AUTHENTICATION
+              + " set to: " + authVal + ", not kerberos, but attempting to "
+              + " connect to HDFS via kerberos");
+        }
+        // let's avoid modifying the supplied configuration, just to be conservative
+        final Configuration ugiConf = new Configuration(getConf());
+        ugiConf.set(HADOOP_SECURITY_AUTHENTICATION, kerberos);
+        UserGroupInformation.setConfiguration(ugiConf);
         LOG.info(
             "Attempting to acquire kerberos ticket with keytab: {}, principal: {} ",
             keytabFile, principal);
