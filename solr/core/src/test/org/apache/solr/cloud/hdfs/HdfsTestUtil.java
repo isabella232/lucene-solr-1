@@ -113,6 +113,11 @@ public class HdfsTestUtil {
   }
   
   public static void teardownClass(MiniDFSCluster dfsCluster) throws Exception {
+    
+    if (badTlogOutStream != null) {
+      IOUtils.closeQuietly(badTlogOutStream);
+    }
+    
     SolrTestCaseJ4.resetFactory();
     System.clearProperty("solr.lock.type");
     System.clearProperty("test.build.data");
@@ -126,10 +131,6 @@ public class HdfsTestUtil {
       } catch (Error e) {
         log.warn("Exception shutting down dfsCluster", e);
       }
-    }
-    
-    if (badTlogOutStream != null) {
-      IOUtils.closeQuietly(badTlogOutStream);
     }
     
     // TODO: we HACK around HADOOP-9643
