@@ -887,7 +887,9 @@ public final class ZkController {
       // leader election perhaps?
 
       UpdateLog ulog = core.getUpdateHandler().getUpdateLog();
-      if (!core.isReloaded() && ulog != null) {
+      
+      // we will call register again after zk expiration and on reload
+      if (!afterExpiration && !core.isReloaded() && ulog != null) {
         // disable recovery in case shard is in construction state (for shard splits)
         Slice slice = getClusterState().getSlice(collection, shardId);
         if (!Slice.CONSTRUCTION.equals(slice.getState()) || !isLeader) {
@@ -902,18 +904,19 @@ public final class ZkController {
             log.info("No LogReplay needed for core=" + core.getName() + " baseURL=" + baseUrl);
           }
         }
-        boolean didRecovery = checkRecovery(coreName, desc, recoverReloadedCores, isLeader, cloudDesc,
-            collection, coreZkNodeName, shardId, leaderProps, core, cc);
-        if (!didRecovery) {
-          publish(desc, ZkStateReader.ACTIVE);
-        }
       }
+      boolean didRecovery = checkRecovery(coreName, desc, recoverReloadedCores,
+          isLeader, cloudDesc, collection, coreZkNodeName, shardId,
+          leaderProps, core, cc, afterExpiration);
+      if (!didRecovery) {
+        publish(desc, ZkStateReader.ACTIVE);
+      }
+
     } finally {
       if (core != null) {
         core.close();
       }
     }
-
     
     // make sure we have an update cluster state right away
     zkStateReader.updateClusterState(true);
@@ -1053,10 +1056,10 @@ public final class ZkController {
    * Returns whether or not a recovery was started
    */
   private boolean checkRecovery(String coreName, final CoreDescriptor desc,
-      boolean recoverReloadedCores, final boolean isLeader,
-      final CloudDescriptor cloudDesc, final String collection,
-      final String shardZkNodeName, String shardId, ZkNodeProps leaderProps,
-      SolrCore core, CoreContainer cc) {
+                                boolean recoverReloadedCores, final boolean isLeader,
+                                final CloudDescriptor cloudDesc, final String collection,
+                                final String shardZkNodeName, String shardId, ZkNodeProps leaderProps,
+                                SolrCore core, CoreContainer cc, boolean afterExpiration) {
     if (SKIP_AUTO_RECOVERY) {
       log.warn("Skipping recovery according to sys prop solrcloud.skip.autorecovery");
       return false;
@@ -1064,7 +1067,7 @@ public final class ZkController {
     boolean doRecovery = true;
     if (!isLeader) {
       
-      if (core.isReloaded() && !recoverReloadedCores) {
+      if (!afterExpiration && core.isReloaded() && !recoverReloadedCores) {
         doRecovery = false;
       }
       
