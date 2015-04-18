@@ -45,7 +45,9 @@
              root="${snapshots.cloudera.com}" checkmodified="true"/>
     <ibiblio name="maven2" root="${repo.maven.org}" pattern="${maven2.pattern.ext}" m2compatible="true"/>
 
-    <ibiblio name="sonatype-releases" root="http://oss.sonatype.org/content/repositories/releases" m2compatible="true" />
+    <ibiblio name="cloudera-repo" root="http://repository.cloudera.com/artifactory/repo" m2compatible="true" />
+    <ibiblio name="releases.cloudera.com" root="http://repository.cloudera.com/content/repositories/releases" m2compatible="true" />
+    <ibiblio name="sonatype-releases" root="https://oss.sonatype.org/content/repositories/releases" m2compatible="true" />
     <ibiblio name="maven.restlet.org" root="http://maven.restlet.org" m2compatible="true" />
 
     <!-- you might need to tweak this from china so it works -->
@@ -64,6 +66,8 @@
       <resolver ref="local"/>
       <!-- <resolver ref="local-maven-2" /> -->
       <resolver ref="main"/>
+      <resolver ref="cloudera-repo"/>
+      <resolver ref="releases.cloudera.com"/>
       <resolver ref="sonatype-releases" />
       <resolver ref="maven.restlet.org" />
       <resolver ref="working-chinese-mirror" />
