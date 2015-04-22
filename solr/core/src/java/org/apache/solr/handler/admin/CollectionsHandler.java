@@ -37,6 +37,8 @@ import static org.apache.solr.common.params.CollectionParams.CollectionAction.OV
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.REMOVEROLE;
 import static org.apache.solr.common.cloud.ZkStateReader.MAX_SHARDS_PER_NODE;
 import static org.apache.solr.common.cloud.ZkStateReader.AUTO_ADD_REPLICAS;
+import static org.apache.solr.common.params.CommonParams.NAME;
+import static org.apache.solr.common.params.CommonParams.VALUE_LONG;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -239,17 +241,8 @@ public class CollectionsHandler extends RequestHandlerBase {
   private void handleProp(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
     req.getParams().required().check("name");
     String name = req.getParams().get("name");
-    if(!OverseerCollectionProcessor.KNOWN_CLUSTER_PROPS.contains(name)){
-      throw new SolrException(ErrorCode.BAD_REQUEST, "Not a known cluster property "+ name);
-    }
-
-    Map<String,Object> props = ZkNodeProps.makeMap(
-        Overseer.QUEUE_OPERATION, CLUSTERPROP.toLower() );
-    copyIfNotNull(req.getParams(),props,
-        "name",
-        "val");
-
-    Overseer.getInQueue(coreContainer.getZkController().getZkClient()).offer(ZkStateReader.toJSON(props)) ;
+    String val = req.getParams().get(VALUE_LONG);
+    coreContainer.getZkController().getZkStateReader().setClusterProperty(name, val);
   }
 
   static Set<String> KNOWN_ROLES = ImmutableSet.of("overseer");

@@ -220,5 +220,8 @@ public interface CommonParams {
    */
   public static final String REQUEST_PURPOSE = "requestPurpose";
 
+  public static final String NAME = "name";
+  public static final String VALUE_LONG = "val";
+
 }
 
