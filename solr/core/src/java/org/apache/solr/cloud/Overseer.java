@@ -391,8 +391,6 @@ public class Overseer implements Closeable {
         clusterState = addRoutingRule(clusterState, message);
       } else if (Overseer.REMOVE_ROUTING_RULE.equals(operation))  {
         clusterState = removeRoutingRule(clusterState, message);
-      } else if(CLUSTERPROP.isEqual(operation)){
-           handleProp(message);
       } else if( QUIT.equals(operation)){
         if(myId.equals( message.get("id"))){
           log.info("Quit command received {}", LeaderElector.getNodeName(myId));
@@ -406,24 +404,6 @@ public class Overseer implements Closeable {
             + " contents:" + message.getProperties());
       }
       return clusterState;
-    }
-    private void handleProp(ZkNodeProps message)  {
-      String name = message.getStr("name");
-      String val = message.getStr("val");
-      Map m =  reader.getClusterProps();
-      if(val ==null) m.remove(name);
-      else m.put(name,val);
-
-      try {
-        if(reader.getZkClient().exists(ZkStateReader.CLUSTER_PROPS,true))
-          reader.getZkClient().setData(ZkStateReader.CLUSTER_PROPS,ZkStateReader.toJSON(m),true);
-        else
-          reader.getZkClient().create(ZkStateReader.CLUSTER_PROPS, ZkStateReader.toJSON(m),CreateMode.PERSISTENT, true);
-        clusterProps = reader.getClusterProps();
-      } catch (Exception e) {
-        log.error("Unable to set cluster property", e);
-
-      }
     }
 
     private ClusterState createReplica(ClusterState clusterState, ZkNodeProps message) {
