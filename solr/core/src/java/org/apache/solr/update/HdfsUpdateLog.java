@@ -48,6 +48,7 @@ public class HdfsUpdateLog extends UpdateLog {
   private FileSystem fs;
   private volatile Path tlogDir;
   private final String confDir;
+  private Integer tlogDfsReplication;
   
   // used internally by tests to track total count of failed tran log loads in init
   public static AtomicLong INIT_FAILED_LOGS_COUNT = new AtomicLong();
@@ -84,9 +85,10 @@ public class HdfsUpdateLog extends UpdateLog {
   public void init(PluginInfo info) {
     dataDir = (String) info.initArgs.get("dir");
     
-    defaultSyncLevel = SyncLevel.getSyncLevel((String) info.initArgs
-        .get("syncLevel"));
+    defaultSyncLevel = SyncLevel.getSyncLevel((String) info.initArgs.get("syncLevel"));
     
+    tlogDfsReplication = (Integer) info.initArgs.get( "tlogDfsReplication");
+    if (tlogDfsReplication == null) tlogDfsReplication = 1;
   }
 
   private Configuration getConf() {
@@ -183,7 +185,7 @@ public class HdfsUpdateLog extends UpdateLog {
     for (String oldLogName : tlogFiles) {
       Path f = new Path(tlogDir, oldLogName);
       try {
-        oldLog = new HdfsTransactionLog(fs, f, null, true);
+        oldLog = new HdfsTransactionLog(fs, f, null, true, tlogDfsReplication);
         addOldLog(oldLog, false); // don't remove old logs on startup since more
                                   // than one may be uncapped.
       } catch (Exception e) {
@@ -295,7 +297,7 @@ public class HdfsUpdateLog extends UpdateLog {
       String newLogName = String.format(Locale.ROOT, LOG_FILENAME_PATTERN,
           TLOG_NAME, id);
       HdfsTransactionLog ntlog = new HdfsTransactionLog(fs, new Path(tlogDir, newLogName),
-          globalStrings);
+          globalStrings, tlogDfsReplication);
       tlog = ntlog;
       
       if (tlog != ntlog) {
@@ -332,7 +334,7 @@ public class HdfsUpdateLog extends UpdateLog {
     }
   }
   
-  private String[] getLogList(Path tlogDir) throws FileNotFoundException, IOException {
+  public String[] getLogList(Path tlogDir) throws FileNotFoundException, IOException {
     final String prefix = TLOG_NAME+'.';
     FileStatus[] files = fs.listStatus(tlogDir, new PathFilter() {
       

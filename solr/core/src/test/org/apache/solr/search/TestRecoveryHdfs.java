@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -121,6 +122,18 @@ public class TestRecoveryHdfs extends SolrTestCaseJ4 {
     }
   }
 
+  @Test
+  public void testReplicationFactor() throws Exception {
+    addAndGetVersion(sdoc("id", "A1"), null);
+    assertU(commit());
+    HdfsUpdateLog ulog = (HdfsUpdateLog) h.getCore().getUpdateHandler().getUpdateLog();
+    String[] logList = ulog.getLogList(new Path(ulog.getLogDir()));
+    for (String tl : logList) {
+       FileStatus status = fs.getFileStatus(new Path(ulog.getLogDir(), tl));
+       assertEquals("Expected to find tlogs with a replication factor of 2", 2, status.getReplication());
+       
+    }
+  }
 
   @Test
   public void testLogReplay() throws Exception {
