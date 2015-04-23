@@ -78,6 +78,8 @@ Commands:
 
     cluster     [--get-solrxml file]
                 [--put-solrxml file]
+                [--set-property name value]
+                [--remove-property name]
   "
   exit 1
 }
@@ -476,19 +478,36 @@ while test $# != 0 ; do
       ;;
 
     cluster)
-      [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $1"
       case "$2" in
         --get-solrxml)
+          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
           [ ! -e "$3" ] || die "$3 already exists"
           > "$3" || die "unable to create file $3"
           eval $SOLR_ADMIN_ZK_CMD -cmd getfile /solr.xml $3  || die "Error: can't get solr.xml from ZK"
           shift 3
           ;;
         --put-solrxml)
+          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
           [ -f "$3" ] || die "$3 is not a file"
           eval $SOLR_ADMIN_ZK_CMD -cmd clear /solr.xml || die "Error: failed to clear solr.xml in ZK before put"
           eval $SOLR_ADMIN_ZK_CMD -cmd putfile /solr.xml "$3" || die "Error: can't put solr.xml to ZK"
           shift 3
+          ;;
+        --set-property)
+          if [ $# -eq 4 ]; then
+            eval $SOLR_ADMIN_ZK_CMD -cmd CLUSTERPROP -name ${3} -val ${4}
+            shift 4
+          else
+            usage "Error: incorrect specification of arguments for $2"
+          fi
+          ;;
+        --remove-property)
+          if [ $# -eq 3 ]; then
+            eval $SOLR_ADMIN_ZK_CMD -cmd CLUSTERPROP -name ${3}
+            shift 3
+          else
+            usage "Error: incorrect specification of arguments for $2"
+          fi
           ;;
         *)
           shift 1
