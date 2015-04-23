@@ -62,6 +62,7 @@
   <updateHandler class="solr.DirectUpdateHandler2">
     <updateLog>
       <str name="dir">${solr.ulog.dir:}</str>
+      <int name="tlogDfsReplication">${solr.ulog.tlogDfsReplication:2}</int>
     </updateLog>
   </updateHandler>
 
