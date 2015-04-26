@@ -22,6 +22,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
+import java.util.Collection;
+import java.util.Collections;
 
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FlushInfo;
@@ -278,5 +280,12 @@ public abstract class DirectoryFactory implements NamedListInitializedPlugin,
   public String getDataHome(CoreDescriptor cd) throws IOException {
     // by default, we go off the instance directory
     return normalize(SolrResourceLoader.normalizeDir(cd.getInstanceDir()) + cd.getDataDir());
+  }
+
+  /**
+   * Optionally allow the DirectoryFactory to request registration of some MBeans.
+   */
+  public Collection<SolrInfoMBean> offerMBeans() {
+    return Collections.emptySet();
   }
 }
