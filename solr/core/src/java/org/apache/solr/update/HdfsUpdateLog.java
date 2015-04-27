@@ -88,7 +88,7 @@ public class HdfsUpdateLog extends UpdateLog {
     defaultSyncLevel = SyncLevel.getSyncLevel((String) info.initArgs.get("syncLevel"));
     
     tlogDfsReplication = (Integer) info.initArgs.get( "tlogDfsReplication");
-    if (tlogDfsReplication == null) tlogDfsReplication = 1;
+    if (tlogDfsReplication == null) tlogDfsReplication = 3;
   }
 
   private Configuration getConf() {
