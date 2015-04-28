@@ -124,15 +124,25 @@ public class TestRecoveryHdfs extends SolrTestCaseJ4 {
 
   @Test
   public void testReplicationFactor() throws Exception {
-    addAndGetVersion(sdoc("id", "A1"), null);
-    assertU(commit());
+    clearIndex(); 
+    
     HdfsUpdateLog ulog = (HdfsUpdateLog) h.getCore().getUpdateHandler().getUpdateLog();
+    
+    assertU(commit());
+    addAndGetVersion(sdoc("id", "REP1"), null);
+    assertU(commit());
+
     String[] logList = ulog.getLogList(new Path(ulog.getLogDir()));
+    boolean foundRep2 = false;
     for (String tl : logList) {
        FileStatus status = fs.getFileStatus(new Path(ulog.getLogDir(), tl));
-       assertEquals("Expected to find tlogs with a replication factor of 2", 2, status.getReplication());
-       
+       if (status.getReplication() == 2) {
+         foundRep2 = true;
+         break;
+       }
     }
+    
+    assertTrue("Expected to find tlogs with a replication factor of 2", foundRep2);
   }
 
   @Test
