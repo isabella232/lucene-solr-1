@@ -860,11 +860,7 @@ public class UpdateLog implements PluginInfoInitialized {
   
   public void close(boolean committed, boolean deleteOnClose) {
     synchronized (this) {
-      try {
-        ExecutorUtil.shutdownNowAndAwaitTermination(recoveryExecutor);
-      } catch (Exception e) {
-        SolrException.log(log, e);
-      }
+      recoveryExecutor.shutdown(); // no new tasks
 
       // Don't delete the old tlogs, we want to be able to replay from them and retrieve old versions
 
@@ -878,6 +874,11 @@ public class UpdateLog implements PluginInfoInitialized {
         log.forceClose();
       }
 
+      try {
+        ExecutorUtil.shutdownNowAndAwaitTermination(recoveryExecutor);
+      } catch (Exception e) {
+        SolrException.log(log, e);
+      }
     }
   }
 
