@@ -495,7 +495,7 @@ while test $# != 0 ; do
           ;;
         --set-property)
           if [ $# -eq 4 ]; then
-            eval $SOLR_ADMIN_ZK_CMD -cmd CLUSTERPROP -name ${3} -val ${4}
+            eval $SOLR_ADMIN_ZK_CMD -cmd CLUSTERPROP -name ${3} -val ${4} || die "Error: Unable to set the cluster property in ZK"
             shift 4
           else
             usage "Error: incorrect specification of arguments for $2"
@@ -503,7 +503,7 @@ while test $# != 0 ; do
           ;;
         --remove-property)
           if [ $# -eq 3 ]; then
-            eval $SOLR_ADMIN_ZK_CMD -cmd CLUSTERPROP -name ${3}
+            eval $SOLR_ADMIN_ZK_CMD -cmd CLUSTERPROP -name ${3} || die "Error: Unable to remove the cluster property in ZK"
             shift 3
           else
             usage "Error: incorrect specification of arguments for $2"
