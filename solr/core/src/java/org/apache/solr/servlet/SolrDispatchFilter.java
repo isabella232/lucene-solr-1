@@ -152,7 +152,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     log.info("SolrDispatchFilter.init() done");
   }
 
-  private ConfigSolr loadConfigSolr(SolrResourceLoader loader) {
+  public static ConfigSolr loadConfigSolr(SolrResourceLoader loader) {
 
     String solrxmlLocation = System.getProperty("solr.solrxml.location", "solrhome");
 
