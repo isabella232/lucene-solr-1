@@ -18,6 +18,7 @@ package org.apache.solr.servlet;
 */
 
 import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.AuthInfo;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.ACLProvider;
@@ -36,9 +37,16 @@ import org.apache.hadoop.security.UserGroupInformation;
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
+import org.apache.solr.common.cloud.SolrZkClient;
+import org.apache.solr.common.cloud.ZkACLProvider;
+import org.apache.solr.common.cloud.ZkCredentialsProvider;
+import org.apache.solr.common.cloud.ZkCredentialsProvider.ZkCredentials;
 import org.apache.solr.common.util.StrUtils;
+import org.apache.solr.core.ConfigSolr;
 import org.apache.solr.core.HdfsDirectoryFactory;
+import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.util.HdfsUtil;
+import org.apache.zookeeper.data.ACL;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -49,6 +57,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
 import org.apache.solr.servlet.SolrRequestParsers;
 
@@ -69,6 +79,7 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
   // The ProxyUserFilter can't handle options, let's handle it here
   private HttpServlet optionsServlet;
   private CuratorFramework curatorFramework;
+  private String zkHost;
 
   private static String superUser = System.getProperty("solr.authorization.superuser", "solr");
 
@@ -102,10 +113,21 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
       conf.set("hadoop.security.authentication", "kerberos");
       UserGroupInformation.setConfiguration(conf);
     }
-    if (filterConfig != null) { // needs to be set before super.init
-      filterConfig.getServletContext().setAttribute("signer.secret.provider.zookeeper.curator.client", getCuratorClient());
+    if (filterConfig != null) {
+      SolrResourceLoader loader = new SolrResourceLoader(SolrResourceLoader.locateSolrHome());
+      ConfigSolr cfg = SolrDispatchFilter.loadConfigSolr(loader);
+      zkHost = cfg.getZkHost();
+      if (isZkEnabled()) { // needs to be set before super.init
+        final int connectionTimeoutMs = 30000; // this value is currently harded in solr, see SOLR-7561.
+        filterConfig.getServletContext().setAttribute("signer.secret.provider.zookeeper.curator.client",
+          getCuratorClient(connectionTimeoutMs, cfg.getZkClientTimeout()));
+      }
+      // the filterConfig is only null for simple unit tests and the superclasses expect
+      // a non-null filterConfig.
+      super.init(filterConfig);
+    } else {
+      zkHost = System.getProperty("zkHost");
     }
-    super.init(filterConfig);
     optionsServlet = new HttpServlet() {};
     optionsServlet.init();
     // ensure the admin requests add the request
@@ -154,7 +176,6 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
   }
 
   private String getZkChroot() {
-    String zkHost = System.getProperty("zkHost");
     return zkHost != null?
       zkHost.substring(zkHost.indexOf("/"), zkHost.length()) : "/solr";
   }
@@ -169,15 +190,71 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     }
   }
 
-  protected CuratorFramework getCuratorClient() {
+  /**
+   * Convert Solr Zk Credentials/ACLs to Curator versions
+   */
+  protected static class SolrZkToCuratorCredentialsACLs {
+    private final ACLProvider aclProvider;
+    private final List<AuthInfo> authInfos;
+
+    public SolrZkToCuratorCredentialsACLs() {
+      SecureProviderSolrZkClient zkClient = new SecureProviderSolrZkClient();
+      final ZkACLProvider zkACLProvider = zkClient.getZkACLProvider();
+      this.aclProvider = createACLProvider(zkClient);
+      this.authInfos = createAuthInfo(zkClient);
+    }
+
+    public ACLProvider getACLProvider() { return aclProvider; }
+    public List<AuthInfo> getAuthInfos() { return authInfos; }
+
+    private ACLProvider createACLProvider(SecureProviderSolrZkClient zkClient) {
+      final ZkACLProvider zkACLProvider = zkClient.getZkACLProvider();
+      return new ACLProvider() {
+        @Override
+        public List<ACL> getDefaultAcl() {
+          return zkACLProvider.getACLsToAdd(null);
+        }
+
+        @Override
+        public List<ACL> getAclForPath(String path) {
+          List<ACL> acls = zkACLProvider.getACLsToAdd(path);
+          return acls;
+        }
+      };
+    }
+
+    private List<AuthInfo> createAuthInfo(SecureProviderSolrZkClient zkClient) {
+      List<AuthInfo> ret = new LinkedList<AuthInfo>();
+      ZkCredentialsProvider credentialsProvider =
+        zkClient.getZkCredentialsProvider();
+      for (ZkCredentials zkCredentials : credentialsProvider.getCredentials()) {
+        ret.add(new AuthInfo(zkCredentials.getScheme(), zkCredentials.getAuth()));
+      }
+      return ret;
+    }
+  }
+
+  /**
+   * SolrZkClient with accessible ZkACLProvider and ZkCredentialsProvider
+   */
+  private static class SecureProviderSolrZkClient extends SolrZkClient {
+    public ZkACLProvider getZkACLProvider () {
+      return createZkACLProvider();
+    }
+
+    public ZkCredentialsProvider getZkCredentialsProvider() {
+      return createZkCredentialsToAddAutomatically();
+    }
+  }
+
+  protected CuratorFramework getCuratorClient(int connectionTimeoutMs,
+      int sessionTimeoutMs) throws ServletException {
     RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
     String zkChroot = getZkChroot();
     String zkNamespace = zkChroot.startsWith("/") ? zkChroot.substring(1) : zkChroot;
-    String zkHost = System.getProperty("zkHost");
     String zkConnectionString = zkHost != null ? zkHost.substring(0, zkHost.indexOf("/"))  : "localhost:2181";
+    SolrZkToCuratorCredentialsACLs curatorToSolrZk = new SolrZkToCuratorCredentialsACLs();
 
-    // open to everyone -- will need to change when Solr uses ZK acls
-    ACLProvider aclProvider = new DefaultACLProvider();
     boolean useSASL = System.getProperty("java.security.auth.login.config") != null;
     if (useSASL) {
       LOG.info("Connecting to ZooKeeper with SASL/Kerberos");
@@ -189,7 +266,10 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
       .namespace(zkNamespace)
       .connectString(zkConnectionString)
       .retryPolicy(retryPolicy)
-      .aclProvider(aclProvider)
+      .aclProvider(curatorToSolrZk.getACLProvider())
+      .authorization(curatorToSolrZk.getAuthInfos())
+      .sessionTimeoutMs(sessionTimeoutMs)
+      .connectionTimeoutMs(connectionTimeoutMs)
       .build();
     curatorFramework.start();
     return curatorFramework;
@@ -223,7 +303,7 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
       }
     }
 
-    if(null != System.getProperty("zkHost")) {
+    if (isZkEnabled()) {
       setDefaultDelegationTokenProp(props, "token.validity", "36000");
       setDefaultDelegationTokenProp(props, "signer.secret.provider", "zookeeper");
       setDefaultDelegationTokenProp(props, "zk-dt-secret-manager.enable", "true");
@@ -234,7 +314,7 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
       setDefaultDelegationTokenProp(props,
         "zk-dt-secret-manager.znodeWorkingPath", relativePath + "/zkdtsm");
       setDefaultDelegationTokenProp(props,
-        "signer.secret.provider.zookeeper.path", chrootPath + "/token");
+        "signer.secret.provider.zookeeper.path",  "/token");
 
     } else {
       LOG.info("zkHost is null, not setting ZK-related delegation token properties");
@@ -298,5 +378,9 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     String confDir = System.getProperty(HdfsDirectoryFactory.CONFIG_DIRECTORY);
     HdfsUtil.addHdfsResources(conf, confDir);
     return conf;
+  }
+
+  private boolean isZkEnabled() {
+    return null != zkHost;
   }
 }

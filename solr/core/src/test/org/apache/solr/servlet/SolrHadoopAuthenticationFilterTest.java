@@ -41,6 +41,7 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
   public static void beforeClass() throws Exception {
     System.setProperty("zkHost", "127.0.0.1:2180/solr");
     filter = new SolrHadoopAuthenticationFilter();
+    filter.init(null);
   }
 
   @AfterClass
@@ -56,7 +57,7 @@ public class SolrHadoopAuthenticationFilterTest extends SolrTestCaseJ4 {
     assertEquals("true", props.getProperty(PseudoAuthenticationHandler.ANONYMOUS_ALLOWED));
     assertEquals("36000", props.getProperty("token.validity"));
     assertEquals("zookeeper", props.getProperty("signer.secret.provider"));
-    assertEquals("/solr/token", props.getProperty("signer.secret.provider.zookeeper.path"));
+    assertEquals("/token", props.getProperty("signer.secret.provider.zookeeper.path"));
   }
 
   @Test
