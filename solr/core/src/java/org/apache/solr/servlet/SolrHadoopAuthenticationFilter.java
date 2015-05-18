@@ -18,6 +18,7 @@ package org.apache.solr.servlet;
 */
 
 import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.AuthInfo;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.ACLProvider;
@@ -36,9 +37,14 @@ import org.apache.hadoop.security.UserGroupInformation;
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
+import org.apache.solr.common.cloud.SolrZkClient;
+import org.apache.solr.common.cloud.ZkACLProvider;
+import org.apache.solr.common.cloud.ZkCredentialsProvider;
+import org.apache.solr.common.cloud.ZkCredentialsProvider.ZkCredentials;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.core.HdfsDirectoryFactory;
 import org.apache.solr.util.HdfsUtil;
+import org.apache.zookeeper.data.ACL;
 
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -49,6 +55,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
 import org.apache.solr.servlet.SolrRequestParsers;
 
@@ -169,15 +177,71 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     }
   }
 
-  protected CuratorFramework getCuratorClient() {
+  /**
+   * Convert Solr Zk Credentials/ACLs to Curator versions
+   */
+  protected static class SolrZkToCuratorCredentialsACLs {
+    private final ACLProvider aclProvider;
+    private final List<AuthInfo> authInfos;
+
+    public SolrZkToCuratorCredentialsACLs() {
+      SecureProviderSolrZkClient zkClient = new SecureProviderSolrZkClient();
+      final ZkACLProvider zkACLProvider = zkClient.getZkACLProvider();
+      this.aclProvider = createACLProvider(zkClient);
+      this.authInfos = createAuthInfo(zkClient);
+    }
+
+    public ACLProvider getACLProvider() { return aclProvider; }
+    public List<AuthInfo> getAuthInfos() { return authInfos; }
+
+    private ACLProvider createACLProvider(SecureProviderSolrZkClient zkClient) {
+      final ZkACLProvider zkACLProvider = zkClient.getZkACLProvider();
+      return new ACLProvider() {
+        @Override
+        public List<ACL> getDefaultAcl() {
+          return zkACLProvider.getACLsToAdd(null);
+        }
+
+        @Override
+        public List<ACL> getAclForPath(String path) {
+          List<ACL> acls = zkACLProvider.getACLsToAdd(path);
+          return acls;
+        }
+      };
+    }
+
+    private List<AuthInfo> createAuthInfo(SecureProviderSolrZkClient zkClient) {
+      List<AuthInfo> ret = new LinkedList<AuthInfo>();
+      ZkCredentialsProvider credentialsProvider =
+        zkClient.getZkCredentialsProvider();
+      for (ZkCredentials zkCredentials : credentialsProvider.getCredentials()) {
+        ret.add(new AuthInfo(zkCredentials.getScheme(), zkCredentials.getAuth()));
+      }
+      return ret;
+    }
+  }
+
+  /**
+   * SolrZkClient with accessible ZkACLProvider and ZkCredentialsProvider
+   */
+  private static class SecureProviderSolrZkClient extends SolrZkClient {
+    public ZkACLProvider getZkACLProvider () {
+      return createZkACLProvider();
+    }
+
+    public ZkCredentialsProvider getZkCredentialsProvider() {
+      return createZkCredentialsToAddAutomatically();
+    }
+  }
+
+  protected CuratorFramework getCuratorClient() throws ServletException {
     RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
     String zkChroot = getZkChroot();
     String zkNamespace = zkChroot.startsWith("/") ? zkChroot.substring(1) : zkChroot;
     String zkHost = System.getProperty("zkHost");
     String zkConnectionString = zkHost != null ? zkHost.substring(0, zkHost.indexOf("/"))  : "localhost:2181";
+    SolrZkToCuratorCredentialsACLs curatorToSolrZk = new SolrZkToCuratorCredentialsACLs();
 
-    // open to everyone -- will need to change when Solr uses ZK acls
-    ACLProvider aclProvider = new DefaultACLProvider();
     boolean useSASL = System.getProperty("java.security.auth.login.config") != null;
     if (useSASL) {
       LOG.info("Connecting to ZooKeeper with SASL/Kerberos");
@@ -189,7 +253,8 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
       .namespace(zkNamespace)
       .connectString(zkConnectionString)
       .retryPolicy(retryPolicy)
-      .aclProvider(aclProvider)
+      .aclProvider(curatorToSolrZk.getACLProvider())
+      .authorization(curatorToSolrZk.getAuthInfos())
       .build();
     curatorFramework.start();
     return curatorFramework;
