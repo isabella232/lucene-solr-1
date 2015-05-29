@@ -290,4 +290,8 @@ public class ZkContainer {
     }
     
   }
+
+  public ExecutorService getCoreZkRegisterExecutorService() {
+    return coreZkRegister;
+  }
 }
