@@ -99,6 +99,10 @@ public class CoreContainer {
   
   private String hostName;
   
+  public ExecutorService getCoreZkRegisterExecutorService() {
+    return zkSys.getCoreZkRegisterExecutorService();
+  }
+  
  // private ClientConnectionManager clientConnectionManager = new PoolingClientConnectionManager();
 
   {
