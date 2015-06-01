@@ -119,7 +119,11 @@ public class CoreContainer
   protected final ConfigSolr cfg;
   protected final SolrResourceLoader loader;
   protected final String solrHome;
-  
+
+  public ExecutorService getCoreZkRegisterExecutorService() {
+    return zkSys.getCoreZkRegisterExecutorService();
+  }
+
   {
     log.info("New CoreContainer " + System.identityHashCode(this));
   }
