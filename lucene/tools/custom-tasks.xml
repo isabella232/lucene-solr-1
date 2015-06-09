@@ -91,6 +91,7 @@
     <attribute name="build.overrides.file"/>
     <attribute name="centralized.versions.file"/>
     <attribute name="ivy.settings.file"/>
+  	<attribute name="ivy.resolution-cache.dir"/>
     <attribute name="common.build.dir"/>
     <attribute name="ignore.conflicts.file"/>
     <sequential>
@@ -103,6 +104,7 @@
       <libversions buildOverridesFile="@{build.overrides.file}"
                    centralizedVersionsFile="@{centralized.versions.file}"
                    ivySettingsFile="@{ivy.settings.file}"
+      	           ivyResolutionCacheDir="@{ivy.resolution-cache.dir}"
                    commonBuildDir="@{common.build.dir}"
                    ignoreConflictsFile="@{ignore.conflicts.file}">
         <fileset dir="@{dir}">
