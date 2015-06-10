@@ -16,6 +16,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.hdfs.server.namenode.NameNodeAdapter;
+import org.apache.hadoop.hdfs.server.namenode.ha.HATestUtil;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.cloud.AbstractFullDistribZkTestBase;
@@ -42,6 +43,8 @@ import org.slf4j.LoggerFactory;
 
 public class HdfsTestUtil {
   private static Logger log = LoggerFactory.getLogger(HdfsTestUtil.class);
+  
+  private static final String LOGICAL_HOSTNAME = "ha-nn-uri-%d";
   
   private static Locale savedLocale;
   
@@ -112,6 +115,16 @@ public class HdfsTestUtil {
     return dfsCluster;
   }
   
+  public static Configuration getClientConfiguration(MiniDFSCluster dfsCluster) {
+    if (dfsCluster.getNameNodeInfos().length > 1) {
+      Configuration conf = new Configuration();
+      HATestUtil.setFailoverConfigurations(dfsCluster, conf);
+      return conf;
+    } else {
+      return new Configuration();
+    }
+  }
+  
   public static void teardownClass(MiniDFSCluster dfsCluster) throws Exception {
     
     if (badTlogOutStream != null) {
@@ -152,4 +165,13 @@ public class HdfsTestUtil {
     return dir;
   }
 
+  public static String getURI(MiniDFSCluster dfsCluster) {
+    if (dfsCluster.getNameNodeInfos().length > 1) {
+      String logicalName = String.format(Locale.ENGLISH, LOGICAL_HOSTNAME, dfsCluster.getInstanceId()); // NOTE: hdfs uses default locale
+      return "hdfs://" + logicalName;
+    } else {
+      URI uri = dfsCluster.getURI(0);
+      return uri.toString() ;
+    }
+  }
 }
