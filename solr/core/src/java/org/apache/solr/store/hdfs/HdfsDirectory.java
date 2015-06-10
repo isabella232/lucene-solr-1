@@ -56,10 +56,10 @@ public class HdfsDirectory extends BaseDirectory {
   
   public HdfsDirectory(Path hdfsDirPath, Configuration configuration, int bufferSize)
       throws IOException {
-    setLockFactory(NoLockFactory.getNoLockFactory());
     this.hdfsDirPath = hdfsDirPath;
     this.configuration = configuration;
     this.bufferSize = bufferSize;
+    setLockFactory(NoLockFactory.getNoLockFactory()); // calls #hashCode which needs this.hdsfDirPath
     fileSystem = FileSystem.get(hdfsDirPath.toUri(), configuration);
     
     while (true) {
@@ -99,6 +99,15 @@ public class HdfsDirectory extends BaseDirectory {
   public void close() throws IOException {
     LOG.info("Closing hdfs directory {}", hdfsDirPath);
     fileSystem.close();
+    isOpen = false;
+  }
+
+  /**
+   * Check whether this directory is open or closed. This check may return stale results in the form of false negatives.
+   * @return true if the directory is definitely closed, false if the directory is open or is pending closure
+   */
+  public boolean isClosed() {
+    return !isOpen;
   }
   
   @Override
@@ -239,4 +248,22 @@ public class HdfsDirectory extends BaseDirectory {
     LOG.debug("Sync called on {}", Arrays.toString(names.toArray()));
   }
   
+  @Override
+  public int hashCode() {
+    return hdfsDirPath.hashCode();
+  }
+  
+  @Override
+  public boolean equals(Object obj) {
+    if (obj == this) {
+      return true;
+    }
+    if (obj == null) {
+      return false;
+    }
+    if (!(obj instanceof HdfsDirectory)) {
+      return false;
+    }
+    return this.hdfsDirPath.equals(((HdfsDirectory) obj).hdfsDirPath);
+  }
 }
