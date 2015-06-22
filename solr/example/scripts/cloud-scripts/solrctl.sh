@@ -227,6 +227,18 @@ while test $# != 0 ; do
   esac
 done
 
+if [ -n "$SOLR_AUTHORIZATION_SUPERUSER" ] ; then
+  ZKCLI_JVM_FLAGS="-Dsolr.authorization.superuser=${SOLR_AUTHORIZATION_SUPERUSER} ${ZKCLI_JVM_FLAGS}"
+fi
+
+if [ -n "$ZK_SASL_CLIENT_USERNAME" ] ; then
+  ZKCLI_JVM_FLAGS="-Dzookeeper.sasl.client.username=${ZK_SASL_CLIENT_USERNAME} ${ZKCLI_JVM_FLAGS}"
+fi
+
+if [ -n "$ZKCLI_TMPDIR" ] ; then
+  ZKCLI_JVM_FLAGS="-Djava.io.tmpdir=${ZKCLI_TMPDIR} ${ZKCLI_JVM_FLAGS}"
+fi
+
 if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
   SOLR_ADMIN_ZK_CMD="local_coreconfig"
   cat >&2 <<-__EOT__
@@ -238,7 +250,6 @@ if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
 else
   SOLR_ADMIN_ZK_CMD='ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} ${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
 fi
-
 
 # Now start parsing commands -- there has to be at least one!
 [ $# -gt 0 ] || usage 
