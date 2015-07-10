@@ -170,7 +170,7 @@ public class CloudSolrServer extends SolrServer {
             if (zk != null) zk.close();
             throw new ZooKeeperException(SolrException.ErrorCode.SERVER_ERROR,
                 "", e);
-          } catch (Exception e) {
+          } catch (RuntimeException e) {
             if (zk != null) zk.close();
             // do not wrap because clients may be relying on the underlying exception being thrown
             throw e;
