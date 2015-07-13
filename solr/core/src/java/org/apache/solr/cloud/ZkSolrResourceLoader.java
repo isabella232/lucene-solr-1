@@ -28,6 +28,7 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.ZooKeeperException;
 import org.apache.solr.core.SolrResourceLoader;
+import org.apache.solr.core.SolrResourceNotFoundException;
 import org.apache.zookeeper.KeeperException;
 
 /**
@@ -89,7 +90,7 @@ public class ZkSolrResourceLoader extends SolrResourceLoader {
       throw new IOException("Error opening " + resource, e);
     }
     if (is == null) {
-      throw new IOException("Can't find resource '" + resource
+      throw new SolrResourceNotFoundException("Can't find resource '" + resource
           + "' in classpath or '" + collectionZkPath + "', cwd="
           + System.getProperty("user.dir"));
     }

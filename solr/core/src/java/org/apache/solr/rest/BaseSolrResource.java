@@ -22,6 +22,7 @@ import org.apache.solr.common.util.ContentStreamBase;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.core.ConfigSetProperties;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrRequestInfo;
 import org.apache.solr.response.BinaryQueryResponseWriter;
@@ -66,6 +67,14 @@ public abstract class BaseSolrResource extends ServerResource {
   public SolrQueryRequest getSolrRequest() { return solrRequest; }
   public SolrQueryResponse getSolrResponse() { return solrResponse; }
   public String getContentType() { return contentType; }
+  public boolean isImmutableConfigSet() {
+    NamedList configSetProperties = solrCore.getConfigSetProperties();
+    if (configSetProperties != null) {
+      Object immutable = configSetProperties.get(ConfigSetProperties.IMMUTABLE_CONFIGSET_ARG);
+      return immutable  != null ? Boolean.parseBoolean(immutable.toString()) : false;
+    }
+    return false;
+  }
 
   protected BaseSolrResource() {
     super();

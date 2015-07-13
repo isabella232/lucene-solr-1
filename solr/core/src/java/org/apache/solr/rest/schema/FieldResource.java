@@ -106,7 +106,10 @@ public class FieldResource extends BaseFieldResource implements GETable, PUTable
   @Override
   public Representation put(Representation entity) {
     try {
-      if (!getSchema().isMutable()) {
+      if (isImmutableConfigSet()) {
+        final String message = "ConfigSet is immutable";
+        throw new SolrException(ErrorCode.BAD_REQUEST, message);
+      } else if (!getSchema().isMutable()) {
         final String message = "This IndexSchema is not mutable.";
         throw new SolrException(ErrorCode.BAD_REQUEST, message);
       } else {
