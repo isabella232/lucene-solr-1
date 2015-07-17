@@ -25,10 +25,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.store.NoLockFactory;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.cloud.hdfs.HdfsTestUtil;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.DirectoryFactory.DirContext;
+import org.apache.solr.store.blockcache.BlockDirectory;
 import org.apache.solr.store.hdfs.HdfsLocalityReporter;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -53,6 +55,31 @@ public class HdfsDirectoryFactoryTest extends SolrTestCaseJ4 {
     System.clearProperty("solr.hdfs.home");
     System.clearProperty(HdfsDirectoryFactory.NRTCACHINGDIRECTORY_MAXMERGESIZEMB);
     dfsCluster = null;
+  }
+  
+  @Test
+  public void testCreatedDirectoryInstance() throws Exception {
+    Configuration conf = HdfsTestUtil.getClientConfiguration(dfsCluster);
+    conf.set("dfs.permissions.enabled", "false");
+    
+    HdfsDirectoryFactory factory = new HdfsDirectoryFactory();
+    Map<String,String> props = new HashMap<String,String>();
+    props.put(HdfsDirectoryFactory.HDFS_HOME,
+        HdfsTestUtil.getURI(dfsCluster) + "/solr");
+    props.put(HdfsDirectoryFactory.BLOCKCACHE_ENABLED, "true");
+    props.put(HdfsDirectoryFactory.NRTCACHINGDIRECTORY_ENABLE, "false");
+    props.put(HdfsDirectoryFactory.BLOCKCACHE_WRITE_ENABLED, "true");
+    factory.init(new NamedList<>(props));
+    
+    String path = HdfsTestUtil.getURI(dfsCluster) + "/solrCreatedDirectory/";
+    Directory dir = factory.create(path, DirContext.DEFAULT);
+        
+    assertTrue(dir instanceof BlockDirectory);
+    
+    assertFalse(((BlockDirectory)dir).isBlockCacheWriteEnabled());
+    
+    dir.close();
+    factory.close();
   }
 
   @Test

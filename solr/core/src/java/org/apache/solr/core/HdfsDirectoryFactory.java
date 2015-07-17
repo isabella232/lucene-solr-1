@@ -130,7 +130,8 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
     boolean blockCacheWriteEnabled = params.getBool(BLOCKCACHE_WRITE_ENABLED, true);
     
     if (blockCacheWriteEnabled) {
-      LOG.warn("Using " + BLOCKCACHE_WRITE_ENABLED + " is currently buggy and can result in readers seeing a corrupted view of the index.");
+      LOG.warn("Using " + BLOCKCACHE_WRITE_ENABLED
+          + " is currently buggy and can result in readers seeing a corrupted view of the index - this option is enabled but will not be used.");
     }
     
     final HdfsDirectory hdfsDir;
@@ -165,7 +166,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
       int readBufferSize = params.getInt("solr.hdfs.blockcache.read.buffersize", blockSize);
       hdfsDir = new HdfsDirectory(new Path(path), conf, readBufferSize);
       dir = new BlockDirectory(path, hdfsDir, cache, null,
-          blockCacheReadEnabled, blockCacheWriteEnabled);
+          blockCacheReadEnabled, false);
     } else {
       hdfsDir = new HdfsDirectory(new Path(path), conf);
       dir = hdfsDir;
