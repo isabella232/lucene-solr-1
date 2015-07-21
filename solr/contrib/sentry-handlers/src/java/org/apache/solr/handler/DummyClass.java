@@ -14,24 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.solr.handler;
 
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
 
 /**
- * Secure (sentry-aware) version of ReplicationHandler
+ * Dummy file so that javadocs can be generated for the module.
  */
-public class SecureReplicationHandler extends ReplicationHandler {
-  @Override
-  public void handleRequestBody(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
-    String collection = null;
-    if (req.getCore() == null) {
-      // if the request doesn't have a core, let's use the core stored on the
-      // request handler
-      collection = core.getCoreDescriptor().getCloudDescriptor().getCollectionName();
-    }
-    SecureRequestHandlerUtil.checkSentryAdmin(req, SecureRequestHandlerUtil.QUERY_AND_UPDATE, getClass().getName(), true, collection);
-    super.handleRequestBody(req, rsp);
-  }
+public class DummyClass {
 }
