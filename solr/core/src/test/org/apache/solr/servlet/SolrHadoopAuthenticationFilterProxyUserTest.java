@@ -31,6 +31,7 @@ import org.apache.solr.common.params.ModifiableSolrParams;
 import static org.apache.solr.servlet.SolrHadoopAuthenticationFilter.SOLR_PROXYUSER_PREFIX;
 import static org.apache.solr.cloud.HttpParamDelegationTokenMiniSolrCloudCluster.USER_PARAM;
 import static org.apache.solr.cloud.HttpParamDelegationTokenMiniSolrCloudCluster.REMOTE_HOST_PARAM;
+import static org.apache.solr.cloud.HttpParamDelegationTokenMiniSolrCloudCluster.REMOTE_ADDRESS_PARAM;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -105,10 +106,15 @@ public class SolrHadoopAuthenticationFilterProxyUserTest extends SolrTestCaseJ4 
   }
 
   private SolrRequest getProxyRequest(String user, String doAs, String remoteHost) {
+    return getProxyRequest(user, doAs, remoteHost, null);
+  }
+
+  private SolrRequest getProxyRequest(String user, String doAs, String remoteHost, String remoteAddress) {
     final ModifiableSolrParams params = new ModifiableSolrParams();
     params.set(USER_PARAM, user);
     params.set("doAs", doAs);
     if (remoteHost != null) params.set(REMOTE_HOST_PARAM, remoteHost);
+    if (remoteAddress != null) params.set(REMOTE_ADDRESS_PARAM, remoteAddress);
     return new CoreAdminRequest() {
       @Override
       public SolrParams getParams() {
@@ -190,9 +196,12 @@ public class SolrHadoopAuthenticationFilterProxyUserTest extends SolrTestCaseJ4 
   }
 
   @Test
-  public void testProxyUnknownHost() throws Exception {
+  public void testProxyUnknownRemote() throws Exception {
     try {
-      solrServer.request(getProxyRequest("localHost", "bar", "unknownhost.bar.foo"));
+      // Use a reserved ip address just in case something further down the stack
+      // actually communciates with it.
+      String nonProxyUserConfiguredIpAddress = "255.255.255.255";
+      solrServer.request(getProxyRequest("localHost", "bar", "unknownhost.bar.foo", nonProxyUserConfiguredIpAddress));
       fail("Expected RemoteSolrException");
     }
     catch (HttpSolrServer.RemoteSolrException ex) {
@@ -201,9 +210,10 @@ public class SolrHadoopAuthenticationFilterProxyUserTest extends SolrTestCaseJ4 
   }
 
   @Test
-  public void testProxyInvalidHost() throws Exception {
+  public void testProxyInvalidRemote() throws Exception {
     try {
-      solrServer.request(getProxyRequest("localHost","bar", "[ff01::114]"));
+      String invalidIpAddress = "-127.-128";
+      solrServer.request(getProxyRequest("localHost","bar", "[ff01::114]", invalidIpAddress));
       fail("Expected RemoteSolrException");
     }
     catch (HttpSolrServer.RemoteSolrException ex) {

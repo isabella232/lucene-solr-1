@@ -58,6 +58,7 @@ import org.eclipse.jetty.servlet.ServletHolder;
 public class HttpParamDelegationTokenMiniSolrCloudCluster extends MiniSolrCloudCluster {
   public static final String USER_PARAM = "user";
   public static final String REMOTE_HOST_PARAM = "remoteHost";
+  public static final String REMOTE_ADDRESS_PARAM = "remoteAddress";
 
   public HttpParamDelegationTokenMiniSolrCloudCluster(int numServers, String hostContext,
       File solrXml, SortedMap<ServletHolder, String> extraServlets,
@@ -176,6 +177,12 @@ public class HttpParamDelegationTokenMiniSolrCloudCluster extends MiniSolrCloudC
         public String getRemoteHost() {
           String param = getHttpParam(httpRequest, REMOTE_HOST_PARAM);
           return param != null ? param : httpRequest.getRemoteHost();
+        }
+
+        @Override
+        public String getRemoteAddr() {
+          String param = getHttpParam(httpRequest, REMOTE_ADDRESS_PARAM);
+          return param != null ? param : httpRequest.getRemoteAddr();
         }
       };
 
