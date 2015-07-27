@@ -368,6 +368,7 @@ File | Project Structure | Platform Settings | SDKs):
         <exclude name="*/dist/**"/>
         <exclude name="*/package/**"/>
         <exclude name="*/example/exampledocs/**"/>
+        <exclude name="cloudera/ant-contrib-1.0b3.jar"/>
       </fileset>
     </delete>
   </target>
