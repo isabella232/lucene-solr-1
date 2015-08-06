@@ -1,5 +1,7 @@
 package org.apache.lucene.index;
 
+import java.io.IOException;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -98,6 +100,11 @@ public class TestTerms extends LuceneTestCase {
     dir.close();
   }
 
+  public void testEmptyIntFieldMinMax() throws Exception {
+    assertNull(NumericUtils.getMinInt(EMPTY_TERMS));
+    assertNull(NumericUtils.getMaxInt(EMPTY_TERMS));
+  }
+  
   public void testIntFieldMinMax() throws Exception {
     Directory dir = newDirectory();
     RandomIndexWriter w = new RandomIndexWriter(random(), dir);
@@ -115,14 +122,19 @@ public class TestTerms extends LuceneTestCase {
     
     IndexReader r = w.getReader();
     Terms terms = MultiFields.getTerms(r, "field");
-    assertEquals(minValue, NumericUtils.getMinInt(terms));
-    assertEquals(maxValue, NumericUtils.getMaxInt(terms));
+    assertEquals(new Integer(minValue), NumericUtils.getMinInt(terms));
+    assertEquals(new Integer(maxValue), NumericUtils.getMaxInt(terms));
 
     r.close();
     w.close();
     dir.close();
   }
 
+  public void testEmptyLongFieldMinMax() throws Exception {
+    assertNull(NumericUtils.getMinLong(EMPTY_TERMS));
+    assertNull(NumericUtils.getMaxLong(EMPTY_TERMS));
+  }
+  
   public void testLongFieldMinMax() throws Exception {
     Directory dir = newDirectory();
     RandomIndexWriter w = new RandomIndexWriter(random(), dir);
@@ -141,8 +153,8 @@ public class TestTerms extends LuceneTestCase {
     IndexReader r = w.getReader();
 
     Terms terms = MultiFields.getTerms(r, "field");
-    assertEquals(minValue, NumericUtils.getMinLong(terms));
-    assertEquals(maxValue, NumericUtils.getMaxLong(terms));
+    assertEquals(new Long(minValue), NumericUtils.getMinLong(terms));
+    assertEquals(new Long(maxValue), NumericUtils.getMaxLong(terms));
 
     r.close();
     w.close();
@@ -200,4 +212,23 @@ public class TestTerms extends LuceneTestCase {
     w.close();
     dir.close();
   }
+
+  /**
+   * A complete empty Terms instance that has no terms in it and supports no optional statistics
+   */
+  private static Terms EMPTY_TERMS = new Terms() {
+    public TermsEnum iterator(TermsEnum reuse) { return TermsEnum.EMPTY; }
+    public long size() { return -1; }
+    public long getSumTotalTermFreq() { return -1; }
+    public long getSumDocFreq() { return -1; }
+    public int getDocCount() { return -1; }
+    public boolean hasFreqs() { return false; }
+    public boolean hasOffsets() { return false; }
+    public boolean hasPositions() { return false; }
+    public boolean hasPayloads() { return false; }
+    @Override
+    public Comparator<BytesRef> getComparator() {
+      return null;
+    }
+  };
 }
