@@ -74,8 +74,8 @@ public class OverseerStatusTest extends BasicDistributedZkTest {
         CollectionParams.CollectionAction.OVERSEERSTATUS.toLower());
     NamedList<Object> collection_operations = (NamedList<Object>) resp.get("collection_operations");
     NamedList<Object> overseer_operations = (NamedList<Object>) resp.get("overseer_operations");
-    SimpleOrderedMap<Object> createcollection = (SimpleOrderedMap<Object>) collection_operations.get(OverseerCollectionProcessor.CREATECOLLECTION);
-    assertEquals("No stats for createcollection in OverseerCollectionProcessor", 1, createcollection.get("requests"));
+    SimpleOrderedMap<Object> createcollection = (SimpleOrderedMap<Object>) collection_operations.get(OverseerCollectionMessageHandler.CREATECOLLECTION);
+    assertEquals("No stats for createcollection in OverseerCollectionMessageHandler", 1, createcollection.get("requests"));
     createcollection = (SimpleOrderedMap<Object>) overseer_operations.get("createcollection");
     assertEquals("No stats for createcollection in Overseer", 1, createcollection.get("requests"));
 
@@ -83,8 +83,8 @@ public class OverseerStatusTest extends BasicDistributedZkTest {
     resp = invokeCollectionApi("action",
         CollectionParams.CollectionAction.OVERSEERSTATUS.toLower());
     collection_operations = (NamedList<Object>) resp.get("collection_operations");
-    SimpleOrderedMap<Object> reload = (SimpleOrderedMap<Object>) collection_operations.get(OverseerCollectionProcessor.RELOADCOLLECTION);
-    assertEquals("No stats for reload in OverseerCollectionProcessor", 1, reload.get("requests"));
+    SimpleOrderedMap<Object> reload = (SimpleOrderedMap<Object>) collection_operations.get(OverseerCollectionMessageHandler.RELOADCOLLECTION);
+    assertEquals("No stats for reload in OverseerCollectionMessageHandler", 1, reload.get("requests"));
 
     try {
       invokeCollectionApi("action", CollectionParams.CollectionAction.SPLITSHARD.toLower(),
@@ -96,12 +96,12 @@ public class OverseerStatusTest extends BasicDistributedZkTest {
     resp = invokeCollectionApi("action",
         CollectionParams.CollectionAction.OVERSEERSTATUS.toLower());
     collection_operations = (NamedList<Object>) resp.get("collection_operations");
-    SimpleOrderedMap<Object> split = (SimpleOrderedMap<Object>) collection_operations.get(OverseerCollectionProcessor.SPLITSHARD);
-    assertEquals("No stats for split in OverseerCollectionProcessor", 1, split.get("errors"));
+    SimpleOrderedMap<Object> split = (SimpleOrderedMap<Object>) collection_operations.get(OverseerCollectionMessageHandler.SPLITSHARD);
+    assertEquals("No stats for split in OverseerCollectionMessageHandler", 1, split.get("errors"));
     assertNotNull(split.get("recent_failures"));
 
     SimpleOrderedMap<Object> amIleader = (SimpleOrderedMap<Object>) collection_operations.get("am_i_leader");
-    assertNotNull("OverseerCollectionProcessor amILeader stats should not be null", amIleader);
+    assertNotNull("OverseerProcessor amILeader stats should not be null", amIleader);
     assertNotNull(amIleader.get("requests"));
     assertTrue(Integer.parseInt(amIleader.get("requests").toString()) > 0);
     assertNotNull(amIleader.get("errors"));

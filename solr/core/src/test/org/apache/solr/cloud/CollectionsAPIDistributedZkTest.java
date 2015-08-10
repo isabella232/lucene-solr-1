@@ -17,9 +17,6 @@ package org.apache.solr.cloud;
  * limitations under the License.
  */
 
-import static org.apache.solr.common.cloud.ZkStateReader.MAX_SHARDS_PER_NODE;
-import static org.apache.solr.cloud.OverseerCollectionProcessor.NUM_SLICES;
-import static org.apache.solr.common.cloud.ZkStateReader.REPLICATION_FACTOR;
 import static org.apache.solr.common.cloud.ZkNodeProps.makeMap;
 
 import java.io.File;
@@ -92,6 +89,12 @@ import org.apache.solr.update.DirectUpdateHandler2;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Test;
+
+import static org.apache.solr.cloud.OverseerCollectionMessageHandler.NUM_SLICES;
+import static org.apache.solr.common.cloud.ZkStateReader.CORE_NAME_PROP;
+import static org.apache.solr.common.cloud.ZkStateReader.MAX_SHARDS_PER_NODE;
+import static org.apache.solr.common.cloud.ZkStateReader.REPLICATION_FACTOR;
 
 /**
  * Tests the Cloud Collections API.
@@ -559,7 +562,7 @@ public class CollectionsAPIDistributedZkTest extends AbstractFullDistribZkTestBa
     String nn1 = ((SolrDispatchFilter) jettys.get(0).getDispatchFilter().getFilter()).getCores().getZkController().getNodeName();
     String nn2 =  ((SolrDispatchFilter) jettys.get(1).getDispatchFilter().getFilter()).getCores().getZkController().getNodeName();
     
-    params.set(OverseerCollectionProcessor.CREATE_NODE_SET, nn1 + "," + nn2);
+    params.set(OverseerCollectionMessageHandler.CREATE_NODE_SET, nn1 + "," + nn2);
     request = new QueryRequest(params);
     request.setPath("/admin/collections");
     gotExp = false;

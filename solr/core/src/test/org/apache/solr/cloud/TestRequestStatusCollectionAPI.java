@@ -70,7 +70,7 @@ public class TestRequestStatusCollectionAPI extends BasicDistributedZkTest {
     params = new ModifiableSolrParams();
 
     params.set("action", CollectionParams.CollectionAction.REQUESTSTATUS.toString());
-    params.set(OverseerCollectionProcessor.REQUESTID, "1000");
+    params.set(OverseerCollectionMessageHandler.REQUESTID, "1000");
 
     try {
       message = sendStatusRequestWithRetry(params, MAX_WAIT_TIMEOUT_SECONDS);
@@ -85,7 +85,7 @@ public class TestRequestStatusCollectionAPI extends BasicDistributedZkTest {
     // Check for a random (hopefully non-existent request id
     params = new ModifiableSolrParams();
     params.set(CollectionParams.ACTION, CollectionParams.CollectionAction.REQUESTSTATUS.toString());
-    params.set(OverseerCollectionProcessor.REQUESTID, "9999999");
+    params.set(OverseerCollectionMessageHandler.REQUESTID, "9999999");
     try {
       r = sendRequest(params);
       status = (NamedList) r.get("status");
@@ -114,7 +114,7 @@ public class TestRequestStatusCollectionAPI extends BasicDistributedZkTest {
     // Check for the request to be completed.
       params = new ModifiableSolrParams();
       params.set("action", CollectionParams.CollectionAction.REQUESTSTATUS.toString());
-      params.set(OverseerCollectionProcessor.REQUESTID, "1001");
+      params.set(OverseerCollectionMessageHandler.REQUESTID, "1001");
     try {
       message = sendStatusRequestWithRetry(params, MAX_WAIT_TIMEOUT_SECONDS);
     } catch (SolrServerException e) {
@@ -145,7 +145,7 @@ public class TestRequestStatusCollectionAPI extends BasicDistributedZkTest {
     params = new ModifiableSolrParams();
 
       params.set("action", CollectionParams.CollectionAction.REQUESTSTATUS.toString());
-      params.set(OverseerCollectionProcessor.REQUESTID, "1002");
+      params.set(OverseerCollectionMessageHandler.REQUESTID, "1002");
 
     try {
       message = sendStatusRequestWithRetry(params, MAX_WAIT_TIMEOUT_SECONDS);

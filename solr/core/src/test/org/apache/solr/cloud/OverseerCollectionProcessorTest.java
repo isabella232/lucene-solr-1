@@ -103,7 +103,7 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
         DistributedQueue workQueue, DistributedMap runningMap,
         DistributedMap completedMap,
         DistributedMap failureMap) {
-      super(zkStateReader, myId, shardHandlerFactory, adminPath, new Overseer.Stats(), workQueue, runningMap, completedMap, failureMap);
+      super(zkStateReader, myId, shardHandlerFactory, adminPath, new Overseer.Stats(), new OverseerNodePrioritizer(zkStateReader, adminPath, shardHandlerFactory), workQueue, runningMap, completedMap, failureMap);
     }
     
     @Override
@@ -390,22 +390,22 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
     ZkNodeProps props;
     if (sendCreateNodeList) {
       props = new ZkNodeProps(Overseer.QUEUE_OPERATION,
-          OverseerCollectionProcessor.CREATECOLLECTION,
+          OverseerCollectionMessageHandler.CREATECOLLECTION,
           ZkStateReader.REPLICATION_FACTOR,
           replicationFactor.toString(), "name", COLLECTION_NAME,
           "collection.configName", CONFIG_NAME,
-          OverseerCollectionProcessor.NUM_SLICES, numberOfSlices.toString(),
+          OverseerCollectionMessageHandler.NUM_SLICES, numberOfSlices.toString(),
           ZkStateReader.MAX_SHARDS_PER_NODE,
           maxShardsPerNode.toString(),
-          OverseerCollectionProcessor.CREATE_NODE_SET,
+          OverseerCollectionMessageHandler.CREATE_NODE_SET,
           (createNodeList != null)?StrUtils.join(createNodeList, ','):null);
     } else {
       props = new ZkNodeProps(Overseer.QUEUE_OPERATION,
-          OverseerCollectionProcessor.CREATECOLLECTION,
+          OverseerCollectionMessageHandler.CREATECOLLECTION,
           ZkStateReader.REPLICATION_FACTOR,
           replicationFactor.toString(), "name", COLLECTION_NAME,
           "collection.configName", CONFIG_NAME,
-          OverseerCollectionProcessor.NUM_SLICES, numberOfSlices.toString(),
+          OverseerCollectionMessageHandler.NUM_SLICES, numberOfSlices.toString(),
           ZkStateReader.MAX_SHARDS_PER_NODE,
           maxShardsPerNode.toString());
     }

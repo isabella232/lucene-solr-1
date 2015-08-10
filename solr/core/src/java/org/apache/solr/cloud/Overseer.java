@@ -383,7 +383,7 @@ public class Overseer implements Closeable {
         clusterState = createShard(clusterState, message);
       } else if (UPDATESHARDSTATE.equals(operation))  {
         clusterState = updateShardState(clusterState, message);
-      } else if (OverseerCollectionProcessor.CREATECOLLECTION.equals(operation)) {
+      } else if (OverseerCollectionMessageHandler.CREATECOLLECTION.equals(operation)) {
          clusterState = buildCollection(clusterState, message);
       } else if(ADDREPLICA.isEqual(operation)){
         clusterState = createReplica(clusterState, message);
@@ -843,10 +843,10 @@ public class Overseer implements Closeable {
         // TODO: fill in with collection properties read from the /collections/<collectionName> node
         Map<String,Object> collectionProps = new HashMap<>();
 
-        for (Entry<String, Object> e : OverseerCollectionProcessor.COLL_PROPS.entrySet()) {
+        for (Entry<String, Object> e : OverseerCollectionMessageHandler.COLL_PROPS.entrySet()) {
           Object val = message.get(e.getKey());
           if(val == null){
-            val = OverseerCollectionProcessor.COLL_PROPS.get(e.getKey());
+            val = OverseerCollectionMessageHandler.COLL_PROPS.get(e.getKey());
           }
           if(val != null) collectionProps.put(e.getKey(),val);
         }
@@ -1212,7 +1212,8 @@ public class Overseer implements Closeable {
 
     ThreadGroup ccTg = new ThreadGroup("Overseer collection creation process.");
 
-    overseerCollectionProcessor = new OverseerCollectionProcessor(reader, id, shardHandler, adminPath, stats);
+    OverseerNodePrioritizer overseerPrioritizer = new OverseerNodePrioritizer(reader, adminPath, shardHandler.getShardHandlerFactory());
+    overseerCollectionProcessor = new OverseerCollectionProcessor(reader, id, shardHandler, adminPath, stats, overseerPrioritizer);
     ccThread = new OverseerThread(ccTg, overseerCollectionProcessor, "OverseerCollectionProcessor-" + id);
     ccThread.setDaemon(true);
     
