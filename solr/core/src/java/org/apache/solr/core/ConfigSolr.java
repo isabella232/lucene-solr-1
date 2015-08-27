@@ -253,6 +253,11 @@ public abstract class ConfigSolr {
       "org.apache.solr.handler.admin.InfoHandler");
   }
 
+  public String getConfigSetsHandlerClass() {
+    return get(CfgProp.SOLR_CONFIGSETSHANDLER,
+      "org.apache.solr.handler.admin.ConfigSetsHandler");
+  }
+
   public boolean hasSchemaCache() {
     return get(ConfigSolr.CfgProp.SOLR_SHARESCHEMA, false);
   }
@@ -292,6 +297,7 @@ public abstract class ConfigSolr {
   protected static enum CfgProp {
     SOLR_ADMINHANDLER,
     SOLR_COLLECTIONSHANDLER,
+    SOLR_CONFIGSETSHANDLER,
     SOLR_CORELOADTHREADS,
     SOLR_COREROOTDIRECTORY,
     SOLR_DISTRIBUPDATECONNTIMEOUT,

@@ -130,6 +130,7 @@ public class ConfigSolrXml extends ConfigSolr {
     storeConfigPropertyAsString(s, nl, CfgProp.SOLR_ADMINHANDLER, "adminHandler");
     storeConfigPropertyAsString(s, nl, CfgProp.SOLR_COLLECTIONSHANDLER, "collectionsHandler");
     storeConfigPropertyAsString(s, nl, CfgProp.SOLR_INFOHANDLER, "infoHandler");
+    storeConfigPropertyAsString(s, nl, CfgProp.SOLR_CONFIGSETSHANDLER, "configSetsHandler");
     storeConfigPropertyAsString(s, nl, CfgProp.SOLR_COREROOTDIRECTORY, "coreRootDirectory");
     storeConfigPropertyAsString(s, nl, CfgProp.SOLR_MANAGEMENTPATH, "managementPath");
     storeConfigPropertyAsString(s, nl, CfgProp.SOLR_SHAREDLIB, "sharedLib");

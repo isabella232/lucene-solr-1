@@ -36,6 +36,7 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.handler.admin.CollectionsHandler;
+import org.apache.solr.handler.admin.ConfigSetsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
@@ -77,6 +78,7 @@ public class CoreContainer {
   protected CoreAdminHandler coreAdminHandler = null;
   protected CollectionsHandler collectionsHandler = null;
   private InfoHandler infoHandler;
+  protected ConfigSetsHandler configSetsHandler = null;
 
   protected Properties containerProperties;
 
@@ -98,7 +100,7 @@ public class CoreContainer {
   protected final CoresLocator coresLocator;
   
   private String hostName;
-  
+
   public ExecutorService getCoreZkRegisterExecutorService() {
     return zkSys.getCoreZkRegisterExecutorService();
   }
@@ -228,6 +230,7 @@ public class CoreContainer {
     collectionsHandler = createHandler(cfg.getCollectionsHandlerClass(), CollectionsHandler.class);
     infoHandler        = createHandler(cfg.getInfoHandlerClass(), InfoHandler.class);
     coreAdminHandler   = createHandler(cfg.getCoreAdminHandlerClass(), CoreAdminHandler.class);
+    configSetsHandler = createHandler(cfg.getConfigSetsHandlerClass(), ConfigSetsHandler.class);
 
     coreConfigService = cfg.createCoreConfigService(loader, zkSys.getZkController());
 
@@ -793,6 +796,10 @@ public class CoreContainer {
     return infoHandler;
   }
 
+  public ConfigSetsHandler getConfigSetsHandler() {
+    return configSetsHandler;
+  }
+
   // ---------------- Multicore self related methods ---------------
 
   /**
@@ -812,7 +819,7 @@ public class CoreContainer {
   public String getAdminPath() {
     return cfg.getAdminPath();
   }
-  
+
   public String getHostName() {
     return this.hostName;
   }

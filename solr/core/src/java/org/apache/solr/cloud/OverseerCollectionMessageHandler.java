@@ -100,7 +100,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
 
-
+/**
+ * A {@link OverseerMessageHandler} that handles Collections API related
+ * overseer messages.
+ */
 public class OverseerCollectionMessageHandler implements OverseerMessageHandler {
 
   public static final String NUM_SLICES = "numShards";
@@ -182,7 +185,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
 
   @Override
   public SolrResponse processMessage(ZkNodeProps message, String operation) {
-    log.warn("OverseerCollectionProcessor.processMessage : "+ operation + " , "+ message.toString());
+    log.warn("OverseerCollectionMessageHandler.processMessage : "+ operation + " , "+ message.toString());
 
     NamedList results = new NamedList();
     try {
@@ -243,7 +246,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
   }
 
   private void getOverseerStatus(ZkNodeProps message, NamedList results) throws KeeperException, InterruptedException {
-    String leaderNode = OverseerProcessor.getLeaderNode(zkStateReader.getZkClient());
+    String leaderNode = OverseerTaskProcessor.getLeaderNode(zkStateReader.getZkClient());
     results.add("leader", leaderNode);
     Stat stat = new Stat();
     zkStateReader.getZkClient().getData("/overseer/queue",null, stat, true);
@@ -2217,7 +2220,7 @@ private void sliceCmd(ClusterState clusterState, ModifiableSolrParams params, St
 
   @Override
   public String getName() {
-    return "Overseer Collection Processor";
+    return "Overseer Collection Message Handler";
   }
 
   @Override
@@ -2241,7 +2244,7 @@ private void sliceCmd(ClusterState clusterState, ModifiableSolrParams params, St
   }
 
   @Override
-  public void unmarkExclusiveTask(String collectionName, String operation) {
+  public void unmarkExclusiveTask(String collectionName, String operation, ZkNodeProps message) {
     if(!CLUSTERSTATUS.isEqual(operation) && collectionName != null) {
       synchronized (collectionWip) {
         collectionWip.remove(collectionName);
@@ -2256,8 +2259,10 @@ private void sliceCmd(ClusterState clusterState, ModifiableSolrParams params, St
     if(CLUSTERSTATUS.isEqual(message.getStr(Overseer.QUEUE_OPERATION)))
       return ExclusiveMarking.EXCLUSIVE;
 
-    if(collectionWip.contains(collectionName))
-      return ExclusiveMarking.NONEXCLUSIVE;
+    synchronized (collectionWip) {
+      if(collectionWip.contains(collectionName))
+        return ExclusiveMarking.NONEXCLUSIVE;
+    }
 
     return ExclusiveMarking.NOTDETERMINED;
   }

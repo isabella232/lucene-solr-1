@@ -59,10 +59,10 @@ public synchronized void prioritizeOverseerNodes(String overseerId) throws Keepe
     
     List overseerDesignates = (List) m.get("overseer");
     if(overseerDesignates==null || overseerDesignates.isEmpty()) return;
-    String ldr = OverseerProcessor.getLeaderNode(zk);
+    String ldr = OverseerTaskProcessor.getLeaderNode(zk);
     if(overseerDesignates.contains(ldr)) return;
     log.info("prioritizing overseer nodes at {} overseer designates are {}", overseerId, overseerDesignates);
-    List<String> electionNodes = OverseerProcessor.getSortedElectionNodes(zk);
+    List<String> electionNodes = OverseerTaskProcessor.getSortedElectionNodes(zk);
     if(electionNodes.size()<2) return;
     log.info("sorted nodes {}", electionNodes);
 
@@ -87,7 +87,7 @@ public synchronized void prioritizeOverseerNodes(String overseerId) throws Keepe
     //now ask the current leader to QUIT , so that the designate can takeover
     Overseer.getInQueue(zkStateReader.getZkClient()).offer(
         ZkStateReader.toJSON(new ZkNodeProps(Overseer.QUEUE_OPERATION, Overseer.QUIT,
-            "id",OverseerProcessor.getLeaderId(zkStateReader.getZkClient()))));
+            "id",OverseerTaskProcessor.getLeaderId(zkStateReader.getZkClient()))));
 
   }
 

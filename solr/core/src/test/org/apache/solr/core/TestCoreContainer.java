@@ -23,6 +23,7 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.admin.InfoHandler;
+import org.apache.solr.handler.admin.ConfigSetsHandler;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -325,6 +326,7 @@ public class TestCoreContainer extends SolrTestCaseJ4 {
       " <str name=\"collectionsHandler\">" + CustomCollectionsHandler.class.getName() + "</str>" +
       " <str name=\"infoHandler\">" + CustomInfoHandler.class.getName() + "</str>" +
       " <str name=\"adminHandler\">" + CustomCoreAdminHandler.class.getName() + "</str>" +
+      " <str name=\"configSetsHandler\">" + CustomConfigSetsHandler.class.getName() + "</str>" +
       "</solr>";
 
   public static class CustomCollectionsHandler extends CollectionsHandler {
@@ -341,6 +343,12 @@ public class TestCoreContainer extends SolrTestCaseJ4 {
 
   public static class CustomCoreAdminHandler extends CoreAdminHandler {
     public CustomCoreAdminHandler(CoreContainer cc) {
+      super(cc);
+    }
+  }
+
+  public static class CustomConfigSetsHandler extends ConfigSetsHandler {
+    public CustomConfigSetsHandler(CoreContainer cc) {
       super(cc);
     }
   }

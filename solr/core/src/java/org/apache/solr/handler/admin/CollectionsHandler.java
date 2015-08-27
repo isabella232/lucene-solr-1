@@ -371,7 +371,7 @@ public class CollectionsHandler extends RequestHandlerBase {
             + event.getWatchedEvent().getType() + "]");
       } else {
         throw new SolrException(ErrorCode.SERVER_ERROR, operation
-            + " the collection unkown case");
+            + " the collection unknown case");
       }
     }
   }

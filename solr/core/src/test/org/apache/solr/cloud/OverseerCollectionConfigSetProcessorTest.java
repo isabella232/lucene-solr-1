@@ -68,7 +68,7 @@ import static org.easymock.EasyMock.replay;
 import static org.easymock.EasyMock.reset;
 import static org.easymock.EasyMock.verify;
 
-public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
+public class OverseerCollectionConfigSetProcessorTest extends SolrTestCaseJ4 {
   
   private static final String ADMIN_PATH = "/admin/cores";
   private static final String COLLECTION_NAME = "mycollection";
@@ -88,16 +88,16 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
   private SolrResponse lastProcessMessageResult;
 
 
-  private OverseerCollectionProcessorToBeTested underTest;
+  private OverseerCollectionConfigSetProcessorToBeTested underTest;
   
   private Thread thread;
   private Queue<QueueEvent> queue = new ArrayBlockingQueue<>(10);
 
-  private class OverseerCollectionProcessorToBeTested extends
-      OverseerCollectionProcessor {
+  private class OverseerCollectionConfigSetProcessorToBeTested extends
+      OverseerCollectionConfigSetProcessor {
     
 
-    public OverseerCollectionProcessorToBeTested(ZkStateReader zkStateReader,
+    public OverseerCollectionConfigSetProcessorToBeTested(ZkStateReader zkStateReader,
         String myId, ShardHandlerFactory shardHandlerFactory,
         String adminPath,
         DistributedQueue workQueue, DistributedMap runningMap,
@@ -153,7 +153,7 @@ public class OverseerCollectionProcessorTest extends SolrTestCaseJ4 {
     reset(zkStateReaderMock);
     reset(clusterStateMock);
     reset(solrZkClientMock);
-    underTest = new OverseerCollectionProcessorToBeTested(zkStateReaderMock,
+    underTest = new OverseerCollectionConfigSetProcessorToBeTested(zkStateReaderMock,
         "1234", shardHandlerFactoryMock, ADMIN_PATH, workQueueMock, runningMapMock,
         completedMapMock, failureMapMock);
     zkMap.clear();

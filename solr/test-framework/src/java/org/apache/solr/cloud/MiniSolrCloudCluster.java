@@ -20,6 +20,7 @@ package org.apache.solr.cloud;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -30,7 +31,9 @@ import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.embedded.SSLConfig;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.common.cloud.SolrZkClient;
+import org.apache.solr.common.cloud.ZkConfigManager;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +45,7 @@ public class MiniSolrCloudCluster {
   private static Logger log = LoggerFactory.getLogger(MiniSolrCloudCluster.class);
 
   private ZkTestServer zkServer;
+  private final boolean externalZkServer;
   private List<JettySolrRunner> jettys;
   private File testDir;
 
@@ -72,12 +76,34 @@ public class MiniSolrCloudCluster {
       SortedMap<ServletHolder, String> extraServlets,
       SortedMap<Class, String> extraRequestFilters,
       SSLConfig sslConfig) throws Exception {
+    this(numServers, hostContext, solrXml, extraServlets, extraRequestFilters, sslConfig, null);
+  }
+
+  /**
+   * "Mini" SolrCloud cluster to be used for testing
+   * @param numServers number of Solr servers to start
+   * @param hostContext context path of Solr servers used by Jetty
+   * @param solrXml solr.xml file to be uploaded to ZooKeeper
+   * @param extraServlets Extra servlets to be started by Jetty
+   * @param extraRequestFilters extra filters to be started by Jetty
+   * @param sslConfig SSL configuration
+   * @param zkTestServer ZkTestServer to use.  If null, one will be created
+   */
+  public MiniSolrCloudCluster(int numServers, String hostContext, File solrXml,
+      SortedMap<ServletHolder, String> extraServlets,
+      SortedMap<Class, String> extraRequestFilters,
+      SSLConfig sslConfig,
+      ZkTestServer zkTestServer) throws Exception {
     testDir = Files.createTempDir();
 
-    String zkDir = testDir.getAbsolutePath() + File.separator
-      + "zookeeper/server1/data";
-    zkServer = new ZkTestServer(zkDir);
-    zkServer.run();
+    this.externalZkServer = zkTestServer != null;
+    if (!externalZkServer) {
+      String zkDir = testDir.getAbsolutePath() + File.separator
+        + "zookeeper/server1/data";
+      zkTestServer = new ZkTestServer(zkDir);
+      zkTestServer.run();
+    }
+    this.zkServer = zkTestServer;
 
     SolrZkClient zkClient = null;
     InputStream is = null;
@@ -164,6 +190,14 @@ public class MiniSolrCloudCluster {
     return jetty;
   }
 
+  public void uploadConfigDir(File configDir, String configName) throws IOException, KeeperException, InterruptedException {
+    try(SolrZkClient zkClient = new SolrZkClient(zkServer.getZkAddress(),
+        AbstractZkTestCase.TIMEOUT, 45000, null)) {
+      ZkConfigManager manager = new ZkConfigManager(zkClient);
+      manager.uploadConfigDir(configDir.toPath(), configName);
+    }
+  }
+
   /**
    * Shut down the cluster, including all Solr nodes and ZooKeeper
    */
@@ -174,7 +208,9 @@ public class MiniSolrCloudCluster {
       }
     } finally {
       try {
-        zkServer.shutdown();
+        if (!externalZkServer) {
+          zkServer.shutdown();
+        }
       } finally {
         System.clearProperty("solr.solrxml.location");
         System.clearProperty("zkHost");

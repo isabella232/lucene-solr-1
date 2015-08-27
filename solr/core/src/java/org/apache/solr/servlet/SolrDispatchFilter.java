@@ -278,6 +278,13 @@ public class SolrDispatchFilter extends BaseSolrFilter {
           handleAdminRequest(req, response, handler, solrReq);
           return;
         }
+        // Check for configset admin url
+        if ( path.startsWith( "/admin/configs" ) ) {
+          handler = cores.getConfigSetsHandler();
+          solrReq =  SolrRequestParsers.DEFAULT.parse(null,path, req);
+          handleAdminRequest(req, response, handler, solrReq);
+          return;
+        }
         else {
           //otherwise, we should find a core from the path
           idx = path.indexOf( "/", 1 );

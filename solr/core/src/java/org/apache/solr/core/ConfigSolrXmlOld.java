@@ -131,6 +131,7 @@ public class ConfigSolrXmlOld extends ConfigSolr {
     storeConfigPropertyAsString(CfgProp.SOLR_ADMINHANDLER, "solr/cores/@adminHandler");
     storeConfigPropertyAsString(CfgProp.SOLR_COLLECTIONSHANDLER, "solr/cores/@collectionsHandler");
     storeConfigPropertyAsString(CfgProp.SOLR_INFOHANDLER, "solr/cores/@infoHandler");
+    storeConfigPropertyAsString(CfgProp.SOLR_COLLECTIONSHANDLER, "solr/cores/@configsetsHandler");
     storeConfigPropertyAsInt(CfgProp.SOLR_DISTRIBUPDATECONNTIMEOUT, "solr/cores/@distribUpdateConnTimeout");
     storeConfigPropertyAsInt(CfgProp.SOLR_DISTRIBUPDATESOTIMEOUT, "solr/cores/@distribUpdateSoTimeout");
     storeConfigPropertyAsInt(CfgProp.SOLR_MAXUPDATECONNECTIONS, "solr/cores/@maxUpdateConnections");
