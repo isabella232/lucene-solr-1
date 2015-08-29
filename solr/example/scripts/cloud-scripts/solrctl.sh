@@ -59,6 +59,9 @@ Commands:
                 [--delete name]
                 [--list]
 
+    config [--create name baseConfig [-p name=value]...]
+           [--delete name]
+
     collection  [--create name -s <numShards>
                               [-a Create collection with autoAddReplicas=true]
                               [-c <collection.configName>]
@@ -371,6 +374,38 @@ while test $# != 0 ; do
       esac
       ;;
 
+    config)
+      [ $# -gt 2 ] || usage "Error: incorrect specifications of arguments for $1"
+      case "$2" in
+        --create)
+          [ $# -gt 3 ] || usage "Error: config --create name requires a base config name"
+          CONF_CREATE_NAME="$3"
+          CONF_CREATE_BASE_NAME="$4"
+          shift 4
+          while test $# -gt 0 ; do
+            case "$1" in
+              -p)
+                [ $# -gt 1 ] || usage "Error: config --create name $1 requires an argument of key=value"
+                CONF_KV_PAIRS="${CONF_KV_PAIRS}&configSetProp.${2}"
+                shift 2
+                ;;
+               *)
+                break
+                ;;
+            esac
+          done
+
+          eval $SOLR_ADMIN_API_CMD "'/admin/configs?action=CREATE&name=${CONF_CREATE_NAME}&baseConfigSet=${CONF_CREATE_BASE_NAME}${CONF_KV_PAIRS}'"
+          ;;
+        --delete)
+            eval $SOLR_ADMIN_API_CMD "'/admin/configs?action=DELETE&name=$3'"
+            shift 3
+            ;;
+        *)
+            shift 1
+            ;;
+      esac
+      ;;
     collection)
       [ "$2" = "--list" ] || [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
       case "$2" in
