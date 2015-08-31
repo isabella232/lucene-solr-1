@@ -17,6 +17,7 @@ package org.apache.solr.servlet;
 * limitations under the License.
 */
 
+import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.AuthInfo;
 import org.apache.curator.framework.CuratorFramework;
@@ -24,16 +25,23 @@ import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.api.ACLProvider;
 import org.apache.curator.framework.imps.DefaultACLProvider;
 import org.apache.curator.retry.ExponentialBackoffRetry;
-
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.authentication.client.AuthenticatedURL;
+import org.apache.hadoop.security.authentication.client.AuthenticationException;
 import org.apache.hadoop.security.authentication.server.AuthenticationFilter;
+import org.apache.hadoop.security.authentication.server.AuthenticationHandler;
+import org.apache.hadoop.security.authentication.server.AuthenticationToken;
 import org.apache.hadoop.security.authentication.server.KerberosAuthenticationHandler;
 import org.apache.hadoop.security.authentication.server.PseudoAuthenticationHandler;
+import org.apache.hadoop.security.authentication.util.SignerException;
+import org.apache.hadoop.security.authentication.util.SignerSecretProvider;
+import org.apache.hadoop.security.authentication.util.Signer;
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter;
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.token.delegation.web.KerberosDelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.token.delegation.web.PseudoDelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.UserGroupInformation;
+
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
@@ -53,15 +61,21 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
+
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
-import org.apache.solr.servlet.SolrRequestParsers;
 
+import org.apache.solr.servlet.SolrRequestParsers;
+import org.apache.solr.servlet.authentication.AuthenticationHandlerUtil;
+import org.apache.solr.servlet.authentication.LdapAuthenticationHandler;
+import org.apache.solr.servlet.authentication.MultiSchemeAuthenticationHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +94,9 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
   private HttpServlet optionsServlet;
   private CuratorFramework curatorFramework;
   private String zkHost;
+  // Extract the private field declared in the super-class. This is required to override
+  // the <code>getToken</code> method.
+  Signer signerCopy;
 
   private static String superUser = System.getProperty("solr.authorization.superuser", "solr");
 
@@ -132,6 +149,14 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     optionsServlet.init();
     // ensure the admin requests add the request
     SolrRequestParsers.DEFAULT.setAddRequestHeadersToContext(true);
+
+    // Extract the private field declared in the super-class. This is required to override
+    // the <code>getToken</code> method.
+    try {
+      this.signerCopy = (Signer)FieldUtils.readField(this, "signer", true);
+    } catch (IllegalAccessException e) {
+      throw new IllegalStateException("Initialization failed due to " + e.getLocalizedMessage(), e);
+    }
   }
 
   /**
@@ -143,6 +168,7 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     optionsServlet = null;
     if (curatorFramework != null) curatorFramework.close();
     curatorFramework = null;
+    signerCopy = null;
     super.destroy();
   }
 
@@ -371,6 +397,59 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
     };
 
     super.doFilter(request, response, filterChainWrapper);
+  }
+
+  /**
+   * This method is overridden to incorporate {@link MultiSchemeAuthenticationHandler} in Solr.
+   * With {@link MultiSchemeAuthenticationHandler} the value of the 'type' attribute in the
+   * {@link AuthenticationToken} does not match the {@linkplain MultiSchemeAuthenticationHandler#TYPE}
+   * (as expected by the super-class implementation). Instead this value would match the actual type
+   * of authentication mechanism being used (e.g. {@linkplain LdapAuthenticationHandler#TYPE} or
+   * {@linkplain KerberosAuthenticationHandler#TYPE}.
+   *
+   * This implementation extracts the value(s) of actual authentication mechanisms configured (e.g. ldap or
+   * kerberos) and use them to match the token type. It requires a private variable declared in the
+   * superclass - signer. This variable is extracted using Java reflection mechanism during the startup.
+   */
+  @Override
+  protected AuthenticationToken getToken(HttpServletRequest request)
+      throws IOException, AuthenticationException {
+    AuthenticationToken token = null;
+    String tokenStr = null;
+    Cookie[] cookies = request.getCookies();
+    if (cookies != null) {
+      for (Cookie cookie : cookies) {
+        if (cookie.getName().equals(AuthenticatedURL.AUTH_COOKIE)) {
+          tokenStr = cookie.getValue();
+          try {
+            tokenStr = signerCopy.verifyAndExtract(tokenStr);
+          } catch (SignerException ex) {
+            throw new AuthenticationException(ex);
+          }
+          break;
+        }
+      }
+    }
+    if (tokenStr != null) {
+      token = AuthenticationToken.parse(tokenStr);
+      Collection<String> tokenTypes = AuthenticationHandlerUtil.getTypes(getAuthenticationHandler());
+      boolean match = false;
+      for (String tokenType : tokenTypes) {
+        if (tokenType.equalsIgnoreCase(token.getType())) {
+          match = true;
+          break;
+        }
+      }
+      if (!match) {
+        throw new AuthenticationException("Invalid AuthenticationToken type " + token.getType()
+                  + " : expected one of " + tokenTypes);
+      }
+      if (token.isExpired()) {
+        throw new AuthenticationException("AuthenticationToken expired");
+      }
+    }
+    return token;
+
   }
 
   private Configuration getConf() {
