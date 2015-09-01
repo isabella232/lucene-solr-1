@@ -94,7 +94,6 @@ import org.apache.solr.util.FileUtils;
 import org.apache.solr.util.PropertiesInputStream;
 import org.apache.solr.util.PropertiesOutputStream;
 import org.apache.solr.util.RefCounted;
-import org.eclipse.jetty.util.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1868,12 +1867,7 @@ public class SnapPuller {
     try {
       if (executorService != null) executorService.shutdown();
     } finally {
-      try {
-        abortPull();
-      } finally {
-        if (executorService != null) ExecutorUtil
-            .shutdownNowAndAwaitTermination(executorService);
-      }
+      abortPull();
     }
   }
 
