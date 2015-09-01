@@ -196,7 +196,7 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
   @Override
   public void close() {
     try {
-      ExecutorUtil.shutdownNowAndAwaitTermination(commExecutor);
+      ExecutorUtil.shutdownAndAwaitTermination(commExecutor);
     } finally {
       try {
         if (defaultClient != null) {
