@@ -113,6 +113,7 @@ public class SolrRequestParserTest extends SolrTestCaseJ4 {
   }
   
   @Test
+  @AwaitsFix(bugUrl="https://issues.apache.org/jira/browse/SOLR-7999")
   public void testStreamURL() throws Exception
   {
     String url = "http://www.apache.org/dist/lucene/solr/";
