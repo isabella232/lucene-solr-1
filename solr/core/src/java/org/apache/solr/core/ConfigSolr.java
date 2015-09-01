@@ -254,7 +254,8 @@ public abstract class ConfigSolr {
   }
 
   public String getConfigSetsHandlerClass() {
-    return get(CfgProp.SOLR_CONFIGSETSHANDLER,
+    return get(CfgProp.SOLR_CONFIGSETSHANDLER, SENTRY_ENABLED != null ?
+      "org.apache.solr.handler.admin.SecureConfigSetsHandler" :
       "org.apache.solr.handler.admin.ConfigSetsHandler");
   }
 
