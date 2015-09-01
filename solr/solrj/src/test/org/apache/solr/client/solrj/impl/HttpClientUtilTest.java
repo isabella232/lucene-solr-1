@@ -18,17 +18,20 @@ package org.apache.solr.client.solrj.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.http.auth.AuthScope;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.params.ClientPNames;
+import org.apache.http.client.params.AuthPolicy;
 import org.apache.http.conn.ssl.AllowAllHostnameVerifier;
 import org.apache.http.conn.ssl.BrowserCompatHostnameVerifier;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.AbstractHttpClient;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -67,6 +70,20 @@ public class HttpClientUtilTest {
     assertEquals("user", client.getCredentialsProvider().getCredentials(new AuthScope("127.0.0.1", 1234)).getUserPrincipal().getName());
     assertEquals(true, client.getParams().getParameter(ClientPNames.HANDLE_REDIRECTS));
     client.getConnectionManager().shutdown();
+  }
+
+  @Test
+  public void testAuthSchemeConfiguration() {
+    System.setProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP, "test");
+    try {
+      HttpClientUtil.setConfigurer(new Krb5HttpClientConfigurer());
+      AbstractHttpClient client = (AbstractHttpClient)HttpClientUtil.createClient(null);
+      assertEquals(1, client.getAuthSchemes().getSchemeNames().size());
+      assertTrue(AuthPolicy.SPNEGO.equalsIgnoreCase(client.getAuthSchemes().getSchemeNames().get(0)));
+    } finally {
+      //Cleanup the system property.
+      System.clearProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP);
+    }
   }
   
   @Test
