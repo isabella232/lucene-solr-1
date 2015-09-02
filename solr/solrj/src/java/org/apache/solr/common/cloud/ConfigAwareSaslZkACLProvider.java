@@ -31,12 +31,13 @@ import org.slf4j.LoggerFactory;
  * gives all permissions for the user specified in System property
  * "solr.authorization.superuser" (default: "solr") when using sasl,
  * and gives read permissions for anyone else.
- * 2) For config nodes, if solr.authorization.zk.protectConfigNodes is
- * set to true, gives the same permissions as 1) to the config nodes.
- * Otherwise, the config nodes are open.
+ * 2) For the /configs znode, if solr.authorization.zk.protectConfigNodes is
+ * set to true, gives the same permissions as 1) to the configs node.
+ * Otherwise, the configs node is open.
  *
- * Designed for a setup where configurations need to be modified but config
- * API calls are not present.
+ * Designed for a "backwards compatible" setup, i.e.:
+ * 1) there are existing clients that modify znodes directly
+ * 2) there are new clients that use the ConfigSets API
  */
 public class ConfigAwareSaslZkACLProvider implements ZkACLProvider {
   private static final Logger LOG = LoggerFactory
@@ -53,15 +54,15 @@ public class ConfigAwareSaslZkACLProvider implements ZkACLProvider {
 
   @Override
   public List<ACL> getACLsToAdd(String zNodePath) {
-    if (isConfigPath(zNodePath) && !protectConfigNodes) {
+    if (isConfigsZnode(zNodePath) && !protectConfigNodes) {
       return ZooDefs.Ids.OPEN_ACL_UNSAFE;
     } else {
       return saslProvider.getACLsToAdd(zNodePath);
     }
   }
 
-  private boolean isConfigPath(String zNodePath) {
-    if (zNodePath != null && (zNodePath.startsWith("/configs/") || zNodePath.equals("/configs"))) {
+  private boolean isConfigsZnode(String zNodePath) {
+    if (zNodePath != null && zNodePath.equals("/configs")) {
       return true;
     }
     return false;
