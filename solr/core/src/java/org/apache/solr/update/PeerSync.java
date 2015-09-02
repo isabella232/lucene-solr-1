@@ -80,15 +80,7 @@ public class PeerSync  {
   private boolean cantReachIsSuccess;
   private boolean getNoVersionsIsSuccess;
   private final boolean onlyIfActive;
-  private static final HttpClient client;
-  static {
-    ModifiableSolrParams params = new ModifiableSolrParams();
-    params.set(HttpClientUtil.PROP_MAX_CONNECTIONS_PER_HOST, 20);
-    params.set(HttpClientUtil.PROP_MAX_CONNECTIONS, 10000);
-    params.set(HttpClientUtil.PROP_CONNECTION_TIMEOUT, 30000);
-    params.set(HttpClientUtil.PROP_SO_TIMEOUT, 30000);
-    client = HttpClientUtil.createClient(params);
-  }
+  private final HttpClient client;
 
   // comparator that sorts by absolute value, putting highest first
   private static Comparator<Long> absComparator = new Comparator<Long>() {
@@ -143,6 +135,7 @@ public class PeerSync  {
     this.cantReachIsSuccess = cantReachIsSuccess;
     this.getNoVersionsIsSuccess = getNoVersionsIsSuccess;
     this.onlyIfActive = onlyIfActive;
+    this.client = core.getCoreDescriptor().getCoreContainer().getUpdateShardHandler().getHttpClient();
     
     uhandler = core.getUpdateHandler();
     ulog = uhandler.getUpdateLog();

@@ -17,18 +17,18 @@ package org.apache.solr.update;
  * limitations under the License.
  */
 
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.http.client.HttpClient;
+import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.ExecutorUtil;
+import org.apache.solr.common.util.SolrjNamedThreadFactory;
 import org.apache.solr.core.ConfigSolr;
-import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,9 +36,8 @@ public class UpdateShardHandler {
   
   private static Logger log = LoggerFactory.getLogger(UpdateShardHandler.class);
   
-  private ThreadPoolExecutor cmdDistribExecutor = new ThreadPoolExecutor(0,
-      Integer.MAX_VALUE, 5, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(),
-      new DefaultSolrThreadFactory("cmdDistribExecutor"));
+  private ExecutorService updateExecutor = Executors.newCachedThreadPool(
+      new SolrjNamedThreadFactory("updateExecutor"));
   
   private PoolingClientConnectionManager clientConnectionManager;
 
@@ -70,13 +69,17 @@ public class UpdateShardHandler {
     return client;
   }
   
-  public ThreadPoolExecutor getCmdDistribExecutor() {
-    return cmdDistribExecutor;
+  public ClientConnectionManager getConnectionManager() {
+    return clientConnectionManager;
+  }
+  
+  public ExecutorService getUpdateExecutor() {
+    return updateExecutor;
   }
 
   public void close() {
     try {
-      ExecutorUtil.shutdownNowAndAwaitTermination(cmdDistribExecutor);
+      ExecutorUtil.shutdownAndAwaitTermination(updateExecutor);
     } catch (Exception e) {
       SolrException.log(log, e);
     } finally {

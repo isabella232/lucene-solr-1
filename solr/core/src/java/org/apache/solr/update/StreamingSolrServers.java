@@ -28,8 +28,6 @@ import java.util.concurrent.ExecutorService;
 
 import org.apache.http.client.HttpClient;
 import org.apache.solr.client.solrj.SolrServer;
-import org.apache.solr.client.solrj.impl.BinaryRequestWriter;
-import org.apache.solr.client.solrj.impl.BinaryResponseParser;
 import org.apache.solr.client.solrj.impl.ConcurrentUpdateSolrServer;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.update.SolrCmdDistributor.Error;
@@ -49,8 +47,8 @@ public class StreamingSolrServers {
   private ExecutorService updateExecutor;
 
   public StreamingSolrServers(UpdateShardHandler updateShardHandler) {
-    this.updateExecutor = updateShardHandler.getCmdDistribExecutor();
-    
+    this.updateExecutor = updateShardHandler.getUpdateExecutor();
+
     httpClient = updateShardHandler.getHttpClient();
   }
 

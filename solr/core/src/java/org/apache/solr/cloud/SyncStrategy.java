@@ -20,13 +20,10 @@ package org.apache.solr.cloud;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
 
 import org.apache.http.client.HttpClient;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest.RequestRecovery;
 import org.apache.solr.common.SolrException;
@@ -35,7 +32,6 @@ import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CoreAdminParams.CoreAdminAction;
 import org.apache.solr.common.params.ModifiableSolrParams;
-import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.core.SolrCore;
@@ -48,7 +44,7 @@ import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrRequestInfo;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.update.PeerSync;
-import org.apache.solr.util.DefaultSolrThreadFactory;
+import org.apache.solr.update.UpdateShardHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,25 +55,16 @@ public class SyncStrategy {
   
   private final ShardHandler shardHandler;
   
-  private ThreadPoolExecutor recoveryCmdExecutor = new ThreadPoolExecutor(
-      0, Integer.MAX_VALUE, 5, TimeUnit.SECONDS,
-      new SynchronousQueue<Runnable>(), new DefaultSolrThreadFactory(
-          "recoveryCmdExecutor"));
-
   private volatile boolean isClosed;
   
   private final HttpClient client;
-  {
-    ModifiableSolrParams params = new ModifiableSolrParams();
-    params.set(HttpClientUtil.PROP_MAX_CONNECTIONS, 10000);
-    params.set(HttpClientUtil.PROP_MAX_CONNECTIONS_PER_HOST, 20);
-    params.set(HttpClientUtil.PROP_CONNECTION_TIMEOUT, 30000);
-    params.set(HttpClientUtil.PROP_SO_TIMEOUT, 30000);
-    client = HttpClientUtil.createClient(params);
-  }
   
-  public SyncStrategy() {
+  private final ExecutorService updateExecutor;
+
+  public SyncStrategy(UpdateShardHandler updateShardHandler) {
+    client = updateShardHandler.getHttpClient();
     shardHandler = new HttpShardHandlerFactory().getShardHandler(client);
+    updateExecutor = updateShardHandler.getUpdateExecutor();
   }
   
   private static class ShardCoreRequest extends ShardRequest {
@@ -272,16 +259,6 @@ public class SyncStrategy {
   
   public void close() {
     this.isClosed = true;
-    try {
-      client.getConnectionManager().shutdown();
-    } catch (Throwable e) {
-      SolrException.log(log, e);
-    }
-    try {
-      ExecutorUtil.shutdownNowAndAwaitTermination(recoveryCmdExecutor);
-    } catch (Throwable e) {
-      SolrException.log(log, e);
-    }
   }
   
   private void requestRecovery(final ZkNodeProps leaderProps, final String baseUrl, final String coreName) throws SolrServerException, IOException {
@@ -310,7 +287,7 @@ public class SyncStrategy {
         }
       }
     };
-    recoveryCmdExecutor.execute(thread);
+    updateExecutor.execute(thread);
   }
   
   public static ModifiableSolrParams params(String... params) {

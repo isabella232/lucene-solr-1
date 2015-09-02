@@ -108,7 +108,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
     
     // TODO: Speed up our work loop when live_nodes changes??
 
-    updateExecutor = updateShardHandler.getCmdDistribExecutor();
+    updateExecutor = updateShardHandler.getUpdateExecutor();
 
     
     // TODO: perhaps do a health ping periodically to each node (scaryish)

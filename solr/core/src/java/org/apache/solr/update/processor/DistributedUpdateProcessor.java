@@ -588,7 +588,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
           }
         }
       };
-      ExecutorService executor = req.getCore().getCoreDescriptor().getCoreContainer().getUpdateShardHandler().getCmdDistribExecutor();
+      ExecutorService executor = req.getCore().getCoreDescriptor().getCoreContainer().getUpdateShardHandler().getUpdateExecutor();
       executor.execute(thread);
       
     }

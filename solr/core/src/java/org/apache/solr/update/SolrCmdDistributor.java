@@ -68,7 +68,7 @@ public class SolrCmdDistributor {
   
   public SolrCmdDistributor(UpdateShardHandler updateShardHandler) {
     this.servers = new StreamingSolrServers(updateShardHandler);
-    this.updateExecutor = updateShardHandler.getCmdDistribExecutor();
+    this.updateExecutor = updateShardHandler.getUpdateExecutor();
     this.completionService = new ExecutorCompletionService<Object>(updateExecutor);
   }
   

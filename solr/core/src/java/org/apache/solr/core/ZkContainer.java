@@ -187,7 +187,7 @@ public class ZkContainer {
         }
         zkController = new ZkController(cc, zookeeperHost, zkClientTimeout,
             zkClientConnectTimeout, host, hostPort, hostContext,
-            leaderVoteWait, leaderConflictResolveWait, genericCoreNodeNames, distribUpdateConnTimeout, distribUpdateSoTimeout,
+            leaderVoteWait, leaderConflictResolveWait, genericCoreNodeNames,
             new CurrentCoreDescriptorProvider() {
 
               @Override
