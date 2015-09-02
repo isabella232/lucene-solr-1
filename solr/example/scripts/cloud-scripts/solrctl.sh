@@ -282,6 +282,10 @@ while test $# != 0 ; do
 
       eval $SOLR_ADMIN_ZK_CMD -cmd put /solr.xml "'$SOLR_XML'"
       eval $SOLR_ADMIN_ZK_CMD -cmd makepath /configs
+      for DIRNAME in predefinedTemplate managedTemplate schemalessTemplate predefinedTemplateSecure managedTemplateSecure schemalessTemplateSecure
+      do
+        eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${SOLR_HOME}/$DIRNAME -confname $DIRNAME
+      done
 
       shift 1
       ;;
