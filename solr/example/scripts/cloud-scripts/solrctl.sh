@@ -59,8 +59,8 @@ Commands:
                 [--delete name]
                 [--list]
 
-    config [--create name baseConfig [-p name=value]...]
-           [--delete name]
+    config      [--create name baseConfig [-p name=value]...]
+                [--delete name]
 
     collection  [--create name -s <numShards>
                               [-a Create collection with autoAddReplicas=true]
