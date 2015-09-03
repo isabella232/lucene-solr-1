@@ -418,7 +418,7 @@ public class CoreContainer
 
     } finally {
       if (coreLoadExecutor != null) {
-        ExecutorUtil.shutdownNowAndAwaitTermination(coreLoadExecutor);
+        ExecutorUtil.shutdownAndAwaitTermination(coreLoadExecutor);
       }
     }
     

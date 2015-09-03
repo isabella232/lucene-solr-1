@@ -862,7 +862,7 @@ public class UpdateLog implements PluginInfoInitialized {
       }
 
       try {
-        ExecutorUtil.shutdownNowAndAwaitTermination(recoveryExecutor);
+        ExecutorUtil.shutdownAndAwaitTermination(recoveryExecutor);
       } catch (Exception e) {
         SolrException.log(log, e);
       }

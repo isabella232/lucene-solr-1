@@ -1785,12 +1785,7 @@ public class SnapPuller {
     try {
       if (executorService != null) executorService.shutdown();
     } finally {
-      try {
-        abortPull();
-      } finally {
-        if (executorService != null) ExecutorUtil
-            .shutdownNowAndAwaitTermination(executorService);
-      }
+      abortPull();
     }
   }
 
