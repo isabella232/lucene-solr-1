@@ -498,6 +498,12 @@ public class MockDirectoryWrapper extends BaseDirectoryWrapper {
     return new HashSet<>(openFilesDeleted);
   }
 
+  /** Returns true if {@link #deleteFile} was called with this
+   *  fileName, but the virus checker prevented the deletion. */
+  public boolean didTryToDelete(String fileName) {
+    return triedToDelete.contains(fileName);
+  }
+
   private boolean failOnCreateOutput = true;
 
   public void setFailOnCreateOutput(boolean v) {

@@ -24,7 +24,6 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -32,7 +31,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.MockAnalyzer;
@@ -2517,6 +2515,19 @@ public class TestIndexWriter extends LuceneTestCase {
       if (mode != 0) {
         dir.setCheckIndexOnClose(false);
       }
+
+      if (dir instanceof MockDirectoryWrapper) {
+        MockDirectoryWrapper mdw = (MockDirectoryWrapper) dir;
+        String[] files = dir.listAll();
+        Arrays.sort(files);
+        if ((Arrays.equals(new String[] {"segments_0"}, files) ||
+             Arrays.equals(new String[] {"segments_0", "write.lock"}, files)) &&
+            mdw.didTryToDelete("segments_0")) {
+          // This means virus checker blocked IW deleting the corrupt first commit
+          dir.setCheckIndexOnClose(false);
+        }
+      }
+
       dir.close();
     }
   }
@@ -2808,7 +2819,6 @@ public class TestIndexWriter extends LuceneTestCase {
     IndexWriterConfig iwc = new IndexWriterConfig(TEST_VERSION_CURRENT, null);
     iwc.setInfoStream(slowCommittingInfoStream);
     final IndexWriter iw = new IndexWriter(dir, iwc);
-    Document doc = new Document();
     new Thread() {
       @Override
       public void run() {
