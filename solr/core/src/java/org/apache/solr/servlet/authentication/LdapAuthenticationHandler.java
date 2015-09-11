@@ -14,9 +14,11 @@
 package org.apache.solr.servlet.authentication;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Hashtable;
+import java.util.Locale;
 import java.util.Properties;
 
 import javax.naming.Context;
@@ -158,7 +160,7 @@ public class LdapAuthenticationHandler implements AuthenticationHandler {
     Preconditions.checkArgument((this.baseDN == null) ^ (this.ldapDomain == null),
         "Either LDAP base DN or LDAP domain value needs to be specified");
     if (this.enableStartTls) {
-      String tmp = this.providerUrl.toLowerCase();
+      String tmp = this.providerUrl.toLowerCase(Locale.ENGLISH);
       Preconditions.checkArgument(!tmp.startsWith("ldaps"),
           "Can not use ldaps and StartTLS option at the same time");
     }
@@ -197,7 +199,7 @@ public class LdapAuthenticationHandler implements AuthenticationHandler {
           authorization.substring(BASIC_AUTH_SCHEME.length()).trim();
       final Base64 base64 = new Base64(0);
       String[] credentials =
-          new String(base64.decode(authorization)).split(":", 2);
+          new String(base64.decode(authorization), StandardCharsets.UTF_8).split(":", 2);
       if (credentials.length == 2) {
         token = authenticateUser(credentials[0], credentials[1]);
         response.setStatus(HttpServletResponse.SC_OK);
@@ -220,7 +222,7 @@ public class LdapAuthenticationHandler implements AuthenticationHandler {
       userName = userName + "@" + ldapDomain;
     }
 
-    if (password == null || password.isEmpty() || password.getBytes()[0] == 0) {
+    if (password == null || password.isEmpty() || password.getBytes(StandardCharsets.UTF_8)[0] == 0) {
       throw new AuthenticationException("Error validating LDAP user:"
           + " a null or blank password has been provided");
     }
