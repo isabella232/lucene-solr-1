@@ -9,5 +9,5 @@ source /opt/toolchain/toolchain.sh
             -Dreactor.repo=file://${HOME}/.m2/repository"
 
 ant $BUILD_OPTS ivy-bootstrap
-ant $BUILD_OPTS clean compile compile-test
+ant $BUILD_OPTS clean compile compile-test validate
 echo "Pass! "
