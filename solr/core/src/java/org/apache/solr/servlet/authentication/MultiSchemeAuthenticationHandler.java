@@ -109,7 +109,7 @@ public class MultiSchemeAuthenticationHandler implements AuthenticationHandler {
         throw new IllegalArgumentException("Handler is already specified for " + scheme + " authentication scheme.");
       }
 
-      String authHandlerPropName = String.format(AUTH_HANDLER_PROPERTY, scheme).toLowerCase();
+      String authHandlerPropName = String.format(Locale.ENGLISH, AUTH_HANDLER_PROPERTY, scheme).toLowerCase(Locale.ENGLISH);
       String authHandlerName = config.getProperty(authHandlerPropName);
       Preconditions.checkNotNull(authHandlerName, "No auth handler configured for scheme %s.", scheme);
 
@@ -189,7 +189,7 @@ public class MultiSchemeAuthenticationHandler implements AuthenticationHandler {
         if (authorization.startsWith(scheme)) {
           AuthenticationHandler handler = schemeToAuthHandlerMapping.get(scheme);
           AuthenticationToken token = handler.authenticate(request, response);
-          LOG.info("Token generated with type {}", token.getType());
+          LOG.debug("Token generated with type {}", token.getType());
           return token;
         }
       }
