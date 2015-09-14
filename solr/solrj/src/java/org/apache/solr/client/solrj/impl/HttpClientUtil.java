@@ -79,15 +79,29 @@ public class HttpClientUtil {
   public static final String PROP_BASIC_AUTH_PASS = "httpBasicAuthPassword";
   
   public static final String SYS_PROP_CHECK_PEER_NAME = "solr.ssl.checkPeerName";
-  
+
+  public static final String SYS_PROP_HTTP_CLIENT_CONFIGURER = "solr.httpclient.configurer";
+
+  public static final String DEFAULT_HTTP_CLIENT_CONFIGURER = Krb5HttpClientConfigurer.class.getName();
+
   private static final Logger logger = LoggerFactory
       .getLogger(HttpClientUtil.class);
   
   static final DefaultHttpRequestRetryHandler NO_RETRY = new DefaultHttpRequestRetryHandler(
       0, false);
 
-  private static HttpClientConfigurer configurer = new Krb5HttpClientConfigurer();
-  
+  private static HttpClientConfigurer configurer = null;
+
+  static {
+    String configurerClassName = System.getProperty(SYS_PROP_HTTP_CLIENT_CONFIGURER,
+        DEFAULT_HTTP_CLIENT_CONFIGURER);
+    try {
+      configurer = (HttpClientConfigurer)Class.forName(configurerClassName).newInstance();
+    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+      throw new IllegalArgumentException("Unable to instantiate Solr Http client configurer", e);
+    }
+  }
+
   private HttpClientUtil(){}
   
   /**
