@@ -73,6 +73,42 @@ public class HttpClientUtilTest {
   }
 
   @Test
+  public void testPreemotiveBasicAuth() {
+    HttpClientConfigurer prev = HttpClientUtil.getConfigurer();
+
+    ModifiableSolrParams params = new ModifiableSolrParams();
+    params.set(HttpClientUtil.PROP_BASIC_AUTH_USER, "user1");
+    params.set(HttpClientUtil.PROP_BASIC_AUTH_PASS, "passwd");
+
+    try {
+      // With defaults
+      {
+        HttpClientUtil.setConfigurer(new PreemptiveBasicAuthConfigurer());
+
+        //JVM wide defaults.
+        PreemptiveBasicAuthConfigurer.setDefaultSolrParams(params);
+
+        DefaultHttpClient client = (DefaultHttpClient) HttpClientUtil.createClient(null);
+        assertNotNull(client.getCredentialsProvider().getCredentials(AuthScope.ANY));
+        assertTrue(client.getRequestInterceptorCount() > 0);
+        assertTrue(client.getRequestInterceptor(0) instanceof PreemptiveAuth);
+      }
+      // Without defaults
+      {
+        //Cleanup defaults
+        PreemptiveBasicAuthConfigurer.setDefaultSolrParams(new ModifiableSolrParams());
+
+        DefaultHttpClient client = (DefaultHttpClient) HttpClientUtil.createClient(params);
+        assertNotNull(client.getCredentialsProvider().getCredentials(AuthScope.ANY));
+        assertTrue(client.getRequestInterceptorCount() > 0);
+        assertTrue(client.getRequestInterceptor(0) instanceof PreemptiveAuth);
+      }
+    } finally {
+      HttpClientUtil.setConfigurer(prev);
+    }
+  }
+
+  @Test
   public void testAuthSchemeConfiguration() {
     System.setProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP, "test");
     try {
