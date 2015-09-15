@@ -33,6 +33,7 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 @ThreadLeakScope(Scope.NONE) // hdfs client currently leaks thread(s)
 public class HdfsCollectionsAPIDistributedZkTest extends CollectionsAPIDistributedZkTest {
   private static MiniDFSCluster dfsCluster;
+  private static long initialFailLogsCount;
   
   @BeforeClass
   public static void setupClass() throws Exception {
@@ -40,12 +41,13 @@ public class HdfsCollectionsAPIDistributedZkTest extends CollectionsAPIDistribut
     
     System.setProperty("solr.hdfs.home", dfsCluster.getURI().toString() + "/solr");
     System.setProperty("solr.hdfs.blockcache.enabled", "false");
-    
+    initialFailLogsCount = HdfsUpdateLog.INIT_FAILED_LOGS_COUNT.get();
   }
   
   @AfterClass
   public static void teardownClass() throws Exception {
-    assertEquals(0, HdfsUpdateLog.INIT_FAILED_LOGS_COUNT.get());
+    // there should be no new fails from this test
+    assertEquals(0, HdfsUpdateLog.INIT_FAILED_LOGS_COUNT.get() - initialFailLogsCount);
     HdfsTestUtil.teardownClass(dfsCluster);
     System.clearProperty("solr.hdfs.home");
     System.clearProperty("solr.hdfs.blockcache.enabled");
