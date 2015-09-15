@@ -70,16 +70,6 @@ public class Args {
         return argument;
     }
 
-    public static <E, T extends Collection<E>> T notEmpty(final T argument, final String name) {
-        if (argument == null) {
-            throw new IllegalArgumentException(name + " may not be null");
-        }
-        if (argument.isEmpty()) {
-            throw new IllegalArgumentException(name + " may not be empty");
-        }
-        return argument;
-    }
-
     public static int positive(final int n, final String name) {
         if (n <= 0) {
             throw new IllegalArgumentException(name + " may not be negative or zero");
