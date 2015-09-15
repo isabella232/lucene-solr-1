@@ -75,7 +75,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * The optional <code>get</code> parameter is used to query an specific 
  * attribute of a JMX bean.  The format of the URL is
- * <code>http://.../jmx?get=MXBeanName::AttributeName<code>
+ * <code>http://.../jmx?get=MXBeanName::AttributeName</code>
  * <p>
  * For example 
  * <code>

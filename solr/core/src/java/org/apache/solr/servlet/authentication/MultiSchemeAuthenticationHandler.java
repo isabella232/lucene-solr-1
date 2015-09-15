@@ -47,7 +47,7 @@ import com.google.common.base.Preconditions;
  * <li>multi-scheme-auth-handler.schemes: A comma separated list of HTTP
  * authentication mechanisms supported by this handler. It does not have a
  * default value. e.g. multi-scheme-auth-handler.schemes=Basic,Negotiate</li>
- * <li>multi-scheme-auth-handler.schemes.<scheme-name>.handler: The
+ * <li>multi-scheme-auth-handler.schemes.<i>scheme-name</i>.handler: The
  * authentication handler implementation to be used for the specified
  * authentication scheme. It does not have a default value. e.g.
  * multi-scheme-auth-handler.schemes.negotiate.handler=kerberos
