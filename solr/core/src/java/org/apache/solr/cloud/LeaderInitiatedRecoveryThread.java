@@ -15,6 +15,7 @@ import org.apache.solr.common.cloud.ZkCoreNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CoreAdminParams.CoreAdminAction;
 import org.apache.solr.core.CoreContainer;
+import org.apache.solr.core.CoreDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +51,7 @@ public class LeaderInitiatedRecoveryThread extends Thread {
   protected String shardId;
   protected ZkCoreNodeProps nodeProps;
   protected int maxTries;
-  protected String leaderCoreNodeName;
+  private CoreDescriptor leaderCd;
   
   public LeaderInitiatedRecoveryThread(ZkController zkController, 
                                        CoreContainer cc, 
@@ -58,7 +59,7 @@ public class LeaderInitiatedRecoveryThread extends Thread {
                                        String shardId, 
                                        ZkCoreNodeProps nodeProps,
                                        int maxTries,
-                                       String leaderCoreNodeName)
+                                       CoreDescriptor leaderCd)
   {
     super("LeaderInitiatedRecoveryThread-"+nodeProps.getCoreName());
     this.zkController = zkController;
@@ -67,8 +68,7 @@ public class LeaderInitiatedRecoveryThread extends Thread {
     this.shardId = shardId;    
     this.nodeProps = nodeProps;
     this.maxTries = maxTries;
-    this.leaderCoreNodeName = leaderCoreNodeName;
-    
+    this.leaderCd = leaderCd;
     setDaemon(true);
   }
   
@@ -173,6 +173,7 @@ public class LeaderInitiatedRecoveryThread extends Thread {
           break;
         }
 
+        String leaderCoreNodeName = leaderCd.getCloudDescriptor().getCoreNodeName();
         // stop trying if I'm no longer the leader
         if (leaderCoreNodeName != null && collection != null) {
           String leaderCoreNodeNameFromZk = null;
@@ -186,6 +187,13 @@ public class LeaderInitiatedRecoveryThread extends Thread {
             log.warn("Stop trying to send recovery command to downed replica core=" + coreNeedingRecovery +
                 ",coreNodeName=" + replicaCoreNodeName + " on " + replicaNodeName + " because " +
                 leaderCoreNodeName + " is no longer the leader! New leader is " + leaderCoreNodeNameFromZk);
+            continueTrying = false;
+            break;
+          }
+          if (!leaderCd.getCloudDescriptor().isLeader()) {
+            log.warn("Stop trying to send recovery command to downed replica core=" + coreNeedingRecovery +
+                ",coreNodeName=" + replicaCoreNodeName + " on " + replicaNodeName + " because " +
+                leaderCoreNodeName + " is no longer the leader!");
             continueTrying = false;
             break;
           }
@@ -231,7 +239,7 @@ public class LeaderInitiatedRecoveryThread extends Thread {
                         log.warn("Replica core={} coreNodeName={} set to active but the leader thinks it should be in recovery;"
                             + " forcing it back to down state to re-run the leader-initiated recovery process; props: "+replicaProps.get(0), coreNeedingRecovery, replicaCoreNodeName);
                         // force republish state to "down"
-                        zkController.ensureReplicaInLeaderInitiatedRecovery(collection, shardId, nodeProps, true, leaderCoreNodeName);
+                        zkController.ensureReplicaInLeaderInitiatedRecovery(coreContainer, collection, shardId, nodeProps, leaderCd, true);
                       }
                     }
                     break;
