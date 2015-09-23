@@ -41,7 +41,7 @@ public class CloudDescriptor {
   volatile String shardState = Slice.ACTIVE;
   volatile String shardParent = null;
 
-  volatile boolean isLeader = false;
+  private volatile boolean isLeader = false;
   volatile String lastPublished = ZkStateReader.ACTIVE;
 
   public static final String NUM_SHARDS = "numShards";

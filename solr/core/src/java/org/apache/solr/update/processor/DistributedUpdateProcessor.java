@@ -858,11 +858,11 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
           try {
             // if false, then the node is probably not "live" anymore
             sendRecoveryCommand =
-                zkController.ensureReplicaInLeaderInitiatedRecovery(collection,
+                zkController.ensureReplicaInLeaderInitiatedRecovery(req.getCore().getCoreDescriptor().getCoreContainer(),
+                    collection,
                     shardId,
                     stdNode.getNodeProps(),
-                    false,
-                    leaderCoreNodeName);
+                    req.getCore().getCoreDescriptor(), false);
 
             // we want to try more than once, ~10 minutes
             if (sendRecoveryCommand) {
@@ -908,7 +908,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
               shardId,
               error.req.node.getNodeProps(),
               maxTries,
-              cloudDesc.getCoreNodeName()); // core node name of current leader
+              req.getCore().getCoreDescriptor()); // core node name of current leader
       ExecutorService executor = coreContainer.getUpdateShardHandler().getUpdateExecutor();
       executor.execute(lirThread);
     }

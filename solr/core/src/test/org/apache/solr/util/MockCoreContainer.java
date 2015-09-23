@@ -1,6 +1,7 @@
 package org.apache.solr.util;
 
 import org.apache.solr.core.CoreContainer;
+import org.apache.solr.core.CoreDescriptor;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -20,5 +21,18 @@ import org.apache.solr.core.CoreContainer;
  */
 
 public class MockCoreContainer extends CoreContainer {
+  public static class MockCoreDescriptor extends CoreDescriptor {
+    public MockCoreDescriptor() {
+      super(new MockCoreContainer(), "mock", "path");
+    }
+  }
   
+  public MockCoreContainer() {
+    super(new Object());
+  }
+  
+  public String getCoreRootDirectory() {
+    return "coreroot";
+  }
 }
+
