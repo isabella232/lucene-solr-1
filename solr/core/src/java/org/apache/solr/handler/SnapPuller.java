@@ -994,7 +994,7 @@ public class SnapPuller {
 
         // we fail - we downloaded the files we need, if we can't move one in, we can't
         // count on the correct index
-        return true;
+        return false;
       }
     } catch (IOException e) {
       SolrException.log(LOG, "could not check if a file exists", e);
