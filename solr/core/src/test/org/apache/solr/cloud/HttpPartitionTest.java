@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -47,6 +48,7 @@ import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.servlet.SolrDispatchFilter;
+import org.apache.solr.util.MockCoreContainer.MockCoreDescriptor;
 import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
@@ -138,7 +140,7 @@ public class HttpPartitionTest extends AbstractFullDistribZkTestBase {
     createCollection(testCollectionName, 1, 2, 1);
     cloudClient.setDefaultCollection(testCollectionName);
 
-    Replica leader =
+    final Replica leader =
         cloudClient.getZkStateReader().getLeaderRetry(testCollectionName, shardId);
     JettySolrRunner leaderJetty = getJettyOnPort(getReplicaPort(leader));
 
@@ -152,9 +154,22 @@ public class HttpPartitionTest extends AbstractFullDistribZkTestBase {
     ZkCoreNodeProps replicaCoreNodeProps = new ZkCoreNodeProps(notLeader);
     String replicaUrl = replicaCoreNodeProps.getCoreUrl();
 
-    assertTrue(!zkController.isReplicaInRecoveryHandling(replicaUrl));
-    assertTrue(zkController.ensureReplicaInLeaderInitiatedRecovery(testCollectionName, shardId, replicaCoreNodeProps, false, leader.getName()));
-    assertTrue(zkController.isReplicaInRecoveryHandling(replicaUrl));
+    MockCoreDescriptor cd = new MockCoreDescriptor() {
+      public CloudDescriptor getCloudDescriptor() {
+        return new CloudDescriptor(leader.getStr(ZkStateReader.CORE_NAME_PROP), new Properties(), this) {
+          @Override
+          public String getCoreNodeName() {
+            return leader.getName();
+          }
+          @Override
+          public boolean isLeader() {
+            return true;
+          }
+        };
+      }
+    };
+    
+    zkController.updateLeaderInitiatedRecoveryState(testCollectionName, shardId, notLeader.getName(), ZkStateReader.DOWN, cd);
     Map<String,Object> lirStateMap = zkController.getLeaderInitiatedRecoveryStateObject(testCollectionName, shardId, notLeader.getName());
     assertNotNull(lirStateMap);
     assertEquals(ZkStateReader.DOWN, lirStateMap.get("state"));

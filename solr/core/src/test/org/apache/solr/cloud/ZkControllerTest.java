@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.SolrTestCaseJ4;
@@ -38,6 +39,7 @@ import org.apache.solr.handler.admin.CoreAdminHandler;
 import org.apache.solr.handler.component.HttpShardHandlerFactory;
 import org.apache.solr.update.UpdateShardHandler;
 import org.apache.solr.util.ExternalPaths;
+import org.apache.solr.util.MockCoreContainer.MockCoreDescriptor;
 import org.apache.zookeeper.CreateMode;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -329,9 +331,23 @@ public class ZkControllerTest extends SolrTestCaseJ4 {
         propMap.put(ZkStateReader.NODE_NAME_PROP, "127.0.0.1:8983_solr");
         Replica replica = new Replica("replica1", propMap);
         try {
+          MockCoreDescriptor cd = new MockCoreDescriptor() {
+            public CloudDescriptor getCloudDescriptor() {
+              return new CloudDescriptor("does_not_exist", new Properties(), this) {
+                @Override
+                public String getCoreNodeName() {
+                  return "does_not_exist";
+                }
+                @Override
+                public boolean isLeader() {
+                  return false;
+                }
+              };
+            }
+          };
           // this method doesn't throw exception when node isn't leader
-          zkController.ensureReplicaInLeaderInitiatedRecovery("c1", "shard1",
-              new ZkCoreNodeProps(replica), false, "non_existent_leader");
+          zkController.ensureReplicaInLeaderInitiatedRecovery(getCoreContainer(), "c1", "shard1",
+              new ZkCoreNodeProps(replica), cd, false);
           fail("ZkController should not write LIR state for node which is not leader");
         } catch (Exception e) {
           assertNull("ZkController should not write LIR state for node which is not leader",
