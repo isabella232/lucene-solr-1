@@ -446,6 +446,11 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
 
           replicate(zkController.getNodeName(), core, leaderprops);
 
+          if (isClosed()) {
+            log.info("Recovery was cancelled");
+            break;
+          }
+          
           replay(core);
           replayed = true;
           
