@@ -67,7 +67,9 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   public static final String NRTCACHINGDIRECTORY_MAXMERGESIZEMB = "solr.hdfs.nrtcachingdirectory.maxmergesizemb";
   public static final String NRTCACHINGDIRECTORY_MAXCACHEMB = "solr.hdfs.nrtcachingdirectory.maxcachedmb";
   public static final String NUMBEROFBLOCKSPERBANK = "solr.hdfs.blockcache.blocksperbank";
-  
+
+  public static final String LOCALITYMETRICS_ENABLED = "solr.hdfs.locality.metrics.enabled";
+
   public static final String KERBEROS_ENABLED = "solr.hdfs.security.kerberos.enabled";
   public static final String KERBEROS_KEYTAB = "solr.hdfs.security.kerberos.keytabfile";
   public static final String KERBEROS_PRINCIPAL = "solr.hdfs.security.kerberos.principal";
@@ -171,7 +173,9 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
       hdfsDir = new HdfsDirectory(new Path(path), conf);
       dir = hdfsDir;
     }
-    LocalityHolder.reporter.registerDirectory(hdfsDir);
+    if (params.getBool(LOCALITYMETRICS_ENABLED, false)) {
+      LocalityHolder.reporter.registerDirectory(hdfsDir);
+    }
 
     boolean nrtCachingDirectory = params.getBool(NRTCACHINGDIRECTORY_ENABLE, true);
     if (nrtCachingDirectory) {
