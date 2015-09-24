@@ -287,8 +287,9 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
     Overseer.getInQueue(zkClient).offer(ZkStateReader.toJSON(m));
     
     int leaderVoteWait = cc.getZkController().getLeaderVoteWait();
+    boolean allReplicasInLine = false;
     if (!weAreReplacement) {
-      waitForReplicasToComeUp(weAreReplacement, leaderVoteWait);
+      allReplicasInLine = waitForReplicasToComeUp(weAreReplacement, leaderVoteWait);
     }
     if (isClosed) {
        // Solr is shutting down or the ZooKeeper session expired while waiting for replicas. If the later, 
@@ -411,6 +412,23 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
     }
 
     if (isLeader) {
+      if (allReplicasInLine) {
+        // SOLR-8075: A bug may allow the proper leader to get marked as LIR DOWN
+        // if we are marked as DOWN but were able to become the leader, we remove
+        // the DOWN entry here so that we don't fail publishing ACTIVE due to being in LIR.
+        // We only do this if all the replicas participated in the election just in case
+        // this was valid LIR entry and the proper leader is replica is missing.
+        try (SolrCore core = cc.getCore(coreName)) {
+          final String lirState = zkController.getLeaderInitiatedRecoveryState(collection, shardId,
+              core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
+          if (ZkStateReader.DOWN.equals(lirState)) {
+            zkController.updateLeaderInitiatedRecoveryState(collection, shardId,
+                leaderProps.getStr(ZkStateReader.CORE_NODE_NAME_PROP), ZkStateReader.ACTIVE, core.getCoreDescriptor());
+          }
+        }
+        
+      }
+      
       // check for any replicas in my shard that were set to down by the previous leader
       try {
         startLeaderInitiatedRecoveryOnReplicas(coreName);
@@ -483,7 +501,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
     } // core gets closed automagically    
   }
 
-  private void waitForReplicasToComeUp(boolean weAreReplacement, int timeoutms) throws InterruptedException {
+  private boolean waitForReplicasToComeUp(boolean weAreReplacement, int timeoutms) throws InterruptedException {
     long timeoutAt = System.nanoTime() + TimeUnit.NANOSECONDS.convert(timeoutms, TimeUnit.MILLISECONDS);
     final String shardsElectZkPath = electionPath + LeaderElector.ELECTION_NODE;
     
@@ -503,7 +521,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
         // on startup and after connection timeout, wait for all known shards
         if (found >= slices.getReplicasMap().size()) {
           log.info("Enough replicas found to continue.");
-          return;
+          return true;
         } else {
           if (cnt % 40 == 0) {
             log.info("Waiting until we see more replicas up for shard " + shardId + ": total="
@@ -514,12 +532,12 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
         
         if (System.nanoTime() > timeoutAt) {
           log.info("Was waiting for replicas to come up, but they are taking too long - assuming they won't come back till later");
-          return;
+          return false;
         }
       } else {
         log.warn("Shard not found: " + shardId + " for collection " + collection);
 
-        return;
+        return false;
 
       }
       
@@ -528,6 +546,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
       // System.out.println("###### waitForReplicasToComeUp  : slices=" + slices + " all=" + zkController.getClusterState().getCollectionStates() );
       cnt++;
     }
+    return false;
   }
 
   private void rejoinLeaderElection(String leaderSeqPath, SolrCore core)
