@@ -47,6 +47,8 @@ import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.KeeperException.NotEmptyException;
+import org.apache.zookeeper.Op;
+import org.apache.zookeeper.OpResult;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
@@ -571,6 +573,19 @@ public class SolrZkClient implements Closeable {
     return setData(path, data, retryOnConnLoss);
   }
 
+  public List<OpResult> multi(final Iterable<Op> ops, boolean retryOnConnLoss) throws InterruptedException, KeeperException  {
+    if (retryOnConnLoss) {
+      return zkCmdExecutor.retryOperation(new ZkOperation() {
+        @Override
+        public List<OpResult> execute() throws KeeperException, InterruptedException {
+          return keeper.multi(ops);
+        }
+      });
+    } else {
+      return keeper.multi(ops);
+    }
+  }
+
   /**
    * Fills string with printout of current ZooKeeper layout.
    */
@@ -733,4 +748,18 @@ public class SolrZkClient implements Closeable {
     return zkHost.contains("/");
   }
 
+  /**
+   * Check to see if a Throwable is an InterruptedException, and if it is, set the thread interrupt flag
+   * @param e the Throwable
+   * @return the Throwable
+   */
+  public static Throwable checkInterrupted(Throwable e) {
+    if (e instanceof InterruptedException)
+      Thread.interrupted();
+    return e;
+  }
+  
+  public ZkACLProvider getZkACLProvider() {
+    return zkACLProvider;
+  }
 }
