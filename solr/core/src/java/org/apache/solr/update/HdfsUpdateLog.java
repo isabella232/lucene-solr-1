@@ -38,6 +38,7 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.core.PluginInfo;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.update.UpdateLog.State;
 import org.apache.solr.util.HdfsUtil;
 import org.apache.solr.util.IOUtils;
 
@@ -68,15 +69,26 @@ public class HdfsUpdateLog extends UpdateLog {
   // allows for it
   @Override
   public boolean dropBufferedUpdates() {
-    Future<RecoveryInfo> future = applyBufferedUpdates();
-    if (future != null) {
-      try {
-        future.get();
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      } catch (ExecutionException e) {
-        throw new RuntimeException(e);
+    versionInfo.blockUpdates();
+    try {
+      if (state != State.BUFFERING) return false;
+      
+      if (log.isInfoEnabled()) {
+        log.info("Dropping buffered updates " + this);
       }
+      
+      // since we blocked updates, this synchronization shouldn't strictly be
+      // necessary.
+      synchronized (this) {
+        if (tlog != null) {
+          // tlog.rollback(recoveryInfo.positionOfStart);
+        }
+      }
+      
+      state = State.ACTIVE;
+      operationFlags &= ~FLAG_GAP;
+    } finally {
+      versionInfo.unblockUpdates();
     }
     return true;
   }
