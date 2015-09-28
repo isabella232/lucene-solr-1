@@ -64,6 +64,10 @@ public final class DefaultSolrCoreState extends SolrCoreState implements Recover
   protected final ReentrantLock commitLock = new ReentrantLock();
 
   private boolean lastReplicationSuccess = true;
+  
+  // will we attempt recovery as if we just started up (i.e. use starting versions rather than recent versions for peersync
+  // so we aren't looking at update versions that have started buffering since we came up.
+  private volatile boolean recoveringAfterStartup = true;
 
   public DefaultSolrCoreState(DirectoryFactory directoryFactory) {
     this.directoryFactory = directoryFactory;
@@ -329,9 +333,6 @@ public final class DefaultSolrCoreState extends SolrCoreState implements Recover
         if (closed) return;
       }
 
-      // if true, we are recovering after startup and shouldn't have (or be receiving) additional updates (except for local tlog recovery)
-      boolean recoveringAfterStartup = recoveryStrat == null;
-
       recoveryThrottle.minimumWaitBetweenActions();
       recoveryThrottle.markAttemptingAction();
       
@@ -367,6 +368,7 @@ public final class DefaultSolrCoreState extends SolrCoreState implements Recover
   @Override
   public void recovered() {
     recoveryRunning = false;
+    recoveringAfterStartup = false;  // once we have successfully recovered, we no longer need to act as if we are recovering after startup
   }
 
   @Override
