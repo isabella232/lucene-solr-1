@@ -37,6 +37,7 @@ import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.ClosableThread;
+import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.ZkCoreNodeProps;
 import org.apache.solr.common.cloud.ZkNodeProps;
@@ -349,6 +350,10 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
           zkController.publish(core.getCoreDescriptor(), ZkStateReader.ACTIVE);
           return;
         }
+
+        log.info("Begin buffering updates. core=" + coreName);
+        ulog.bufferUpdates();
+        replayed = false;
         
         log.info("Publishing state of core "+core.getName()+" as recovering, leader is "+leaderUrl+" and I am "+ourUrl);
         zkController.publish(core.getCoreDescriptor(), ZkStateReader.RECOVERING);
@@ -399,7 +404,7 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
                 new ModifiableSolrParams());
             // force open a new searcher
             core.getUpdateHandler().commit(new CommitUpdateCommand(req, false));
-            log.info("PeerSync Recovery was successful - registering as Active. core=" + coreName);
+            log.info("PeerSync stage of recovery was successful. core=" + coreName);
 
             // solrcloud_debug
             if (log.isDebugEnabled()) {
@@ -419,12 +424,12 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
                 log.error("Error in solrcloud_debug block", e);
               }
             }
-
-            // sync success - register as active and return
-            zkController.publish(core.getCoreDescriptor(),
-                ZkStateReader.ACTIVE);
+            log.info("Replaying updates buffered during PeerSync.");
+            replay(core);
+            replayed = true;
+            
+            // sync success
             successfulRecovery = true;
-            close = true;
             return;
           }
 
@@ -438,14 +443,11 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
         
         log.info("Starting Replication Recovery. core=" + coreName);
         
-        log.info("Begin buffering updates. core=" + coreName);
-        ulog.bufferUpdates();
-        replayed = false;
-        
         try {
 
           replicate(zkController.getNodeName(), core, leaderprops);
 
+          // we bail early in replicate if closed - this must happen before replay
           if (isClosed()) {
             log.info("Recovery was cancelled");
             break;
@@ -459,31 +461,40 @@ public class RecoveryStrategy extends Thread implements ClosableThread {
             break;
           }
 
-          log.info("Replication Recovery was successful - registering as Active. core=" + coreName);
-          // if there are pending recovery requests, don't advert as active
-          zkController.publish(core.getCoreDescriptor(), ZkStateReader.ACTIVE);
-          close = true;
+          log.info("Replication Recovery was successful. core=" + coreName);
           successfulRecovery = true;
-          recoveryListener.recovered();
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           log.warn("Recovery was interrupted", e);
           close = true;
         } catch (Exception e) {
           SolrException.log(log, "Error while trying to recover", e);
-        } finally {
-          if (!replayed) {
-            try {
-              ulog.dropBufferedUpdates();
-            } catch (Exception e) {
-              SolrException.log(log, "", e);
-            }
-          }
-
         }
 
       } catch (Exception e) {
         SolrException.log(log, "Error while trying to recover. core=" + coreName, e);
+      } finally {
+        if (!replayed) {
+          try {
+            ulog.dropBufferedUpdates();
+          } catch (Exception e) {
+            SolrException.log(log, "", e);
+          }
+        }
+        if (successfulRecovery) {
+          // if there are pending recovery requests, don't advert as active
+          try {
+            zkController.publish(core.getCoreDescriptor(), ZkStateReader.ACTIVE);
+          } catch (Exception e) {
+            log.error("Could not publish as ACTIVE after succesful recovery", e);
+            successfulRecovery = false;
+          }
+          
+          if (successfulRecovery) {
+            close = true;
+            recoveryListener.recovered();
+          }
+        }
       }
 
       if (!successfulRecovery) {
