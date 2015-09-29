@@ -23,6 +23,8 @@ SOLR_XML='<solr>
     <str name="hostContext">${hostContext:solr}</str>
     <int name="zkClientTimeout">${zkClientTimeout:30000}</int>
     <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
+    <int name="maxUpdateConnectionsPerHost">${maxConnectionsPerHost:100000}</int>
+    <int name="maxUpdateConnections">${maxConnections:100000}</int>
 
     <!-- ZooKeeper Security -->
     <str name="zkACLProvider">${zkACLProvider:}</str>
