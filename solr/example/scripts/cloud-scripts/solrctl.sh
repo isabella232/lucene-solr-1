@@ -456,7 +456,7 @@ while test $# != 0 ; do
               esac
             done
 
-            COL_CREATE_CALL="&name=${COL_CREATE_NAME}"
+            COL_CREATE_CALL="${COL_CREATE_CALL}&name=${COL_CREATE_NAME}"
             if [ "$COL_CREATE_NUMSHARDS" -gt 0 ] ; then
               COL_CREATE_CALL="${COL_CREATE_CALL}&numShards=${COL_CREATE_NUMSHARDS}"
             else
