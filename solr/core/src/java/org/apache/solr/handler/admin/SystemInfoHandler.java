@@ -28,9 +28,12 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
 
 import org.apache.commons.io.IOUtils;
@@ -56,6 +59,11 @@ public class SystemInfoHandler extends RequestHandlerBase
 {
   private static Logger log = LoggerFactory.getLogger(SystemInfoHandler.class);
   
+  // CLOUDERA.  Mask ssl passwords
+  public static List<String> cmdLineArgsToRedact = Arrays.asList(
+      "javax.net.ssl.trustStorePassword",
+      "solr.keystore.password");
+  public static String REDACT_STRING = "--REDACTED--";
 
   // on some platforms, resolving canonical hostname can cause the thread
   // to block for several seconds if nameservices aren't available
@@ -312,7 +320,7 @@ public class SystemInfoHandler extends RequestHandlerBase
 
       // the input arguments passed to the Java virtual machine
       // which does not include the arguments to the main method.
-      jmx.add( "commandLineArgs", mx.getInputArguments());
+      jmx.add( "commandLineArgs", getInputArgumentsRedacted(mx));
 
       jmx.add( "startTime", new Date(mx.getStartTime()));
       jmx.add( "upTimeMS",  mx.getUptime() );
@@ -325,6 +333,24 @@ public class SystemInfoHandler extends RequestHandlerBase
     return jvm;
   }
   
+  /**
+   * CLOUDERA. Get the input arguments with sensitive values (i.e. passwords) redacted.
+   */
+  private static List<String> getInputArgumentsRedacted(RuntimeMXBean mx) {
+    List<String> list = new LinkedList<String>();
+    for (String arg : mx.getInputArguments()) {
+      boolean redacted = false;
+      for (String redact : cmdLineArgsToRedact) {
+        if (arg.startsWith("-D" + redact + "=")) {
+          list.add("-D" + redact + "=" + REDACT_STRING);
+          redacted = true;
+        }
+      }
+      if (!redacted) list.add(arg);
+    }
+    return list;
+  }
+
   private static SimpleOrderedMap<Object> getLuceneInfo() {
     SimpleOrderedMap<Object> info = new SimpleOrderedMap<>();
 
