@@ -46,6 +46,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.solr.handler.admin.SystemInfoHandler;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
 import org.slf4j.Logger;
@@ -388,8 +389,25 @@ public class JMXJsonServlet extends HttpServlet {
         CompositeType comp = cds.getCompositeType();
         Set<String> keys = comp.keySet();
         jg.writeStartObject();
-        for(String key: keys) {
-          writeAttribute(jg, key, cds.get(key));
+
+        // CLOUDERA. redact sensitive values
+        boolean needsRedact = false;
+        Object keyVal = cds.containsKey("key") ? cds.get("key") : null;
+        if (keyVal instanceof String) {
+          for (String redact : SystemInfoHandler.cmdLineArgsToRedact) {
+            if (keyVal.toString().startsWith(redact) || keyVal.toString().startsWith("-D" + redact)) {
+              needsRedact = true;
+              break;
+            }
+          }
+        }
+
+        for(String key : keys) {
+          Object val = cds.get(key);
+          if (needsRedact && key.equals("value")) {
+            val = SystemInfoHandler.REDACT_STRING;
+          }
+          writeAttribute(jg, key, val);
         }
         jg.writeEndObject();
       } else if(value instanceof TabularData) {
@@ -400,6 +418,16 @@ public class JMXJsonServlet extends HttpServlet {
         }
         jg.writeEndArray();
       } else {
+        // CLOUDERA. redact sensitive values
+        for (String redact : SystemInfoHandler.cmdLineArgsToRedact) {
+          if (value.toString().startsWith(redact + "=")) {
+            value = redact + "=" + SystemInfoHandler.REDACT_STRING;
+            break;
+          } else if  (value.toString().startsWith("-D" + redact + "=")) {
+            value = "-D" + redact + "=" + SystemInfoHandler.REDACT_STRING;
+            break;
+          }
+        }
         jg.writeString(value.toString());
       }
     }
