@@ -43,7 +43,6 @@ import static org.apache.solr.common.params.CommonParams.NAME;
 public abstract class ConfigSetAdminRequest extends SolrRequest {
 
   protected ConfigSetAction action = null;
-  protected String configSetName = null;
 
   protected ConfigSetAdminRequest setAction(ConfigSetAction action) {
     this.action = action;
@@ -63,12 +62,8 @@ public abstract class ConfigSetAdminRequest extends SolrRequest {
     if (action == null) {
       throw new RuntimeException( "no action specified!" );
     }
-    if (configSetName == null) {
-      throw new RuntimeException( "no ConfigSet specified!" );
-    }
     ModifiableSolrParams params = new ModifiableSolrParams();
     params.set(ConfigSetParams.ACTION, action.toString());
-    params.set(NAME, configSetName);
     return params;
   }
 
@@ -88,16 +83,30 @@ public abstract class ConfigSetAdminRequest extends SolrRequest {
     return res;
   }
 
-  public void setConfigSetName(String configSetName) {
-    this.configSetName = configSetName;
-  }
+  protected abstract static class ConfigSetSpecificAdminRequest extends ConfigSetAdminRequest {
+    protected String configSetName = null;
 
-  public final String getConfigSetName() {
-    return configSetName;
+     public final void setConfigSetName(String configSetName) {
+       this.configSetName = configSetName;
+     }
+
+     public final String getConfigSetName() {
+       return configSetName;
+     }
+
+     @Override
+     public SolrParams getParams() {
+       ModifiableSolrParams params = new ModifiableSolrParams(super.getParams());
+       if (configSetName == null) {
+         throw new RuntimeException( "no ConfigSet specified!" );
+       }
+       params.set(NAME, configSetName);
+       return params;
+     }
   }
 
   // CREATE request
-  public static class Create extends ConfigSetAdminRequest {
+  public static class Create extends ConfigSetSpecificAdminRequest {
     protected static String PROPERTY_PREFIX = "configSetProp";
     protected String baseConfigSetName;
     protected Properties properties;
@@ -140,10 +149,28 @@ public abstract class ConfigSetAdminRequest extends SolrRequest {
   }
 
   // DELETE request
-  public static class Delete extends ConfigSetAdminRequest {
+  public static class Delete extends ConfigSetSpecificAdminRequest {
     public Delete() {
       action = ConfigSetAction.DELETE;
     }
 
+  }
+
+  // LIST request
+  public static class List extends ConfigSetAdminRequest {
+    public List() {
+      action = ConfigSetAction.LIST;
+    }
+
+    @Override
+    public ConfigSetAdminResponse.List process(SolrServer server) throws SolrServerException, IOException
+    {
+      long startTime = TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
+      ConfigSetAdminResponse.List res = new ConfigSetAdminResponse.List();
+      res.setResponse( server.request( this ) );
+      long endTime = TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
+      res.setElapsedTime(endTime - startTime);
+      return res;
+    }
   }
 }

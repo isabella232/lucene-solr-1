@@ -18,6 +18,7 @@
 package org.apache.solr.client.solrj.request;
 
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.solr.client.solrj.response.ConfigSetAdminResponse;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,7 +30,6 @@ public class TestConfigSetAdminRequest extends SolrTestCaseJ4 {
   @Test
   public void testNoAction() {
     ConfigSetAdminRequest request = new MyConfigSetAdminRequest();
-    request.setConfigSetName("name");
     verifyException(request, "action");
   }
 

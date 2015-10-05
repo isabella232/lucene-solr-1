@@ -99,6 +99,17 @@ public class ZkConfigManager {
     uploadToZK(dir, CONFIGS_ZKNODE + "/" + configName);
   }
 
+  public List<String> listConfigs() throws IOException {
+    try {
+      return zkClient.getChildren(ZkConfigManager.CONFIGS_ZKNODE, null, true);
+    }
+    catch (KeeperException.NoNodeException e) {
+      return Collections.emptyList();
+    }
+    catch (KeeperException | InterruptedException e) {
+      throw new IOException("Error listing configs", SolrZkClient.checkInterrupted(e));
+    }
+  }
 
   /**
    * Check whether a config exists in Zookeeper
