@@ -61,7 +61,6 @@
       so even though they are not compile-time dependencies, they are included
       here as such so that they are included in the runtime distribution.
      -->
-    <dependency org="org.apache.hadoop" name="cloudera-netty-all" rev="${/org.apache.hadoop/cloudera-netty-all}" conf="compile.hadoop"/>
     <dependency org="org.apache.hadoop" name="hadoop-hdfs" rev="${/org.apache.hadoop/hadoop-hdfs}" conf="compile.hadoop"/>
     <dependency org="org.apache.hadoop" name="hadoop-annotations" rev="${/org.apache.hadoop/hadoop-annotations}" conf="compile.hadoop"/>
     <dependency org="org.apache.hadoop" name="hadoop-auth" rev="${/org.apache.hadoop/hadoop-auth}" conf="compile.hadoop"/>
