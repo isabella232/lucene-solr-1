@@ -51,6 +51,7 @@ import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.BeforeReconnect;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.ClusterStateUtil;
+import org.apache.solr.common.cloud.ConfigAwareSaslZkACLProvider;
 import org.apache.solr.common.cloud.DefaultConnectionStrategy;
 import org.apache.solr.common.cloud.DefaultZkACLProvider;
 import org.apache.solr.common.cloud.DefaultZkCredentialsProvider;
@@ -246,7 +247,14 @@ public final class ZkController {
     if (zkACLProviderClass != null && zkACLProviderClass.trim().length() > 0) {
       zkACLProvider  = cc.getResourceLoader().newInstance(zkACLProviderClass, ZkACLProvider.class);
     } else {
-      zkACLProvider = new DefaultZkACLProvider();
+      // CLOUDERA: Use a sasl provider if kerberos is enabled
+      if ("kerberos".equals(System.getProperty("solr.authentication.type"))) {
+        zkACLProvider = new ConfigAwareSaslZkACLProvider();
+        log.info("Since kerberos is enabled, using " + zkACLProvider.getClass().getName() + " as ZkACLProvider for ZkController");
+      } else {
+        log.info("Using default ZkACLProvider for ZkController");
+        zkACLProvider = new DefaultZkACLProvider();
+      }
     }
 
     String zkCredentialsProviderClass = cc.getConfig().getZkCredentialsProviderClass();
