@@ -82,7 +82,7 @@ public class UpdateShardHandler {
 
   public void close() {
     try {
-      ExecutorUtil.shutdownAndAwaitTermination(updateExecutor);
+      ExecutorUtil.shutdownWithInterruptAndAwaitTermination(updateExecutor);
     } catch (Exception e) {
       SolrException.log(log, e);
     } finally {
