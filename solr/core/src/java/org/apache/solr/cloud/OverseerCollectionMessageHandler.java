@@ -217,8 +217,6 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
         addReplica(zkStateReader.getClusterState(), message, results);
       } else if (OVERSEERSTATUS.isEqual(operation)) {
         getOverseerStatus(message, results);
-      } else if(LIST.isEqual(operation)) {
-        listCollections(zkStateReader.getClusterState(), results);
       } else if (CLUSTERSTATUS.isEqual(operation)) {
         getClusterStatus(zkStateReader.getClusterState(), message, results);
       } else {
@@ -446,15 +444,6 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       }
       return docCollection;
     }
-  }
-
-  private void listCollections(ClusterState clusterState, NamedList results) {
-    Set<String> collections = clusterState.getCollections();
-    List<String> collectionList = new ArrayList<String>();
-    for (String collection : collections) {
-      collectionList.add(collection);
-    }
-    results.add("collections", collectionList);
   }
 
   private void processRoleCommand(ZkNodeProps message, String operation) throws KeeperException, InterruptedException {
