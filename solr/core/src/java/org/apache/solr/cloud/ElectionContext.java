@@ -383,15 +383,20 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
         return;
       }
 
-      log.info("I am the new leader: "
-          + ZkCoreNodeProps.getCoreUrl(leaderProps) + " " + shardId);
-      core.getCoreDescriptor().getCloudDescriptor().setLeader(true);
     }
 
     boolean isLeader = true;
     if (!isClosed) {
       try {
+        // we must check LIR before registering as leader
+        checkLIR(coreName, allReplicasInLine);
+
         super.runLeaderProcess(weAreReplacement, 0);
+        try (SolrCore core = cc.getCore(coreName)) {
+          core.getCoreDescriptor().getCloudDescriptor().setLeader(true);
+        }
+        log.info("I am the new leader: "
+            + ZkCoreNodeProps.getCoreUrl(leaderProps) + " " + shardId);
       } catch (Exception e) {
         isLeader = false;
         SolrException.log(log, "There was a problem trying to register as the leader", e);
@@ -412,22 +417,6 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
     }
 
     if (isLeader) {
-      if (allReplicasInLine) {
-        // SOLR-8075: A bug may allow the proper leader to get marked as LIR DOWN
-        // if we are marked as DOWN but were able to become the leader, we remove
-        // the DOWN entry here so that we don't fail publishing ACTIVE due to being in LIR.
-        // We only do this if all the replicas participated in the election just in case
-        // this was valid LIR entry and the proper leader is replica is missing.
-        try (SolrCore core = cc.getCore(coreName)) {
-          final String lirState = zkController.getLeaderInitiatedRecoveryState(collection, shardId,
-              core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
-          if (ZkStateReader.DOWN.equals(lirState)) {
-            zkController.updateLeaderInitiatedRecoveryState(collection, shardId,
-                leaderProps.getStr(ZkStateReader.CORE_NODE_NAME_PROP), ZkStateReader.ACTIVE, core.getCoreDescriptor());
-          }
-        }
-        
-      }
       
       // check for any replicas in my shard that were set to down by the previous leader
       try {
@@ -437,6 +426,40 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
         // an error trying to tell others to recover
       }
     }    
+  }
+  
+  public void checkLIR(String coreName, boolean allReplicasInLine) {
+    if (allReplicasInLine) {
+      // SOLR-8075: A bug may allow the proper leader to get marked as LIR DOWN
+      // if we are marked as DOWN but were able to become the leader, we remove
+      // the DOWN entry here so that we don't fail publishing ACTIVE due to being in LIR.
+      // We only do this if all the replicas participated in the election just in case
+      // this was valid LIR entry and the proper leader is replica is missing.
+      try (SolrCore core = cc.getCore(coreName)) {
+        final String lirState = zkController.getLeaderInitiatedRecoveryState(collection, shardId,
+            core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
+        if (ZkStateReader.DOWN.equals(lirState)) {
+          // We can do this before registering as leader because only setting DOWN requires that
+          // we are already registered as leader, and here we are setting ACTIVE
+          // The fact that we just won the zk leader election provides a quasi lock on setting this s
+          // we should improve this: see SOLR-8075 discussion
+          zkController.updateLeaderInitiatedRecoveryState(collection, shardId,
+              leaderProps.getStr(ZkStateReader.CORE_NODE_NAME_PROP), ZkStateReader.ACTIVE, core.getCoreDescriptor());
+        }
+      }
+      
+    } else {
+      try (SolrCore core = cc.getCore(coreName)) {
+        String lirState = zkController.getLeaderInitiatedRecoveryState(collection, shardId,
+            core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
+        if (ZkStateReader.DOWN.equals(lirState) || ZkStateReader.RECOVERING.equals(lirState)) {
+          log.warn("The previous leader marked me " + core.getName()
+              + " as " + lirState + " and I haven't recovered yet, so I shouldn't be the leader.");
+          
+          throw new SolrException(ErrorCode.SERVER_ERROR, "Leader Initiated Recovery prevented leadership");
+        }
+      }  
+    }
   }
   
   private void startLeaderInitiatedRecoveryOnReplicas(String coreName) throws Exception {
@@ -581,19 +604,7 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
       return true;
     }
     
-    if (core.getCoreDescriptor().getCloudDescriptor().getLastPublished().equals(ZkStateReader.ACTIVE)) {
-      
-      // maybe active but if the previous leader marked us as down and
-      // we haven't recovered, then can't be leader
-      String lirState = zkController.getLeaderInitiatedRecoveryState(collection, shardId,
-          core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
-      if (ZkStateReader.DOWN.equals(lirState) || ZkStateReader.RECOVERING.equals(lirState)) {
-        log.warn("Although my last published state is Active, the previous leader marked me "+core.getName()
-            + " as " + lirState
-            + " and I haven't recovered yet, so I shouldn't be the leader.");
-        return false;
-      }
-      
+    if (core.getCoreDescriptor().getCloudDescriptor().getLastPublished().equals(ZkStateReader.ACTIVE)) {      
       log.info("My last published State was Active, it's okay to be the leader.");
       return true;
     }
