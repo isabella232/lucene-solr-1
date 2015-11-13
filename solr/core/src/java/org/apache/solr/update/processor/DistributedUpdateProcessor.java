@@ -835,8 +835,11 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
 
         // before we go setting other replicas to down, make sure we're still the leader!
         String leaderCoreNodeName = null;
+        Replica leaderProps = null;
         try {
-          leaderCoreNodeName = zkController.getZkStateReader().getLeaderRetry(collection, shardId).getName();
+          leaderProps = zkController.getZkStateReader().getLeaderRetry(collection, shardId);
+          if (leaderProps != null)
+            leaderCoreNodeName = leaderProps.getName();
         } catch (Exception exc) {
           log.error("Failed to determine if " + cloudDesc.getCoreNodeName() + " is still the leader for " + collection +
               " " + shardId + " before putting " + replicaUrl + " into leader-initiated recovery due to: " + exc);
@@ -854,7 +857,9 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
           }
         }
 
-        if (cloudDesc.getCoreNodeName().equals(leaderCoreNodeName) && foundErrorNodeInReplicaList) {
+        if (leaderCoreNodeName != null && cloudDesc.getCoreNodeName().equals(leaderCoreNodeName) // we are still same leader
+            && foundErrorNodeInReplicaList // we found an error for one of replicas
+            && !stdNode.getNodeProps().getCoreUrl().equals(ZkCoreNodeProps.getCoreUrl(leaderProps))) { // we do not want to put ourself into LIR
           try {
             // if false, then the node is probably not "live" anymore
             sendRecoveryCommand =
@@ -886,9 +891,9 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
             log.warn("Core "+cloudDesc.getCoreNodeName()+" belonging to "+collection+" "+
                 shardId+", does not have error'd node " + stdNode.getNodeProps().getCoreUrl() + " as a replica. " +
                 "No request recovery command will be sent!");
-          } else  {
-            log.warn("Core "+cloudDesc.getCoreNodeName()+" is no longer the leader for "+collection+" "+
-                shardId+", no request recovery command will be sent!");
+          } else {
+            log.warn("Core " + cloudDesc.getCoreNodeName() + " is no longer the leader for " + collection + " " + shardId
+                + " or we tried to put ourself into LIR, no request recovery command will be sent!");
           }
         }
       } // else not a StdNode, recovery command still gets sent once
