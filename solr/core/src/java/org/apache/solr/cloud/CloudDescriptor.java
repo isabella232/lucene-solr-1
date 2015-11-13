@@ -42,6 +42,10 @@ public class CloudDescriptor {
   volatile String shardParent = null;
 
   private volatile boolean isLeader = false;
+
+  // set to true once a core has registered in zk
+  // set to false on detecting a session expiration
+  private volatile boolean hasRegistered = false;
   volatile String lastPublished = ZkStateReader.ACTIVE;
 
   public static final String NUM_SHARDS = "numShards";
@@ -68,6 +72,14 @@ public class CloudDescriptor {
     this.isLeader = isLeader;
   }
 
+  public boolean hasRegistered() {
+    return hasRegistered;
+  }
+  
+  public void setHasRegistered(boolean hasRegistered) {
+    this.hasRegistered = hasRegistered;
+  }
+  
   public void setShardId(String shardId) {
     this.shardId = shardId;
   }
