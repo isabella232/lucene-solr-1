@@ -2047,10 +2047,14 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     }
 
     if(configName!= null){
-      log.info("creating collections conf node {} ",ZkStateReader.COLLECTIONS_ZKNODE + "/" + coll);
-      zkStateReader.getZkClient().makePath(ZkStateReader.COLLECTIONS_ZKNODE + "/" + coll,
-          ZkStateReader.toJSON(ZkNodeProps.makeMap(ZkController.CONFIGNAME_PROP,configName)),true );
-
+      String collDir = ZkStateReader.COLLECTIONS_ZKNODE + "/" + coll;
+      log.info("creating collections conf node {} ", collDir);
+      byte[] data = ZkStateReader.toJSON(ZkNodeProps.makeMap(ZkController.CONFIGNAME_PROP, configName));
+      if (zkStateReader.getZkClient().exists(collDir, true)) {
+        zkStateReader.getZkClient().setData(collDir, data, true);
+      } else {
+        zkStateReader.getZkClient().makePath(collDir, data, true);
+      }
     } else {
       if(isLegacyCloud){
         log.warn("Could not obtain config name");
