@@ -17,16 +17,6 @@ package org.apache.solr.cloud;
  * limitations under the License.
  */
 
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.servlet.Filter;
-
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
@@ -43,6 +33,15 @@ import org.apache.zookeeper.KeeperException;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.Filter;
+
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The monkey can stop random or specific jetties used with SolrCloud.
@@ -240,28 +239,7 @@ public class ChaosMonkey {
   public static void kill(CloudJettyRunner cjetty) throws Exception {
     kill(cjetty.jetty);
   }
-
-  public void stopAll(int pauseBetweenMs) throws Exception {
-    Set<String> keys = shardToJetty.keySet();
-    for (String key : keys) {
-      List<CloudJettyRunner> jetties = shardToJetty.get(key);
-      for (CloudJettyRunner jetty : jetties) {
-        Thread.sleep(pauseBetweenMs);
-        stopJetty(jetty);
-      }
-    }
-  }
-
-  public void startAll() throws Exception {
-    Set<String> keys = shardToJetty.keySet();
-    for (String key : keys) {
-      List<CloudJettyRunner> jetties = shardToJetty.get(key);
-      for (CloudJettyRunner jetty : jetties) {
-        start(jetty.jetty);
-      }
-    }
-  }
-
+  
   public void stopShard(String slice) throws Exception {
     List<CloudJettyRunner> jetties = shardToJetty.get(slice);
     for (CloudJettyRunner jetty : jetties) {

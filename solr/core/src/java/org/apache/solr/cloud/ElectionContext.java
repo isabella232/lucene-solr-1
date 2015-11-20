@@ -11,7 +11,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
-import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.SolrZkClient;
@@ -397,7 +396,6 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
         super.runLeaderProcess(weAreReplacement, 0);
         try (SolrCore core = cc.getCore(coreName)) {
           core.getCoreDescriptor().getCloudDescriptor().setLeader(true);
-          publishActiveIfRegisteredAndNotActive(core);
         }
         log.info("I am the new leader: " + ZkCoreNodeProps.getCoreUrl(leaderProps) + " " + shardId);
         
@@ -434,22 +432,6 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
       }
     }    
   }
-  
-  public void publishActiveIfRegisteredAndNotActive(SolrCore core) throws KeeperException, InterruptedException {
-      if (core.getCoreDescriptor().getCloudDescriptor().hasRegistered()) {
-        ZkStateReader zkStateReader = zkController.getZkStateReader();
-        zkStateReader.updateClusterState(true);
-        ClusterState clusterState = zkStateReader.getClusterState();
-        Replica rep = (clusterState == null) ? null
-            : clusterState.getReplica(collection, leaderProps.getStr(ZkStateReader.CORE_NODE_NAME_PROP));
-        String state = (rep == null) ? null : rep.getStr(ZkStateReader.STATE_PROP);
-        if (!ZkStateReader.ACTIVE.equals(state) && !ZkStateReader.RECOVERING.equals(state)) {
-          log.info("We have become the leader after core registration but are not in an ACTIVE state - publishing ACTIVE");
-          zkController.publish(core.getCoreDescriptor(), ZkStateReader.ACTIVE);
-        }
-      }
-  }
-
   
   public void checkLIR(String coreName, boolean allReplicasInLine) {
     if (allReplicasInLine) {
