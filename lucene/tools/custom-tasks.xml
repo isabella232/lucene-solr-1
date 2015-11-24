@@ -146,6 +146,8 @@
           <exclude name="**/maven-build/**" />
           <exclude name="**/idea-build/**" />
           <exclude name="**/dev-tools/**" />
+          <!-- Ability to exclude from command-line. -->
+          <exclude name="${maven-deps.exclude}" />
         </fileset>
       </mvndeps>
     </sequential>
