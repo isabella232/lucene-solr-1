@@ -465,7 +465,8 @@
     <sequential>
       <subant target="@{target}" failonerror="@{failonerror}" inheritall="false">
         <propertyset refid="uptodate.and.compiled.properties"/>
-        <fileset dir="." includes="contrib/*/build.xml"/>
+        <!-- Ability to exclude from command line. -->
+        <fileset dir="." includes="contrib/*/build.xml" excludes="${contrib-crawl.exclude}"/>
       </subant>
     </sequential>
   </macrodef>
