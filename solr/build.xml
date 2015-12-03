@@ -279,6 +279,7 @@
   </target>
 
   <target name="check-licenses" depends="compile-tools,resolve,load-custom-tasks" description="Validate license stuff.">
+    <property name="skipRegexChecksum" value=""/>
     <license-check-macro dir="${basedir}" licensedir="${common-solr.dir}/licenses">
       <additional-excludes>
         <!-- Exclude start.jar only (it'd be weird to have a license file there?) -->
