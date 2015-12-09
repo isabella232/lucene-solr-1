@@ -43,7 +43,7 @@
       </exec>
     </then>
   </if>
-  <property file="${basedir}/cdh.build.properties" />
+  <property file="${basedir}/../cdh.build.properties" />
   
   <!-- Look for property definition in various *build.properties files -->
   <property file="${user.home}/lucene.build.properties"/>
@@ -561,9 +561,5 @@ File | Project Structure | Platform Settings | SDKs):
         <fileset dir="solr" includes="build.xml" />
       </subant>
     </sequential>
-  </target>
-  <!-- Debug target to show properties. -->
-  <target name="list-all-properties">
-    <echoproperties />
   </target>
 </project>
