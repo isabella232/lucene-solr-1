@@ -18,126 +18,42 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.ArrayList;
 
-import org.apache.lucene.util.IOUtils;
-import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.analysis.CannedTokenStream;
-import org.apache.lucene.analysis.MockAnalyzer;
-import org.apache.lucene.analysis.Token;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.TextField;
-import org.apache.lucene.util.Constants;
-import org.junit.Ignore;
+import org.junit.Test;
 
-public class TestCheckIndex extends LuceneTestCase {
+public class TestCheckIndex extends BaseTestCheckIndex {
+  private Directory directory;
 
-  public void testDeletedDocs() throws IOException {
-    Directory dir = newDirectory();
-    IndexWriter writer  = new IndexWriter(dir, newIndexWriterConfig(new MockAnalyzer(random()))
-                                                 .setMaxBufferedDocs(2));
-    for(int i=0;i<19;i++) {
-      Document doc = new Document();
-      FieldType customType = new FieldType(TextField.TYPE_STORED);
-      customType.setStoreTermVectors(true);
-      customType.setStoreTermVectorPositions(true);
-      customType.setStoreTermVectorOffsets(true);
-      doc.add(newField("field", "aaa"+i, customType));
-      writer.addDocument(doc);
-    }
-    writer.forceMerge(1);
-    writer.commit();
-    writer.deleteDocuments(new Term("field","aaa5"));
-    writer.close();
+  @Override
+  public void setUp() throws Exception {
+    super.setUp();
+    directory = newDirectory();
+  }
 
-    ByteArrayOutputStream bos = new ByteArrayOutputStream(1024);
-    CheckIndex checker = new CheckIndex(dir);
-    checker.setInfoStream(new PrintStream(bos, false, IOUtils.UTF_8));
-    if (VERBOSE) checker.setInfoStream(System.out);
-    CheckIndex.Status indexStatus = checker.checkIndex();
-    if (indexStatus.clean == false) {
-      System.out.println("CheckIndex failed");
-      System.out.println(bos.toString(IOUtils.UTF_8));
-      fail();
-    }
-    
-    final CheckIndex.Status.SegmentInfoStatus seg = indexStatus.segmentInfos.get(0);
-    assertTrue(seg.openReaderPassed);
-
-    assertNotNull(seg.diagnostics);
-    
-    assertNotNull(seg.fieldNormStatus);
-    assertNull(seg.fieldNormStatus.error);
-    assertEquals(1, seg.fieldNormStatus.totFields);
-
-    assertNotNull(seg.termIndexStatus);
-    assertNull(seg.termIndexStatus.error);
-    assertEquals(18, seg.termIndexStatus.termCount);
-    assertEquals(18, seg.termIndexStatus.totFreq);
-    assertEquals(18, seg.termIndexStatus.totPos);
-
-    assertNotNull(seg.storedFieldStatus);
-    assertNull(seg.storedFieldStatus.error);
-    assertEquals(18, seg.storedFieldStatus.docCount);
-    assertEquals(18, seg.storedFieldStatus.totFields);
-
-    assertNotNull(seg.termVectorStatus);
-    assertNull(seg.termVectorStatus.error);
-    assertEquals(18, seg.termVectorStatus.docCount);
-    assertEquals(18, seg.termVectorStatus.totVectors);
-
-    assertTrue(seg.diagnostics.size() > 0);
-    final List<String> onlySegments = new ArrayList<>();
-    onlySegments.add("_0");
-    
-    assertTrue(checker.checkIndex(onlySegments).clean == true);
-    dir.close();
+  @Override
+  public void tearDown() throws Exception {
+    directory.close();
+    super.tearDown();
   }
   
-  // LUCENE-4221: we have to let these thru, for now
-  public void testBogusTermVectors() throws IOException {
-    Directory dir = newDirectory();
-    IndexWriter iw = new IndexWriter(dir, newIndexWriterConfig(null));
-    Document doc = new Document();
-    FieldType ft = new FieldType(TextField.TYPE_NOT_STORED);
-    ft.setStoreTermVectors(true);
-    ft.setStoreTermVectorOffsets(true);
-    Field field = new Field("foo", "", ft);
-    field.setTokenStream(new CannedTokenStream(
-        new Token("bar", 5, 10), new Token("bar", 1, 4)
-    ));
-    doc.add(field);
-    iw.addDocument(doc);
-    iw.close();
-    dir.close(); // checkindex
+  @Test
+  public void testDeletedDocs() throws IOException {
+    testDeletedDocs(directory);
   }
-
-  @Ignore("CDH-8177: Attempt to change upstream - it's a good check for release, but I don't think it belongs here.")
-  public void testLuceneConstantVersion() throws IOException {
-    // common-build.xml sets lucene.version
-    final String version = System.getProperty("lucene.version");
-    assertNotNull( "null version", version);
-    final String constantVersion;
-    String parts[] = Constants.LUCENE_MAIN_VERSION.split("\\.");
-    if (parts.length == 4) {
-      // alpha/beta version: pull the real portion
-      assert parts[2].equals("0");
-      constantVersion = parts[0] + "." + parts[1];
-    } else {
-      // normal version
-      constantVersion = Constants.LUCENE_MAIN_VERSION;
-    }
-    assertTrue("Invalid version: "+version,
-               version.equals(constantVersion+"-SNAPSHOT") ||
-               version.equals(constantVersion));
-    assertTrue(Constants.LUCENE_VERSION + " should start with: "+version,
-               Constants.LUCENE_VERSION.startsWith(version));
+  
+  @Test
+  public void testBogusTermVectors() throws IOException {
+    testBogusTermVectors(directory);
+  }
+  
+  @Test
+  public void testChecksumsOnly() throws IOException {
+    testChecksumsOnly(directory);
+  }
+  
+  @Test
+  public void testChecksumsOnlyVerbose() throws IOException {
+    testChecksumsOnlyVerbose(directory);
   }
 }
