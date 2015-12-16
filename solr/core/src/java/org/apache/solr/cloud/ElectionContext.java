@@ -290,6 +290,8 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
     boolean allReplicasInLine = false;
     if (!weAreReplacement) {
       allReplicasInLine = waitForReplicasToComeUp(weAreReplacement, leaderVoteWait);
+    } else {
+      allReplicasInLine = areAllReplicasParticipating();
     }
     if (isClosed) {
        // Solr is shutting down or the ZooKeeper session expired while waiting for replicas. If the later, 
@@ -395,8 +397,11 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
         try (SolrCore core = cc.getCore(coreName)) {
           core.getCoreDescriptor().getCloudDescriptor().setLeader(true);
         }
-        log.info("I am the new leader: "
-            + ZkCoreNodeProps.getCoreUrl(leaderProps) + " " + shardId);
+        log.info("I am the new leader: " + ZkCoreNodeProps.getCoreUrl(leaderProps) + " " + shardId);
+        
+        // we made it as leader - send any recovery requests we need to
+        syncStrategy.requestRecoveries();
+        
       } catch (Exception e) {
         isLeader = false;
         SolrException.log(log, "There was a problem trying to register as the leader", e);
@@ -569,6 +574,39 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
       // System.out.println("###### waitForReplicasToComeUp  : slices=" + slices + " all=" + zkController.getClusterState().getCollectionStates() );
       cnt++;
     }
+    return false;
+  }
+  
+  // returns true if all replicas are found to be up, false if not
+  private boolean areAllReplicasParticipating() throws InterruptedException {
+    final String shardsElectZkPath = electionPath + LeaderElector.ELECTION_NODE;
+    Slice slices = zkController.getClusterState().getSlice(collection, shardId);
+    
+    if (slices != null) {
+      int found = 0;
+      try {
+        found = zkClient.getChildren(shardsElectZkPath, null, true).size();
+      } catch (KeeperException e) {
+        if (e instanceof KeeperException.SessionExpiredException) {
+          // if the session has expired, then another election will be launched, so
+          // quit here
+          throw new SolrException(ErrorCode.SERVER_ERROR,
+              "ZK session expired - cancelling election for " + collection + " " + shardId);
+        }
+        SolrException.log(log, "Error checking for the number of election participants", e);
+      }
+      
+      if (found >= slices.getReplicasMap().size()) {
+        log.info("All replicas are ready to participate in election.");
+        return true;
+      }
+      
+    } else {
+      log.warn("Shard not found: " + shardId + " for collection " + collection);
+      
+      return false;
+    }
+    
     return false;
   }
 
