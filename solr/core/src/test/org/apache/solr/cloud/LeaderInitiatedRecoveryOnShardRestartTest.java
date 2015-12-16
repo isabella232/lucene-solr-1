@@ -23,10 +23,21 @@ import java.util.Map;
 import org.apache.lucene.util.LuceneTestCase.Nightly;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.SolrTestCaseJ4.SuppressSSL;
+import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
+import org.apache.solr.client.solrj.impl.HttpSolrServer.RemoteSolrException;
+import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkStateReader;
+import org.apache.solr.common.params.CollectionParams.CollectionAction;
+import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.update.processor.DistributedUpdateProcessor.DistribPhase;
+import org.apache.solr.update.processor.DistributingUpdateProcessorFactory;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,16 +49,57 @@ public class LeaderInitiatedRecoveryOnShardRestartTest extends AbstractFullDistr
   protected static final transient Logger log = LoggerFactory.getLogger(LeaderInitiatedRecoveryOnShardRestartTest.class);
   
 
-  public LeaderInitiatedRecoveryOnShardRestartTest() {
+  public LeaderInitiatedRecoveryOnShardRestartTest() throws Exception {
     super();
     sliceCount = 1;
-    shardCount = 3;
+    // we want 3 jetties, but we are using the control jetty as one
+    shardCount = 2;
+    useFactory("solr.StandardDirectoryFactory");
+  }
+
+  @BeforeClass
+  public static void before() {
+    // we want more realistic leaderVoteWait so raise from
+    // test default of 10s to 30s.
+    System.setProperty("leaderVoteWait", "300000");
+  }
+  
+  @AfterClass
+  public static void after() {
+    System.clearProperty("leaderVoteWait");
   }
   
   public void restartWithAllInLIRTest() throws Exception {
-    waitForThingsToLevelOut(30000);
 
+    // still waiting to be able to properly start with no default collection1,
+    // delete to remove confusion
+    waitForRecoveriesToFinish(false);
+    ModifiableSolrParams params = new ModifiableSolrParams();
+    params.set("action", CollectionAction.DELETE.toString());
+    params.set("name", DEFAULT_COLLECTION);
+    QueryRequest request = new QueryRequest(params);
+    request.setPath("/admin/collections");
+    String baseUrl = ((HttpSolrServer) clients.get(0)).getBaseURL();
+    HttpSolrServer delClient = new HttpSolrServer(baseUrl.substring(0, baseUrl.lastIndexOf("/")));
+    delClient.request(request);
+    delClient.shutdown();
+    
+    params = new ModifiableSolrParams();
+    params.set("action", CollectionAction.DELETE.toString());
+    params.set("name", "control_collection");
+    request = new QueryRequest(params);
+    baseUrl = ((HttpSolrServer) controlClient).getBaseURL();
+    delClient = new HttpSolrServer(baseUrl.substring(0, baseUrl.lastIndexOf("/")));
+    delClient.request(request);
+    delClient.shutdown();
+    
+    String testCollectionName = "all_in_lir";
     String shardId = "shard1";
+    createCollection(testCollectionName, 1, 3, 1);
+    
+    waitForRecoveriesToFinish(testCollectionName, false);
+
+    cloudClient.setDefaultCollection(testCollectionName);
 
     Map<String, Object> stateObj = new HashMap<String,Object>();
     stateObj.put(ZkStateReader.STATE_PROP, "down");
@@ -57,36 +109,76 @@ public class LeaderInitiatedRecoveryOnShardRestartTest extends AbstractFullDistr
     byte[] znodeData = ZkStateReader.toJSON(stateObj);
     
     SolrZkClient zkClient = cloudClient.getZkStateReader().getZkClient();
-    zkClient.makePath("/collections/" + DEFAULT_COLLECTION + "/leader_initiated_recovery/" + shardId + "/core_node1", znodeData, true);
-    zkClient.makePath("/collections/" + DEFAULT_COLLECTION + "/leader_initiated_recovery/" + shardId + "/core_node2", znodeData, true);
-    zkClient.makePath("/collections/" + DEFAULT_COLLECTION + "/leader_initiated_recovery/" + shardId + "/core_node3", znodeData, true);
+    zkClient.makePath("/collections/" + testCollectionName + "/leader_initiated_recovery/" + shardId + "/core_node1", znodeData, true);
+    zkClient.makePath("/collections/" + testCollectionName + "/leader_initiated_recovery/" + shardId + "/core_node2", znodeData, true);
+    zkClient.makePath("/collections/" + testCollectionName + "/leader_initiated_recovery/" + shardId + "/core_node3", znodeData, true);
+    
+    // everyone gets a couple docs so that everyone has tlog entries
+    // and won't become leader simply because they have no tlog versions
+    SolrInputDocument doc = new SolrInputDocument();
+    addFields(doc, "id", "1");
+    SolrInputDocument doc2 = new SolrInputDocument();
+    addFields(doc2, "id", "2");
+    cloudClient.add(doc);
+    cloudClient.add(doc2);
 
+    cloudClient.commit();
+    
+    assertEquals("We just added 2 docs, we should be able to find them", 2, cloudClient.query(new SolrQuery("*:*")).getResults().getNumFound());
+    
+    // randomly add too many docs to peer sync to one replica so that only one random replica is the valid leader
+    // the versions don't matter, they just have to be higher than what the last 2 docs got
+    HttpSolrServer client = (HttpSolrServer) clients.get(random().nextInt(clients.size()));
+    client.setBaseURL(client.getBaseURL().substring(0, client.getBaseURL().lastIndexOf("/")) + "/" + testCollectionName);
+    params = new ModifiableSolrParams();
+    params.set(DistributingUpdateProcessorFactory.DISTRIB_UPDATE_PARAM, DistribPhase.FROMLEADER.toString());
+    
+    try {
+      for (int i = 0; i < 101; i++) {
+        add(client, params, sdoc("id", 3 + i, "_version_", Long.MAX_VALUE - 1 - i));
+      }
+    } catch (RemoteSolrException e) {
+      // if we got a conflict it's because we tried to send a versioned doc to the leader,
+      // resend without version
+      if (e.getMessage().contains("conflict")) {
+        for (int i = 0; i < 101; i++) {
+          add(client, params, sdoc("id", 3 + i));
+        }
+      }
+    }
+
+    client.commit();
+    
     for (JettySolrRunner jetty : jettys) {
       ChaosMonkey.stop(jetty);
     }
+    ChaosMonkey.stop(controlJetty);
     
-    Thread.sleep(2000);
+    Thread.sleep(10000);
+    
+    log.info("Start back up");
     
     for (JettySolrRunner jetty : jettys) {
       ChaosMonkey.start(jetty);
     }
+    ChaosMonkey.start(controlJetty);
     
-    // recoveries will not finish without SOLR-8075
-    waitForRecoveriesToFinish(DEFAULT_COLLECTION, true);
-
+    // recoveries will not finish without SOLR-8075 and SOLR-8367
+    waitForRecoveriesToFinish(testCollectionName, true);
+    
     // now expire each node
     try {
-      zkClient.makePath("/collections/" + DEFAULT_COLLECTION + "/leader_initiated_recovery/" + shardId + "/core_node1", znodeData, true);
+      zkClient.makePath("/collections/" + testCollectionName + "/leader_initiated_recovery/" + shardId + "/core_node1", znodeData, true);
     } catch (NodeExistsException e) {
     
     }
     try {
-      zkClient.makePath("/collections/" + DEFAULT_COLLECTION + "/leader_initiated_recovery/" + shardId + "/core_node2", znodeData, true);
+      zkClient.makePath("/collections/" + testCollectionName + "/leader_initiated_recovery/" + shardId + "/core_node2", znodeData, true);
     } catch (NodeExistsException e) {
     
     }
     try {
-      zkClient.makePath("/collections/" + DEFAULT_COLLECTION + "/leader_initiated_recovery/" + shardId + "/core_node3", znodeData, true);
+      zkClient.makePath("/collections/" + testCollectionName + "/leader_initiated_recovery/" + shardId + "/core_node3", znodeData, true);
     } catch (NodeExistsException e) {
     
     }
@@ -97,8 +189,8 @@ public class LeaderInitiatedRecoveryOnShardRestartTest extends AbstractFullDistr
     
     Thread.sleep(2000);
     
-    // recoveries will not finish without SOLR-8075
-    waitForRecoveriesToFinish(DEFAULT_COLLECTION, true);
+    // recoveries will not finish without SOLR-8075 and SOLR-8367
+    waitForRecoveriesToFinish(testCollectionName, true);
   }
 
   @Override
