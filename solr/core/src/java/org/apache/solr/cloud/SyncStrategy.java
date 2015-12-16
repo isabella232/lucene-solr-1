@@ -62,6 +62,14 @@ public class SyncStrategy {
 
   private final ExecutorService updateExecutor;
   
+  private final List<RecoveryRequest> recoveryRequests = new ArrayList<>();
+  
+  private static class RecoveryRequest {
+    ZkNodeProps leaderProps;
+    String baseUrl;
+    String coreName;
+  }
+  
   public SyncStrategy(CoreContainer cc) {
     UpdateShardHandler updateShardHandler = cc.getUpdateShardHandler();
     client = updateShardHandler.getHttpClient();
@@ -91,6 +99,9 @@ public class SyncStrategy {
         log.warn("Closed, skipping sync up.");
         return false;
       }
+      
+      recoveryRequests.clear();
+      
       log.info("Sync replicas to " + ZkCoreNodeProps.getCoreUrl(leaderProps));
       
       if (core.getUpdateHandler().getUpdateLog() == null) {
@@ -205,16 +216,17 @@ public class SyncStrategy {
       }
       
       if (!success) {
-         try {
-           log.info(ZkCoreNodeProps.getCoreUrl(leaderProps) + ": Sync failed - asking replica (" + srsp.getShardAddress() + ") to recover.");
-           if (isClosed) {
-             log.info("We have been closed, don't request that a replica recover");
-           } else {
-             requestRecovery(leaderProps, ((ShardCoreRequest)srsp.getShardRequest()).baseUrl, ((ShardCoreRequest)srsp.getShardRequest()).coreName);
-           }
-         } catch (Exception e) {
-           SolrException.log(log, ZkCoreNodeProps.getCoreUrl(leaderProps) + ": Could not tell a replica to recover", e);
-         }
+        log.info(ZkCoreNodeProps.getCoreUrl(leaderProps) + ": Sync failed - we will ask replica (" + srsp.getShardAddress()
+            + ") to recover.");
+        if (isClosed) {
+          log.info("We have been closed, don't request that a replica recover");
+        } else {
+          RecoveryRequest rr = new RecoveryRequest();
+          rr.leaderProps = leaderProps;
+          rr.baseUrl = ((ShardCoreRequest) srsp.getShardRequest()).baseUrl;
+          rr.coreName = ((ShardCoreRequest) srsp.getShardRequest()).coreName;
+          recoveryRequests.add(rr);
+        }
       } else {
         log.info(ZkCoreNodeProps.getCoreUrl(leaderProps) + ": " + " sync completed with " + srsp.getShardAddress());
       }
@@ -256,6 +268,16 @@ public class SyncStrategy {
   
   public void close() {
     this.isClosed = true;
+  }
+  
+  public void requestRecoveries() {
+    for (RecoveryRequest rr : recoveryRequests) {
+      try {
+        requestRecovery(rr.leaderProps, rr.baseUrl, rr.coreName);
+      } catch (SolrServerException | IOException e) {
+        log.error("Problem requesting that a replica recover", e);
+      }
+    }
   }
   
   private void requestRecovery(final ZkNodeProps leaderProps, final String baseUrl, final String coreName) throws SolrServerException, IOException {
