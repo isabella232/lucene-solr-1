@@ -445,11 +445,6 @@ public final class ZkController {
           if (isClosed) {
             return;
           }
-          try {
-            Thread.sleep(5000);
-          } catch (InterruptedException e1) {
-            Thread.currentThread().interrupt();
-          }
         }
       }
     }
@@ -1580,21 +1575,24 @@ public final class ZkController {
 
   private ZkCoreNodeProps waitForLeaderToSeeDownState(
       CoreDescriptor descriptor, final String coreZkNodeName) {
+    // try not to wait too long here - if we are waiting too long, we should probably
+    // move along and join the election
+    
     CloudDescriptor cloudDesc = descriptor.getCloudDescriptor();
     String collection = cloudDesc.getCollectionName();
     String shard = cloudDesc.getShardId();
     ZkCoreNodeProps leaderProps = null;
-    
-    int retries = 6;
+
+    int retries = 2;
     for (int i = 0; i < retries; i++) {
       try {
         if (isClosed) {
           throw new SolrException(ErrorCode.SERVICE_UNAVAILABLE,
               "We have been closed");
         }
-        
-        // go straight to zk, not the cloud state - we must have current info
-        leaderProps = getLeaderProps(collection, shard, 30000);
+
+        // go straight to zk, not the cloud state - we want current info
+        leaderProps = getLeaderProps(collection, shard, 5000);
         break;
       } catch (Exception e) {
         SolrException.log(log, "There was a problem finding the leader in zk", e);
@@ -1650,7 +1648,7 @@ public final class ZkController {
           
           // let's retry a couple times - perhaps the leader just went down,
           // or perhaps he is just not quite ready for us yet
-          retries = 6;
+          retries = 2;
           for (int i = 0; i < retries; i++) {
             if (isClosed) {
               throw new SolrException(ErrorCode.SERVICE_UNAVAILABLE,
