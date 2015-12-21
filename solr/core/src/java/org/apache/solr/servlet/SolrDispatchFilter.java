@@ -105,6 +105,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -118,7 +119,21 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   private static final String CONTENT_LENGTH_HEADER = "Content-Length";
 
   static final Logger log = LoggerFactory.getLogger(SolrDispatchFilter.class);
-
+  
+  static final Random random;
+  
+  static {
+    // We try to make things reproducible in the context of our tests by
+    // initializing the random instance
+    // based on the current seed
+    String seed = System.getProperty("tests.seed");
+    if (seed == null) {
+      random = new Random();
+    } else {
+      random = new Random(seed.hashCode());
+    }
+  }
+  
   protected volatile CoreContainer cores;
 
   protected String pathPrefix = null; // strip this from the beginning of a path
@@ -691,24 +706,32 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       boolean byCoreName, boolean activeReplicas) {
     String coreUrl;
     Set<String> liveNodes = clusterState.getLiveNodes();
-    Iterator<Slice> it = slices.iterator();
-    while (it.hasNext()) {
-      Slice slice = it.next();
-      Map<String,Replica> sliceShards = slice.getReplicasMap();
-      for (ZkNodeProps nodeProps : sliceShards.values()) {
-        ZkCoreNodeProps coreNodeProps = new ZkCoreNodeProps(nodeProps);
+    
+    List<Slice> randomizedSlices = new ArrayList<>(slices.size());
+    randomizedSlices.addAll(slices);
+    Collections.shuffle(randomizedSlices, random);
+    
+    for (Slice slice : randomizedSlices) {
+      List<Replica> randomizedReplicas = new ArrayList<>();
+      randomizedReplicas.addAll(slice.getReplicas());
+      Collections.shuffle(randomizedReplicas, random);
+      
+      for (Replica replica : randomizedReplicas) {
+        ZkCoreNodeProps coreNodeProps = new ZkCoreNodeProps(replica);
         if (!activeReplicas || (liveNodes.contains(coreNodeProps.getNodeName())
             && coreNodeProps.getState().equals(ZkStateReader.ACTIVE))) {
-
-          if (byCoreName && !collectionName.equals(coreNodeProps.getCoreName())) {
+            
+          if (byCoreName
+              && !collectionName.equals(coreNodeProps.getCoreName())) {
             // if it's by core name, make sure they match
             continue;
           }
-          if (coreNodeProps.getBaseUrl().equals(cores.getZkController().getBaseUrl())) {
+          if (coreNodeProps.getBaseUrl()
+              .equals(cores.getZkController().getBaseUrl())) {
             // don't count a local core
             continue;
           }
-
+          
           if (origCorename != null) {
             coreUrl = coreNodeProps.getBaseUrl() + "/" + origCorename;
           } else {
@@ -717,7 +740,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
               coreUrl = coreUrl.substring(0, coreUrl.length() - 1);
             }
           }
-
+          
           return coreUrl;
         }
       }
