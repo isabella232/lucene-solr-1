@@ -78,6 +78,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
@@ -212,13 +213,13 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   }
   
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain, boolean retry) throws IOException, ServletException {
-    if( abortErrorMessage != null ) {
-      ((HttpServletResponse)response).sendError( 500, abortErrorMessage );
+    if (abortErrorMessage != null) {
+      sendError(request, response, 500, abortErrorMessage);
       return;
     }
     
     if (this.cores == null) {
-      ((HttpServletResponse)response).sendError( 503, "Server is shutting down or failed to initialize" );
+      sendError(request, response, 503, "Server is shutting down or failed to initialize");
       return;
     }
     CoreContainer cores = this.cores;
@@ -259,7 +260,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
         if( path.equals( cores.getAdminPath() ) ) {
           handler = cores.getMultiCoreHandler();
           solrReq =  SolrRequestParsers.DEFAULT.parse(null,path, req);
-          handleAdminRequest(req, response, handler, solrReq);
+          handleAdminRequest(req, request, response, handler, solrReq);
           return;
         }
         boolean usingAliases = false;
@@ -268,21 +269,21 @@ public class SolrDispatchFilter extends BaseSolrFilter {
         if( path.equals( "/admin/collections" ) ) {
           handler = cores.getCollectionsHandler();
           solrReq =  SolrRequestParsers.DEFAULT.parse(null,path, req);
-          handleAdminRequest(req, response, handler, solrReq);
+          handleAdminRequest(req, request, response, handler, solrReq);
           return;
         }
         // Check for the core admin info url
         if( path.startsWith( "/admin/info" ) ) {
           handler = cores.getInfoHandler();
           solrReq =  SolrRequestParsers.DEFAULT.parse(null,path, req);
-          handleAdminRequest(req, response, handler, solrReq);
+          handleAdminRequest(req, request, response, handler, solrReq);
           return;
         }
         // Check for configset admin url
         if ( path.startsWith( "/admin/configs" ) ) {
           handler = cores.getConfigSetsHandler();
           solrReq =  SolrRequestParsers.DEFAULT.parse(null,path, req);
-          handleAdminRequest(req, response, handler, solrReq);
+          handleAdminRequest(req, request, response, handler, solrReq);
           return;
         }
         else {
@@ -434,7 +435,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
                   resp.addHeader(entry.getKey(), entry.getValue());
                 }
                QueryResponseWriter responseWriter = core.getQueryResponseWriter(solrReq);
-               writeResponse(solrRsp, response, responseWriter, solrReq, reqMethod);
+               writeResponse(solrRsp, request, response, responseWriter, solrReq, reqMethod);
             }
             return; // we are done with a valid handler
           }
@@ -475,6 +476,18 @@ public class SolrDispatchFilter extends BaseSolrFilter {
 
     // Otherwise let the webapp handle the request
     chain.doFilter(request, response);
+  }
+
+  public void sendError(ServletRequest request, ServletResponse response, int errorCode, String message) throws IOException {
+    try {
+      if (message != null) {
+        ((HttpServletResponse) response).sendError(errorCode, message);
+      } else {
+        ((HttpServletResponse) response).sendError(errorCode);
+      }
+    } finally {
+      consumeInput(request);
+    }
   }
   
   private void processAliases(SolrQueryRequest solrReq, Aliases aliases,
@@ -770,7 +783,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     return core;
   }
 
-  private void handleAdminRequest(HttpServletRequest req, ServletResponse response, SolrRequestHandler handler,
+  private void handleAdminRequest(HttpServletRequest req, ServletRequest request, ServletResponse response, SolrRequestHandler handler,
                                   SolrQueryRequest solrReq) throws IOException {
     SolrQueryResponse solrResp = new SolrQueryResponse();
     SolrCore.preDecorateResponse(solrReq, solrResp);
@@ -781,13 +794,13 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     }
     QueryResponseWriter respWriter = SolrCore.DEFAULT_RESPONSE_WRITERS.get(solrReq.getParams().get(CommonParams.WT));
     if (respWriter == null) respWriter = SolrCore.DEFAULT_RESPONSE_WRITERS.get("standard");
-    writeResponse(solrResp, response, respWriter, solrReq, Method.getMethod(req.getMethod()));
+    writeResponse(solrResp, request, response, respWriter, solrReq, Method.getMethod(req.getMethod()));
   }
 
-  private void writeResponse(SolrQueryResponse solrRsp, ServletResponse response,
+  private void writeResponse(SolrQueryResponse solrRsp, ServletRequest request, ServletResponse response,
                              QueryResponseWriter responseWriter, SolrQueryRequest solrReq, Method reqMethod)
           throws IOException {
-
+    try {
     // Now write it out
     final String ct = responseWriter.getContentType(solrReq, solrRsp);
     // don't call setContentType on null
@@ -815,6 +828,11 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       }
     }
     //else http HEAD request, nothing to write out, waited this long just to get ContentType
+    } finally {
+      if (solrRsp.getException() != null) {
+        consumeInput(request);
+      }
+    }
   }
   
   protected void execute( HttpServletRequest req, SolrRequestHandler handler, SolrQueryRequest sreq, SolrQueryResponse rsp) {
@@ -824,10 +842,10 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     sreq.getContext().put( "webapp", req.getContextPath() );
     sreq.getCore().execute( handler, sreq, rsp );
   }
-
+  
   protected void sendError(SolrCore core, 
       SolrQueryRequest req, 
-      ServletRequest request, 
+      ServletRequest request,
       HttpServletResponse response, 
       Throwable ex) throws IOException {
     Exception exp = null;
@@ -857,23 +875,40 @@ public class SolrDispatchFilter extends BaseSolrFilter {
         req = new SolrQueryRequestBase(core, solrParams) {};
       }
       QueryResponseWriter writer = core.getQueryResponseWriter(req);
-      writeResponse(solrResp, response, writer, req, Method.GET);
+      writeResponse(solrResp, request, response, writer, req, Method.GET);
     }
     catch (Exception e) { // This error really does not matter
          exp = e;
     } finally {
       try {
         if (exp != null) {
-          SimpleOrderedMap info = new SimpleOrderedMap();
-          int code = ResponseUtils.getErrorInfo(ex, info, log);
-          response.sendError(code, info.toString());
+          try {
+            SimpleOrderedMap info = new SimpleOrderedMap();
+            int code = ResponseUtils.getErrorInfo(ex, info, log);
+            response.sendError(code, info.toString());
+          } finally {
+            consumeInput(request);
+          }
         }
       } finally {
         if (core == null && localCore != null) {
           localCore.close();
         }
       }
-   }
+    }
+  }
+  
+  // when we send back an error, we make sure we read
+  // the full client request so that the client does
+  // not hit a connection reset and we can reuse the 
+  // connection - see SOLR-8453
+  private void consumeInput(ServletRequest req) {
+    try {
+      ServletInputStream is = req.getInputStream();
+      while (is.read() != -1) {}
+    } catch (IOException e) {
+      log.info("Could not consume full client request", e);
+    }
   }
 
   //---------------------------------------------------------------------
