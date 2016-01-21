@@ -85,6 +85,7 @@ Commands:
                 [--put-solrxml file]
                 [--set-property name value]
                 [--remove-property name]
+                [--get-clusterstate file]
   "
   exit 1
 }
@@ -560,6 +561,13 @@ while test $# != 0 ; do
           else
             usage "Error: incorrect specification of arguments for $2"
           fi
+          ;;
+        --get-clusterstate)
+          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
+          [ ! -e "$3" ] || die "$3 already exists"
+          > "$3" || die "unable to create file $3"
+          eval $SOLR_ADMIN_ZK_CMD -cmd getfile /clusterstate.json $3  || die "Error: can't get clusterstate.json from ZK or clusterstate.json is empty"
+          shift 3
           ;;
         *)
           shift 1
