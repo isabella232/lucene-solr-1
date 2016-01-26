@@ -35,6 +35,7 @@
       <dependency org="org.apache.sentry" name="sentry-provider-file" rev="${/org.apache.sentry/sentry-provider-file}" conf="compile"/>
       <dependency org="org.apache.sentry" name="solr-sentry-handlers" rev="${/org.apache.sentry/solr-sentry-handlers}" conf="compile"/>
       <dependency org="org.apache.shiro" name="shiro-core" rev="${/org.apache.shiro/shiro-core}" conf="compile"/>
+      <dependency org="org.apache.thrift" name="libthrift" rev="${/org.apache.thrift/libthrift}" conf="compile"/>
       
       <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
     </dependencies>
