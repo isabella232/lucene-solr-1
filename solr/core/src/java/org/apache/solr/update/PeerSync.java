@@ -67,6 +67,7 @@ public class PeerSync  {
   private UpdateLog ulog;
   private HttpShardHandlerFactory shardHandlerFactory;
   private ShardHandler shardHandler;
+  private List<SyncShardRequest> requests = new ArrayList<>();
 
   private UpdateLog.RecentUpdates recentUpdates;
   private List<Long> startingVersions;
@@ -76,10 +77,13 @@ public class PeerSync  {
   private Set<Long> requestedUpdateSet;
   private long ourLowThreshold;  // 20th percentile
   private long ourHighThreshold; // 80th percentile
+  private long ourHighest;  // currently just used for logging/debugging purposes
   private final boolean cantReachIsSuccess;
   private final boolean getNoVersionsIsSuccess;
+  private final boolean doFingerprint;
   private final HttpClient client;
   private final boolean onlyIfActive;
+  private SolrCore core;
 
   // comparator that sorts by absolute value, putting highest first
   private static Comparator<Long> absComparator = new Comparator<Long>() {
@@ -115,6 +119,8 @@ public class PeerSync  {
 
   private static class SyncShardRequest extends ShardRequest {
     List<Long> reportedVersions;
+    IndexFingerprint fingerprint;
+    boolean doFingerprintComparison;
     List<Long> requestedUpdates;
     Exception updateException;
   }
@@ -124,15 +130,17 @@ public class PeerSync  {
   }
   
   public PeerSync(SolrCore core, List<String> replicas, int nUpdates, boolean cantReachIsSuccess, boolean getNoVersionsIsSuccess) {
-    this(core, replicas, nUpdates, cantReachIsSuccess, getNoVersionsIsSuccess, false);
+    this(core, replicas, nUpdates, cantReachIsSuccess, getNoVersionsIsSuccess, false, true);
   }
   
-  public PeerSync(SolrCore core, List<String> replicas, int nUpdates, boolean cantReachIsSuccess, boolean getNoVersionsIsSuccess, boolean onlyIfActive) {
+  public PeerSync(SolrCore core, List<String> replicas, int nUpdates, boolean cantReachIsSuccess, boolean getNoVersionsIsSuccess, boolean onlyIfActive, boolean doFingerprint) {
+    this.core = core;
     this.replicas = replicas;
     this.nUpdates = nUpdates;
     this.maxUpdates = nUpdates;
     this.cantReachIsSuccess = cantReachIsSuccess;
     this.getNoVersionsIsSuccess = getNoVersionsIsSuccess;
+    this.doFingerprint = doFingerprint;
     this.client = core.getCoreDescriptor().getCoreContainer().getUpdateShardHandler().getHttpClient();
     this.onlyIfActive = onlyIfActive;
     
@@ -167,101 +175,115 @@ public class PeerSync  {
     return "PeerSync: core="+uhandler.core.getName()+ " url="+myURL +" ";
   }
 
-  /** Returns true if peer sync was successful, meaning that this core may not be considered to have the latest updates
-   *  when considering the last N updates between it and it's peers.
-   *  A commit is not performed.
+  /** Returns true if peer sync was successful, meaning that this core may be considered to have the latest updates.
+   * It does not mean that the remote replica is in sync with us.
    */
   public boolean sync() {
     if (ulog == null) {
       return false;
     }
-
-    log.info(msg() + "START replicas=" + replicas + " nUpdates=" + nUpdates);
-
-    if (debug) {
-      if (startingVersions != null) {
-        log.debug(msg() + "startingVersions=" + startingVersions.size() + " " + startingVersions);
-      }
-    }
-
-    // Fire off the requests before getting our own recent updates (for better concurrency)
-    // This also allows us to avoid getting updates we don't need... if we got our updates and then got their updates, they would
-    // have newer stuff that we also had (assuming updates are going on and are being forwarded).
-    for (String replica : replicas) {
-      requestVersions(replica);
-    }
-
-    recentUpdates = ulog.getRecentUpdates();
+    // FUTURE MDCLoggingContext.setCore(core);
     try {
-      ourUpdates = recentUpdates.getVersions(nUpdates);
-    } finally {
-      recentUpdates.close();
-    }
+      log.info(msg() + "START replicas=" + replicas + " nUpdates=" + nUpdates);
 
-    Collections.sort(ourUpdates, absComparator);
-
-    if (startingVersions != null) {
-      if (startingVersions.size() == 0) {
-        log.warn("no frame of reference to tell if we've missed updates");
-        return false;
-      }
-      Collections.sort(startingVersions, absComparator);
-
-      ourLowThreshold = percentile(startingVersions, 0.8f);
-      ourHighThreshold = percentile(startingVersions, 0.2f);
-
-      // now make sure that the starting updates overlap our updates
-      // there shouldn't be reorders, so any overlap will do.
-
-      long smallestNewUpdate = Math.abs(ourUpdates.get(ourUpdates.size()-1));
-
-      if (Math.abs(startingVersions.get(0)) < smallestNewUpdate) {
-        log.warn(msg() + "too many updates received since start - startingUpdates no longer overlaps with our currentUpdates");
-        return false;
-      }
-
-      // let's merge the lists
-      List<Long> newList = new ArrayList<>(ourUpdates);
-      for (Long ver : startingVersions) {
-        if (Math.abs(ver) < smallestNewUpdate) {
-          newList.add(ver);
+      if (debug) {
+        if (startingVersions != null) {
+          log.debug(msg() + "startingVersions=" + startingVersions.size() + " " + startingVersions);
         }
       }
 
-      ourUpdates = newList;
-    }  else {
-
-      if (ourUpdates.size() > 0) {
-        ourLowThreshold = percentile(ourUpdates, 0.8f);
-        ourHighThreshold = percentile(ourUpdates, 0.2f);
-      }  else {
-        // we have no versions and hence no frame of reference to tell if we can use a peers
-        // updates to bring us into sync
-        log.info(msg() + "DONE.  We have no versions.  sync failed.");
-        return false;
+      // Fire off the requests before getting our own recent updates (for better concurrency)
+      // This also allows us to avoid getting updates we don't need... if we got our updates and then got their updates,
+      // they would
+      // have newer stuff that we also had (assuming updates are going on and are being forwarded).
+      for (String replica : replicas) {
+        requestVersions(replica);
       }
-    }
 
-    ourUpdateSet = new HashSet<>(ourUpdates);
-    requestedUpdateSet = new HashSet<>(ourUpdates);
-
-    for(;;) {
-      ShardResponse srsp = shardHandler.takeCompletedOrError();
-      if (srsp == null) break;
-      boolean success = handleResponse(srsp);
-      if (!success) {
-        log.info(msg() +  "DONE. sync failed");
-        shardHandler.cancelAll();
-        return false;
+      try (UpdateLog.RecentUpdates recentUpdates = ulog.getRecentUpdates()) {
+        ourUpdates = recentUpdates.getVersions(nUpdates);
       }
-    }
 
-    log.info(msg() +  "DONE. sync succeeded");
-    return true;
+      Collections.sort(ourUpdates, absComparator);
+
+      if (startingVersions != null) {
+        if (startingVersions.size() == 0) {
+          log.warn("no frame of reference to tell if we've missed updates");
+          return false;
+        }
+        Collections.sort(startingVersions, absComparator);
+
+        ourLowThreshold = percentile(startingVersions, 0.8f);
+        ourHighThreshold = percentile(startingVersions, 0.2f);
+
+        // now make sure that the starting updates overlap our updates
+        // there shouldn't be reorders, so any overlap will do.
+
+        long smallestNewUpdate = Math.abs(ourUpdates.get(ourUpdates.size() - 1));
+
+        if (Math.abs(startingVersions.get(0)) < smallestNewUpdate) {
+          log.warn(msg()
+                  + "too many updates received since start - startingUpdates no longer overlaps with our currentUpdates");
+          return false;
+        }
+
+        // let's merge the lists
+        List<Long> newList = new ArrayList<>(ourUpdates);
+        for (Long ver : startingVersions) {
+          if (Math.abs(ver) < smallestNewUpdate) {
+            newList.add(ver);
+          }
+        }
+
+        ourUpdates = newList;
+        Collections.sort(ourUpdates, absComparator);
+      } else {
+
+        if (ourUpdates.size() > 0) {
+          ourLowThreshold = percentile(ourUpdates, 0.8f);
+          ourHighThreshold = percentile(ourUpdates, 0.2f);
+        } else {
+          // we have no versions and hence no frame of reference to tell if we can use a peers
+          // updates to bring us into sync
+          log.info(msg() + "DONE.  We have no versions.  sync failed.");
+          return false;
+        }
+      }
+
+      ourHighest = ourUpdates.get(0);
+      ourUpdateSet = new HashSet<>(ourUpdates);
+      requestedUpdateSet = new HashSet<>();
+
+      for (;;) {
+        ShardResponse srsp = shardHandler.takeCompletedOrError();
+        if (srsp == null) break;
+        boolean success = handleResponse(srsp);
+        if (!success) {
+          log.info(msg() + "DONE. sync failed");
+          shardHandler.cancelAll();
+          return false;
+        }
+      }
+
+      // finish up any comparisons with other shards that we deferred
+      boolean success = true;
+      for (SyncShardRequest sreq : requests) {
+        if (sreq.doFingerprintComparison) {
+          success = compareFingerprint(sreq);
+          if (!success) break;
+        }
+      }
+
+      log.info(msg() + "DONE. sync " + (success ? "succeeded" : "failed"));
+      return success;
+    } finally {
+      // FUTURE MDCLoggingContext.clear();
+    }
   }
-  
+
   private void requestVersions(String replica) {
     SyncShardRequest sreq = new SyncShardRequest();
+    requests.add(sreq);
     sreq.purpose = 1;
     sreq.shards = new String[]{replica};
     sreq.actualShards = sreq.shards;
@@ -269,6 +291,7 @@ public class PeerSync  {
     sreq.params.set("qt","/get");
     sreq.params.set("distrib",false);
     sreq.params.set("getVersions",nUpdates);
+    sreq.params.set("fingerprint",doFingerprint);
     shardHandler.submit(sreq, replica, sreq.params);
   }
 
@@ -350,7 +373,12 @@ public class PeerSync  {
     SyncShardRequest sreq = (SyncShardRequest) srsp.getShardRequest();
     sreq.reportedVersions =  otherVersions;
 
-    log.info(msg() + " Received " + otherVersions.size() + " versions from " + sreq.shards[0] );
+    Object fingerprint = srsp.getSolrResponse().getResponse().get("fingerprint");
+
+    log.info(msg() + " Received " + otherVersions.size() + " versions from " + sreq.shards[0] + " fingerprint:" + fingerprint );
+    if (fingerprint != null) {
+      sreq.fingerprint = IndexFingerprint.fromObject(fingerprint);
+    }
 
     if (otherVersions.size() == 0) {
       return getNoVersionsIsSuccess; 
@@ -366,13 +394,14 @@ public class PeerSync  {
     
     long otherHigh = percentile(otherVersions, .2f);
     long otherLow = percentile(otherVersions, .8f);
+    long otherHighest = otherVersions.get(0);
 
     if (ourHighThreshold < otherLow) {
       // Small overlap between version windows and ours is older
       // This means that we might miss updates if we attempted to use this method.
       // Since there exists just one replica that is so much newer, we must
       // fail the sync.
-      log.info(msg() + " Our versions are too old. ourHighThreshold="+ourHighThreshold + " otherLowThreshold="+otherLow);
+      log.info(msg() + " Our versions are too old. ourHighThreshold="+ourHighThreshold + " otherLowThreshold="+otherLow + " ourHighest=" + ourHighest + " otherHighest=" + otherHighest);
       return false;
     }
 
@@ -380,7 +409,10 @@ public class PeerSync  {
       // Small overlap between windows and ours is newer.
       // Using this list to sync would result in requesting/replaying results we don't need
       // and possibly bringing deleted docs back to life.
-      log.info(msg() + " Our versions are newer. ourLowThreshold="+ourLowThreshold + " otherHigh="+otherHigh);
+      log.info(msg() + " Our versions are newer. ourLowThreshold="+ourLowThreshold + " otherHigh="+otherHigh+ " ourHighest=" + ourHighest + " otherHighest=" + otherHighest);
+
+      // Because our versions are newer, IndexFingerprint with the remote would not match us.
+      // We return true on our side, but the remote peersync with us should fail.
       return true;
     }
     
@@ -403,9 +435,15 @@ public class PeerSync  {
     sreq.requestedUpdates = toRequest;
     
     if (toRequest.isEmpty()) {
-      log.info(msg() + " Our versions are newer. ourLowThreshold="+ourLowThreshold + " otherHigh="+otherHigh);
+      log.info(msg() + " No additional versions requested. ourLowThreshold="+ourLowThreshold + " otherHigh="+otherHigh+ " ourHighest=" + ourHighest + " otherHighest=" + otherHighest);
 
       // we had (or already requested) all the updates referenced by the replica
+
+      // If we requested updates from another replica, we can't compare fingerprints yet with this replica, we need to defer
+      if (doFingerprint) {
+        sreq.doFingerprintComparison = true;
+      }
+
       return true;
     }
     
@@ -415,6 +453,19 @@ public class PeerSync  {
     }
 
     return requestUpdates(srsp, toRequest);
+  }
+
+  private boolean compareFingerprint(SyncShardRequest sreq) {
+    if (sreq.fingerprint == null) return true;
+    try {
+      IndexFingerprint ourFingerprint = IndexFingerprint.getFingerprint(core, Long.MAX_VALUE);
+      int cmp = IndexFingerprint.compare(ourFingerprint, sreq.fingerprint);
+      log.info("Fingerprint comparison: " + cmp);
+      return cmp == 0;  // currently, we only check for equality...
+    } catch(IOException e){
+      log.error(msg() + "Error getting index fingerprint", e);
+      return false;
+    }
   }
 
   private boolean requestUpdates(ShardResponse srsp, List<Long> toRequest) {
@@ -551,7 +602,7 @@ public class PeerSync  {
       }
     }
 
-    return true;
+    return compareFingerprint(sreq);
   }
 
 
