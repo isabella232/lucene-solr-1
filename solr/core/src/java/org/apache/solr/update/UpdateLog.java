@@ -20,6 +20,7 @@ package org.apache.solr.update;
 import static org.apache.solr.update.processor.DistributedUpdateProcessor.DistribPhase.FROMLEADER;
 import static org.apache.solr.update.processor.DistributingUpdateProcessorFactory.DISTRIB_UPDATE_PARAM;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
@@ -287,7 +288,7 @@ public class UpdateLog implements PluginInfoInitialized {
     if (debug) {
       log.debug("UpdateHandler init: tlogDir=" + tlogDir + ", existing tlogs=" + Arrays.asList(tlogFiles) + ", next id=" + id);
     }
-    
+
     TransactionLog oldLog = null;
     for (String oldLogName : tlogFiles) {
       File f = new File(tlogDir, oldLogName);
@@ -341,11 +342,11 @@ public class UpdateLog implements PluginInfoInitialized {
     }
 
   }
-  
+
   public String getLogDir() {
     return tlogDir.getAbsolutePath();
   }
-  
+
   public List<Long> getStartingVersions() {
     return startingVersions;
   }
@@ -510,32 +511,35 @@ public class UpdateLog implements PluginInfoInitialized {
       if ((cmd.getFlags() & UpdateCommand.BUFFERING) == 0) {
         // given that we just did a delete-by-query, we don't know what documents were
         // affected and hence we must purge our caches.
-        if (map != null) map.clear();
-        if (prevMap != null) prevMap.clear();
-        if (prevMap2 != null) prevMap2.clear();
-
+        openRealtimeSearcher();
         trackDeleteByQuery(cmd.getQuery(), cmd.getVersion());
 
-        // oldDeletes.clear();
-
-        // We must cause a new IndexReader to be opened before anything looks at these caches again
-        // so that a cache miss will read fresh data.
-        //
-        // TODO: FUTURE: open a new searcher lazily for better throughput with delete-by-query commands
-        try {
-          RefCounted<SolrIndexSearcher> holder = uhandler.core.openNewSearcher(true, true);
-          holder.decref();
-        } catch (Exception e) {
-          SolrException.log(log, "Error opening realtime searcher for deleteByQuery", e);
+        if (trace) {
+          LogPtr ptr = new LogPtr(pos, cmd.getVersion());
+          log.trace("TLOG: added deleteByQuery " + cmd.query + " to " + tlog + " " + ptr + " map=" + System.identityHashCode(map));
         }
+      }
+    }
+  }
 
+  /** Opens a new realtime searcher and clears the id caches.
+   * This may also be called when we updates are being buffered (from PeerSync/IndexFingerprint)
+   */
+  public void openRealtimeSearcher() {
+    synchronized (this) {
+      // We must cause a new IndexReader to be opened before anything looks at these caches again
+      // so that a cache miss will read fresh data.
+      try {
+        RefCounted<SolrIndexSearcher> holder = uhandler.core.openNewSearcher(true, true);
+        holder.decref();
+      } catch (Exception e) {
+        SolrException.log(log, "Error opening realtime searcher", e);
+        return;
       }
 
-      LogPtr ptr = new LogPtr(pos, cmd.getVersion());
-
-      if (trace) {
-        log.trace("TLOG: added deleteByQuery " + cmd.query + " to " + tlog + " " + ptr + " map=" + System.identityHashCode(map));
-      }
+      if (map != null) map.clear();
+      if (prevMap != null) prevMap.clear();
+      if (prevMap2 != null) prevMap2.clear();
     }
   }
 
@@ -627,7 +631,7 @@ public class UpdateLog implements PluginInfoInitialized {
   public boolean hasUncommittedChanges() {
     return tlog != null;
   }
-  
+
   public void preCommit(CommitUpdateCommand cmd) {
     synchronized (this) {
       if (debug) {
@@ -885,11 +889,11 @@ public class UpdateLog implements PluginInfoInitialized {
       theLog.forceClose();
     }
   }
-  
+
   public void close(boolean committed) {
     close(committed, false);
   }
-  
+
   public void close(boolean committed, boolean deleteOnClose) {
     synchronized (this) {
       recoveryExecutor.shutdown(); // no new tasks
@@ -930,8 +934,8 @@ public class UpdateLog implements PluginInfoInitialized {
       this.id = id;
     }
   }
-  
-  public class RecentUpdates {
+
+  public class RecentUpdates implements Closeable {
     Deque<TransactionLog> logList;    // newest first
     List<List<Update>> updateList;
     HashMap<Long, Update> updates;
@@ -941,17 +945,17 @@ public class UpdateLog implements PluginInfoInitialized {
 
     public List<Long> getVersions(int n) {
       List<Long> ret = new ArrayList(n);
-      
+
       for (List<Update> singleList : updateList) {
         for (Update ptr : singleList) {
           ret.add(ptr.version);
           if (--n <= 0) return ret;
         }
       }
-      
+
       return ret;
     }
-    
+
     public Object lookup(long version) {
       Update update = updates.get(version);
       if (update == null) return null;
@@ -995,7 +999,7 @@ public class UpdateLog implements PluginInfoInitialized {
             try {
               o = reader.next();
               if (o==null) break;
-              
+
               // should currently be a List<Oper,Ver,Doc/Id>
               List entry = (List)o;
 
@@ -1018,13 +1022,13 @@ public class UpdateLog implements PluginInfoInitialized {
 
                   updatesForLog.add(update);
                   updates.put(version, update);
-                  
+
                   if (oper == UpdateLog.DELETE_BY_QUERY) {
                     deleteByQueryList.add(update);
                   } else if (oper == UpdateLog.DELETE) {
                     deleteList.add(new DeleteUpdate(version, (byte[])entry.get(2)));
                   }
-                  
+
                   break;
 
                 case UpdateLog.COMMIT:
@@ -1054,7 +1058,7 @@ public class UpdateLog implements PluginInfoInitialized {
       }
 
     }
-    
+
     public void close() {
       for (TransactionLog log : logList) {
         log.decref();
@@ -1339,7 +1343,7 @@ public class UpdateLog implements PluginInfoInitialized {
 
               }
             }
-            
+
             o = null;
             o = tlogReader.next();
             if (o == null && activeLog) {
@@ -1525,25 +1529,25 @@ public class UpdateLog implements PluginInfoInitialized {
       }
     }
   }
-  
+
   protected String getTlogDir(SolrCore core, PluginInfo info) {
     String dataDir = (String) info.initArgs.get("dir");
-    
+
     String ulogDir = core.getCoreDescriptor().getUlogDir();
     if (ulogDir != null) {
       dataDir = ulogDir;
     }
-    
+
     if (dataDir == null || dataDir.length() == 0) {
       dataDir = core.getDataDir();
     }
 
     return dataDir + "/" + TLOG_NAME;
   }
-  
+
   /**
    * Clears the logs on the file system. Only call before init.
-   * 
+   *
    * @param core the SolrCore
    * @param ulogPluginInfo the init info for the UpdateHandler
    */
