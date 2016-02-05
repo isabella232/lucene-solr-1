@@ -586,29 +586,30 @@ while test $# != 0 ; do
         ;;
 
     sentry)
+      # NOTE: Instead of doing the normal "eval" method for invoking the sentrycli script
+      # we put the entire command here so it is only evaled once (on the user's command line).
+      # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
+      # works correctly, but needs to be escaped if evaled.
+      SENTRY_ADMIN_CMD="${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml"
       case "$2" in
-          # NOTE: Instead of doing the normal "eval" method for invoking the sentrycli script
-          # we put the entire command here so it is only evaled once (on the user's command line).
-          # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
-          # works correctly, but needs to be escaped if evaled.
         --create-role)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml --create_role -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --create_role -r $3
           shift 3
           ;;
         --drop-role)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml --drop_role -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --drop_role -r $3
           shift 3
           ;;
            --add-role-group)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml --add_role_group -r $3 -g $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --add_role_group -r $3 -g $4
           shift 4
           ;;
         --delete-role-group)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml --delete_group_role -r $3 -g $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --delete_role_group -r $3 -g $4
           shift 4
           ;;
         --list-roles)
@@ -617,22 +618,22 @@ while test $# != 0 ; do
             SENTRY_LIST_ROLE_GROUP="$3 $4"
             shift 2
           fi
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml --list_role $SENTRY_LIST_ROLE_GROUP
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --list_role $SENTRY_LIST_ROLE_GROUP
           shift 2
           ;;
         --grant-privilege)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml --grant_privilege_role -r $3 -p $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --grant_privilege_role -r $3 -p $4
           shift 4
           ;;
         --revoke-privilege)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml --revoke_privilege_role -r $3 -p $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --revoke_privilege_role -r $3 -p $4
           shift 4
           ;;
         --list-privileges)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml --list_privilege -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --list_privilege -r $3
           shift 3
           ;;
         *)
