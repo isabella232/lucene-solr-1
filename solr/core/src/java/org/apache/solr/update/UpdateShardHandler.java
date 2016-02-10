@@ -25,6 +25,7 @@ import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.impl.conn.SchemeRegistryFactory;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
+import org.apache.solr.cloud.RecoveryStrategy;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.ExecutorUtil;
@@ -39,6 +40,9 @@ public class UpdateShardHandler {
   
   private ExecutorService updateExecutor = Executors.newCachedThreadPool(
       new SolrjNamedThreadFactory("updateExecutor"));
+  
+  private ExecutorService recoveryExecutor = Executors.newCachedThreadPool(
+      new SolrjNamedThreadFactory("recoveryExecutor"));
   
   private PoolingClientConnectionManager clientConnectionManager;
   
@@ -76,13 +80,32 @@ public class UpdateShardHandler {
     return clientConnectionManager;
   }
   
+  /**
+   * This method returns an executor that is not meant for disk IO and that will
+   * be interrupted on shutdown.
+   * 
+   * @return an executor for update related activities that do not do disk IO.
+   */
   public ExecutorService getUpdateExecutor() {
     return updateExecutor;
+  }
+  
+  /**
+   * In general, RecoveryStrategy threads do not do disk IO, but they open and close SolrCores
+   * in async threads, amoung other things, and can trigger disk IO, so we use this alternate 
+   * executor rather than the 'updateExecutor', which is interrupted on shutdown.
+   * 
+   * @return executor for {@link RecoveryStrategy} thread which will not be interrupted on close.
+   */
+  public ExecutorService getRecoveryExecutor() {
+    return recoveryExecutor;
   }
 
   public void close() {
     try {
+      // we interrupt on purpose here, but this exectuor should not run threads that do disk IO!
       ExecutorUtil.shutdownWithInterruptAndAwaitTermination(updateExecutor);
+      ExecutorUtil.shutdownAndAwaitTermination(recoveryExecutor);
     } catch (Exception e) {
       SolrException.log(log, e);
     } finally {
