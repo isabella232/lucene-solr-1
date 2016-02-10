@@ -19,6 +19,8 @@ package org.apache.solr.core;
 
 import com.google.common.collect.Lists;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.util.ExecutorUtil;
+import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 class SolrCores {
@@ -111,15 +116,27 @@ class SolrCores {
         coreList.addAll(pendingCloses);
         pendingCloses.clear();
       }
-
-      for (SolrCore core : coreList) {
+      
+      for (final SolrCore core : coreList) {
+        ExecutorService coreCloseExecutor = Executors.newFixedThreadPool(Integer.MAX_VALUE,
+            new DefaultSolrThreadFactory("coreCloseExecutor"));
         try {
-          core.close();
-        } catch (Throwable e) {
-          SolrException.log(CoreContainer.log, "Error shutting down core", e);
-          if (e instanceof Error) {
-            throw (Error) e;
-          }
+          coreCloseExecutor.submit(new Callable<SolrCore>() {
+            @Override
+            public SolrCore call() throws Exception {
+              try {
+                core.close();
+              } catch (Throwable e) {
+                SolrException.log(logger, "Error shutting down core", e);
+                if (e instanceof Error) {
+                  throw (Error) e;
+                }
+              }
+              return core;
+            }
+          });
+        } finally {
+          ExecutorUtil.shutdownAndAwaitTermination(coreCloseExecutor);
         }
       }
     } while (coreList.size() > 0);
