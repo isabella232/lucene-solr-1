@@ -18,32 +18,27 @@ package org.apache.solr.cloud.hdfs;
 
 import java.io.IOException;
 
-import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.apache.lucene.util.LuceneTestCase.Slow;
-import org.apache.solr.cloud.TlogReplayBufferedWhileIndexingTest;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-
 import com.carrotsearch.randomizedtesting.annotations.Nightly;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 
+import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.lucene.util.LuceneTestCase.Slow;
+import org.apache.solr.cloud.ChaosMonkeyNothingIsSafeTest;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+
 @Slow
 @Nightly
 @ThreadLeakScope(Scope.NONE) // hdfs client currently leaks thread(s)
-public class HdfsTlogReplayBufferedWhileIndexingTest extends TlogReplayBufferedWhileIndexingTest {
-  
-  public HdfsTlogReplayBufferedWhileIndexingTest() throws Exception {
-    super();
-  }
-
+public class HdfsChaosMonkeyNothingIsSafeTest extends ChaosMonkeyNothingIsSafeTest {
   private static MiniDFSCluster dfsCluster;
   
   @BeforeClass
   public static void setupClass() throws Exception {
     dfsCluster = HdfsTestUtil.setupClass(createTempDir().getAbsolutePath());
-    System.setProperty("solr.hdfs.blockcache.blocksperbank", "2048");
   }
   
   @AfterClass
@@ -51,11 +46,20 @@ public class HdfsTlogReplayBufferedWhileIndexingTest extends TlogReplayBufferedW
     HdfsTestUtil.teardownClass(dfsCluster);
     dfsCluster = null;
   }
+  
+  @Before
+  public void setUp() throws Exception {
+    super.setUp();
+    
+    // super class may hard code directory
+    useFactory("org.apache.solr.core.HdfsDirectoryFactory");
+  }
 
   
   @Override
   protected String getDataDir(String dataDir) throws IOException {
     return HdfsTestUtil.getDataDir(dfsCluster, dataDir);
   }
+
 
 }
