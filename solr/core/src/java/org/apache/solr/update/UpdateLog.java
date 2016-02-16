@@ -62,6 +62,7 @@ import org.apache.solr.update.processor.UpdateRequestProcessor;
 import org.apache.solr.update.processor.UpdateRequestProcessorChain;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.RefCounted;
+import org.apache.solr.util.TestInjection;
 import org.apache.solr.util.plugin.PluginInfoInitialized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1291,7 +1292,7 @@ public class UpdateLog implements PluginInfoInitialized {
                         "log replay status {} active={} starting pos={} current pos={} current size={} % read={}",
                         translog, activeLog, recoveryInfo.positionOfStart, cpos, csize,
                         Math.floor(cpos / (double) csize * 100.));
-                
+
               }
             }
 
@@ -1413,6 +1414,7 @@ public class UpdateLog implements PluginInfoInitialized {
             loglog.warn("REPLAY_ERR: Exception replaying log", ex);
             // something wrong with the request?
           }
+          assert TestInjection.injectUpdateLogReplayRandomPause();
         }
 
         CommitUpdateCommand cmd = new CommitUpdateCommand(req, false);
