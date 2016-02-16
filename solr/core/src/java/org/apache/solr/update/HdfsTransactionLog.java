@@ -354,8 +354,15 @@ public class HdfsTransactionLog extends TransactionLog {
       super();
       incref();
       try {
+        
+        synchronized (HdfsTransactionLog.this) {
+          fos.flushBuffer();
+          sz = fos.size();
+        }
+        
+        tlogOutStream.hflush();
+        
         FSDataInputStream fdis = fs.open(tlogFile);
-        sz = fs.getFileStatus(tlogFile).getLen();
         fis = new FSDataFastInputStream(fdis, startingPos);
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -378,8 +385,6 @@ public class HdfsTransactionLog extends TransactionLog {
         if (pos >= fos.size()) {
           return null;
         }
-       
-        fos.flushBuffer();
       }
       
       // we actually need a new reader to 
@@ -388,12 +393,13 @@ public class HdfsTransactionLog extends TransactionLog {
         log.info("Read available inputstream data, opening new inputstream pos={} sz={}", pos, sz);
         
         synchronized (HdfsTransactionLog.this) {
+          fos.flushBuffer();
           sz = fos.size();
         }
         
-        fis.close();
         tlogOutStream.hflush();
-
+        fis.close();
+   
         FSDataInputStream fdis = fs.open(tlogFile);
         fis = new FSDataFastInputStream(fdis, pos);
       }

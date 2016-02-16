@@ -87,6 +87,7 @@ import org.apache.solr.update.UpdateHandler;
 import org.apache.solr.update.UpdateLog;
 import org.apache.solr.update.VersionBucket;
 import org.apache.solr.update.VersionInfo;
+import org.apache.solr.util.TestInjection;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -307,6 +308,8 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
     // if we are in zk mode...
     if (zkEnabled) {
 
+      assert TestInjection.injectUpdateRandomPause();
+      
       if ((updateCommand.getFlags() & (UpdateCommand.REPLAY | UpdateCommand.PEER_SYNC)) != 0) {
         isLeader = false;     // we actually might be the leader, but we don't want leader-logic for these types of updates anyway.
         forwardToLeader = false;
