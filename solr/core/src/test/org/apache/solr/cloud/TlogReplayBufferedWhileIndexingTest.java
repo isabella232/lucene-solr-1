@@ -1,5 +1,3 @@
-package org.apache.solr.cloud;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,6 +14,7 @@ package org.apache.solr.cloud;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.solr.cloud;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,9 +26,11 @@ import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.common.SolrInputDocument;
+import org.apache.solr.util.TestInjection;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 @Slow
 @Nightly
@@ -51,6 +52,8 @@ public class TlogReplayBufferedWhileIndexingTest extends AbstractFullDistribZkTe
     System.setProperty("leaderVoteWait", "300000");
     System.setProperty("solr.autoCommit.maxTime", "10000");
     System.setProperty("solr.autoSoftCommit.maxTime", "3000");
+    TestInjection.updateLogReplayRandomPause = "true:10";
+    TestInjection.updateRandomPause = "true:10";
     if (System.getProperty("solr.hdfs.home") != null) useFactory("solr.StandardDirectoryFactory");
   }
   
@@ -68,7 +71,7 @@ public class TlogReplayBufferedWhileIndexingTest extends AbstractFullDistribZkTe
     
     waitForRecoveriesToFinish(false);
     
-    int numThreads = 1;
+    int numThreads = 3;
     
     threads = new ArrayList<StopableIndexingThread>(numThreads);
     
@@ -80,7 +83,9 @@ public class TlogReplayBufferedWhileIndexingTest extends AbstractFullDistribZkTe
     
     StopableIndexingThread indexThread;
     for (int i = 0; i < numThreads; i++) {
-      indexThread = new StopableIndexingThread(controlClient, cloudClient, Integer.toString(i), false, 50000, 1, false);
+      boolean pauseBetweenUpdates = random().nextBoolean();
+      int batchSize = random().nextInt(4) + 1;
+      indexThread = new StopableIndexingThread(controlClient, cloudClient, Integer.toString(i), true, 900, batchSize, pauseBetweenUpdates);
       threads.add(indexThread);
       indexThread.start();
     }
@@ -91,7 +96,7 @@ public class TlogReplayBufferedWhileIndexingTest extends AbstractFullDistribZkTe
     
     Thread.sleep(45000);
   
-    waitForThingsToLevelOut(320);
+    waitForThingsToLevelOut(440);
     
     Thread.sleep(2000);
     
@@ -99,12 +104,12 @@ public class TlogReplayBufferedWhileIndexingTest extends AbstractFullDistribZkTe
     
     for (StopableIndexingThread thread : threads) {
       thread.safeStop();
-      thread.safeStop();
     }
     
     waitForThingsToLevelOut(30);
 
     checkShardConsistency(false, false);
+
   }
 
   @Override
@@ -114,13 +119,16 @@ public class TlogReplayBufferedWhileIndexingTest extends AbstractFullDistribZkTe
   }
 
   
-  @Override
   @After
   public void tearDown() throws Exception {
     // make sure threads have been stopped...
     if (threads != null) {
       for (StopableIndexingThread thread : threads) {
         thread.safeStop();
+      }
+      
+      for (StopableIndexingThread thread : threads) {
+        thread.join();
       }
     }
 
