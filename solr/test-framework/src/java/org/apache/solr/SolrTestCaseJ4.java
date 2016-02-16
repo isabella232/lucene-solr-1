@@ -64,6 +64,7 @@ import org.apache.solr.util.AbstractSolrTestCase;
 import org.apache.solr.util.RevertDefaultThreadHandlerRule;
 import org.apache.solr.util.SSLTestConfig;
 import org.apache.solr.util.TestHarness;
+import org.apache.solr.util.TestInjection;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -187,6 +188,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       resetFactory();
       coreName = ConfigSolrXmlOld.DEFAULT_DEFAULT_CORE_NAME;
     } finally {
+      TestInjection.reset();
       initCoreDataDir = null;
       System.clearProperty("zookeeper.forceSync");
       System.clearProperty("jetty.testMode");
