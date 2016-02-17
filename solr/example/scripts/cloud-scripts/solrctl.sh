@@ -15,30 +15,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SOLR_XML='<solr>
-
-  <solrcloud>
-    <str name="host">${host:}</str>
-    <int name="hostPort">${solr.port:8983}</int>
-    <str name="hostContext">${hostContext:solr}</str>
-    <int name="zkClientTimeout">${zkClientTimeout:30000}</int>
-    <bool name="genericCoreNodeNames">${genericCoreNodeNames:true}</bool>
-    <int name="maxUpdateConnectionsPerHost">${maxConnectionsPerHost:100000}</int>
-    <int name="maxUpdateConnections">${maxConnections:100000}</int>
-
-    <!-- ZooKeeper Security -->
-    <str name="zkACLProvider">${zkACLProvider:}</str>
-    <str name="zkCredentialsProvider">${zkCredentialsProvider:}</str>
-  </solrcloud>
-
-  <shardHandlerFactory name="shardHandlerFactory"
-    class="HttpShardHandlerFactory">
-    <int name="socketTimeout">${socketTimeout:0}</int>
-    <int name="connTimeout">${connTimeout:0}</int>
-  </shardHandlerFactory>
-
-</solr>'
-
 usage() {
   [ $# -eq 0 ] || echo "$@"
   echo "
@@ -283,7 +259,7 @@ while test $# != 0 ; do
       eval $SOLR_ADMIN_ZK_CMD -cmd makepath / > /dev/null 2>&1 || : 
       eval $SOLR_ADMIN_ZK_CMD -cmd clear /    || die "Error: failed to initialize Solr"
 
-      eval $SOLR_ADMIN_ZK_CMD -cmd put /solr.xml "'$SOLR_XML'"
+      eval $SOLR_ADMIN_ZK_CMD -cmd putfile /solr.xml ${SOLR_HOME}/clusterconfig/solr.xml
       eval $SOLR_ADMIN_ZK_CMD -cmd makepath /configs
       for DIRNAME in predefinedTemplate managedTemplate schemalessTemplate predefinedTemplateSecure managedTemplateSecure schemalessTemplateSecure
       do
