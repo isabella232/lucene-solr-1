@@ -86,15 +86,6 @@ Commands:
                 [--set-property name value]
                 [--remove-property name]
                 [--get-clusterstate file]
-
-    sentry      [--create-role role]
-                [--drop-role role]
-                [--add-role-group role group]
-                [--delete-role-group role group]
-                [--list-roles [-g group]]
-                [--grant-privilege role privilege]
-                [--revoke-privilege role privilege]
-                [--list-privileges role]
   "
   exit 1
 }
@@ -186,7 +177,6 @@ get_solr_state() {
 
 SOLR_CONF_DIR=${SOLR_CONF_DIR:-/etc/solr/conf}
 SOLR_DEFAULTS=${SOLR_DEFAULTS:-/etc/default/solr}
-SENTRY_CONF_DIR=${SENTRY_CONF_DIR:-/etc/sentry/conf}
 
 if [ -e "$SOLR_CONF_DIR/solr-env.sh" ] ; then
   . "$SOLR_CONF_DIR/solr-env.sh"
@@ -577,63 +567,6 @@ while test $# != 0 ; do
           [ ! -e "$3" ] || die "$3 already exists"
           > "$3" || die "unable to create file $3"
           eval $SOLR_ADMIN_ZK_CMD -cmd getfile /clusterstate.json $3  || die "Error: can't get clusterstate.json from ZK or clusterstate.json is empty"
-          shift 3
-          ;;
-        *)
-          shift 1
-          ;;
-        esac
-        ;;
-
-    sentry)
-      # NOTE: Instead of doing the normal "eval" method for invoking the sentrycli script
-      # we put the entire command here so it is only evaled once (on the user's command line).
-      # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
-      # works correctly, but needs to be escaped if evaled.
-      SENTRY_ADMIN_CMD="${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml"
-      case "$2" in
-        --create-role)
-          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --create_role -r $3
-          shift 3
-          ;;
-        --drop-role)
-          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --drop_role -r $3
-          shift 3
-          ;;
-           --add-role-group)
-          [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --add_role_group -r $3 -g $4
-          shift 4
-          ;;
-        --delete-role-group)
-          [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --delete_role_group -r $3 -g $4
-          shift 4
-          ;;
-        --list-roles)
-          [ $# -eq 2 ] || [ $# -eq 4 -a "$3" == "-g" ] || usage "Error: incorrect specification of arguments for $2"
-          if [ $# -eq 4 ]; then
-            SENTRY_LIST_ROLE_GROUP="$3 $4"
-            shift 2
-          fi
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --list_role $SENTRY_LIST_ROLE_GROUP
-          shift 2
-          ;;
-        --grant-privilege)
-          [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --grant_privilege_role -r $3 -p $4
-          shift 4
-          ;;
-        --revoke-privilege)
-          [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --revoke_privilege_role -r $3 -p $4
-          shift 4
-          ;;
-        --list-privileges)
-          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --list_privilege -r $3
           shift 3
           ;;
         *)
