@@ -507,6 +507,7 @@ while test $# != 0 ; do
       ;;
 
     cluster)
+      [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
       case "$2" in
         --get-solrxml)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
