@@ -517,6 +517,7 @@ while test $# != 0 ; do
       ;;
 
     cluster)
+      [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
       case "$2" in
         --get-solrxml)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
@@ -562,6 +563,7 @@ while test $# != 0 ; do
         ;;
 
     sentry)
+      [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
       # NOTE: Instead of doing the normal "eval" method for invoking the sentrycli script
       # we put the entire command here so it is only evaled once (on the user's command line).
       # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
