@@ -76,6 +76,7 @@ public class Overseer implements Closeable {
   public static final String REMOVE_ROUTING_RULE = "removeroutingrule";
   public static final String STATE = "state";
   public static final String QUIT = "quit";
+  public static final String DOWNNODE = "downnode";
 
   public static final int STATE_UPDATE_DELAY = 1500;  // delay between cloud state updates
   public static final String CREATESHARD = "createshard";
@@ -399,7 +400,9 @@ public class Overseer implements Closeable {
         } else {
           log.warn("Overseer received wrong QUIT message {}", message);
         }
-      } else{
+      } else if (DOWNNODE.equals(operation)) {
+        clusterState = downNode(clusterState, message);
+      } else {
         throw new RuntimeException("unknown operation:" + operation
             + " contents:" + message.getProperties());
       }
@@ -746,6 +749,53 @@ public class Overseer implements Closeable {
           ClusterState newClusterState = updateSlice(clusterState, collection, slice);
           return newClusterState;
       }
+      
+    public ClusterState downNode(ClusterState clusterState,
+        ZkNodeProps message) {
+        
+      String nodeName = message.getStr(ZkStateReader.NODE_NAME_PROP);
+      
+      log.info("DownNode state invoked for node: " + nodeName);
+      
+      Set<String> collections = clusterState.getCollections();
+      Map<String,DocCollection> collectionStates = new HashMap<>((int)(Math.ceil(collections.size() / 0.75)));
+          
+      for (String collection : collections) {
+        
+        Map<String,Slice> slicesCopy = new LinkedHashMap<>(
+            clusterState.getSlicesMap(collection));
+            
+        Set<Entry<String,Slice>> entries = slicesCopy.entrySet();
+        for (Entry<String,Slice> entry : entries) {
+          Slice slice = clusterState.getSlice(collection, entry.getKey());
+          Map<String,Replica> newReplicas = new HashMap<String,Replica>();
+          
+          Collection<Replica> replicas = slice.getReplicas();
+          for (Replica replica : replicas) {
+            Map<String,Object> props = replica.shallowCopy();
+            String rNodeName = replica.getNodeName();
+            if (rNodeName.equals(nodeName)) {
+              log.info("Update replica state for " + replica + " to "
+                  + ZkStateReader.DOWN);
+              props.put(ZkStateReader.STATE_PROP, ZkStateReader.DOWN);
+            }
+            
+            Replica newReplica = new Replica(replica.getName(), props);
+            newReplicas.put(replica.getName(), newReplica);
+          }
+          
+          Slice newSlice = new Slice(slice.getName(), newReplicas,
+              slice.shallowCopy());
+          slicesCopy.put(slice.getName(), newSlice);
+          
+        }
+        
+        collectionStates.put(collection,
+            clusterState.getCollection(collection).copyWithSlices(slicesCopy));
+      }
+      
+      return new ClusterState(clusterState.getLiveNodes(), collectionStates);
+    }
 
 
 

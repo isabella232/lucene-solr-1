@@ -322,7 +322,7 @@ public class CoreContainer {
     
     if (isZooKeeperAware()) {
       cancelCoreRecoveries();
-      zkSys.publishCoresAsDown(solrCores.getCores());
+      zkSys.zkController.publishNodeAsDown(zkSys.zkController.getNodeName()); 
     }
 
     try {
