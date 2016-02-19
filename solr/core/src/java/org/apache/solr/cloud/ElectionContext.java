@@ -473,13 +473,15 @@ final class ShardLeaderElectionContext extends ShardLeaderElectionContextBase {
       
     } else {
       try (SolrCore core = cc.getCore(coreName)) {
-        String lirState = zkController.getLeaderInitiatedRecoveryState(collection, shardId,
-            core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
-        if (ZkStateReader.DOWN.equals(lirState) || ZkStateReader.RECOVERING.equals(lirState)) {
-          log.warn("The previous leader marked me " + core.getName()
-              + " as " + lirState + " and I haven't recovered yet, so I shouldn't be the leader.");
+        if (core != null) {
+          String lirState = zkController.getLeaderInitiatedRecoveryState(collection, shardId,
+              core.getCoreDescriptor().getCloudDescriptor().getCoreNodeName());
+          if (ZkStateReader.DOWN.equals(lirState) || ZkStateReader.RECOVERING.equals(lirState)) {
+            log.warn("The previous leader marked me " + core.getName()
+                + " as " + lirState + " and I haven't recovered yet, so I shouldn't be the leader.");
           
-          throw new SolrException(ErrorCode.SERVER_ERROR, "Leader Initiated Recovery prevented leadership");
+            throw new SolrException(ErrorCode.SERVER_ERROR, "Leader Initiated Recovery prevented leadership");
+          }
         }
       }  
     }
