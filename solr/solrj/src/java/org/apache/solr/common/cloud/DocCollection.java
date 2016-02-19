@@ -100,6 +100,13 @@ public class DocCollection extends ZkNodeProps {
     assert name != null && slices != null;
   }
 
+  /**Use this to make an exact copy of DocCollection with a new set of Slices and every other property as is
+   * @param slices the new set of Slices
+   * @return the resulting DocCollection
+   */
+  public DocCollection copyWithSlices(Map<String, Slice> slices){
+    return new DocCollection(getName(), slices, propMap, router, version);
+  }
 
   /**
    * Return collection name.
@@ -181,4 +188,5 @@ public class DocCollection extends ZkNodeProps {
     all.put(SHARDS, slices);
     jsonWriter.write(all);
   }
+
 }
