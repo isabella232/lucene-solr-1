@@ -53,6 +53,7 @@ import org.apache.solr.common.util.ContentStreamBase;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.StrUtils;
+import org.apache.solr.common.util.Utils;
 import org.apache.solr.core.ConfigSolr;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrConfig;
@@ -637,9 +638,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
           SolrException.ErrorCode.SERVER_ERROR,
           "Error trying to proxy request for url: " + coreUrl, e));
     } finally {
-      if (httpEntity != null) {
-        EntityUtils.consumeQuietly(httpEntity);
-      }
+      Utils.consumeFully(httpEntity);
     }
 
   }
