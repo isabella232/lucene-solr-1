@@ -231,6 +231,14 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   }
   
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain, boolean retry) throws IOException, ServletException {
+    try {
+      httpSolrCall(request, response, chain, retry);
+    } finally {
+      consumeInput(request);
+    }
+  }
+  
+  public void httpSolrCall(ServletRequest request, ServletResponse response, FilterChain chain, boolean retry) throws IOException, ServletException {
     if (abortErrorMessage != null) {
       sendError(request, response, 500, abortErrorMessage);
       return;
@@ -497,14 +505,10 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   }
 
   public void sendError(ServletRequest request, ServletResponse response, int errorCode, String message) throws IOException {
-    try {
-      if (message != null) {
-        ((HttpServletResponse) response).sendError(errorCode, message);
-      } else {
-        ((HttpServletResponse) response).sendError(errorCode);
-      }
-    } finally {
-      consumeInput(request);
+    if (message != null) {
+      ((HttpServletResponse) response).sendError(errorCode, message);
+    } else {
+      ((HttpServletResponse) response).sendError(errorCode);
     }
   }
   
@@ -846,11 +850,10 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   private void writeResponse(SolrQueryResponse solrRsp, ServletRequest request, ServletResponse response,
                              QueryResponseWriter responseWriter, SolrQueryRequest solrReq, Method reqMethod)
           throws IOException {
-    try {
     // Now write it out
     final String ct = responseWriter.getContentType(solrReq, solrRsp);
     // don't call setContentType on null
-    if (null != ct) response.setContentType(ct); 
+    if (null != ct) response.setContentType(ct);
 
     if (solrRsp.getException() != null) {
       NamedList info = new SimpleOrderedMap();
@@ -866,19 +869,14 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       } else {
         String charset = ContentStreamBase.getCharsetFromContentType(ct);
         Writer out = (charset == null)
-          ? new OutputStreamWriter(response.getOutputStream(), UTF8)
-          : new OutputStreamWriter(response.getOutputStream(), charset);
+            ? new OutputStreamWriter(response.getOutputStream(), UTF8)
+            : new OutputStreamWriter(response.getOutputStream(), charset);
         out = new FastWriter(out);
         responseWriter.write(out, solrReq, solrRsp);
         out.flush();
       }
     }
     //else http HEAD request, nothing to write out, waited this long just to get ContentType
-    } finally {
-      if (solrRsp.getException() != null) {
-        consumeInput(request);
-      }
-    }
   }
   
   protected void execute( HttpServletRequest req, SolrRequestHandler handler, SolrQueryRequest sreq, SolrQueryResponse rsp) {
@@ -928,13 +926,9 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     } finally {
       try {
         if (exp != null) {
-          try {
-            SimpleOrderedMap info = new SimpleOrderedMap();
-            int code = ResponseUtils.getErrorInfo(ex, info, log);
-            response.sendError(code, info.toString());
-          } finally {
-            consumeInput(request);
-          }
+          SimpleOrderedMap info = new SimpleOrderedMap();
+          int code = ResponseUtils.getErrorInfo(ex, info, log);
+          response.sendError(code, info.toString());
         }
       } finally {
         if (core == null && localCore != null) {
