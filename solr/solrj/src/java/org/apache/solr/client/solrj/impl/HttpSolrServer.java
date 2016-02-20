@@ -79,6 +79,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.ContentStream;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SolrjNamedThreadFactory;
+import org.apache.solr.common.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -634,11 +635,7 @@ public class HttpSolrServer extends SolrServer {
           "IOException occured when talking to server at: " + getBaseURL(), e);
     } finally {
       if (shouldClose) {
-        try {
-          EntityUtils.consume(entity);
-        } catch (IOException e) {
-          log.error("Error consuming and closing http response stream.", e);
-        }
+        Utils.consumeFully(entity);
       }
     }
   }
