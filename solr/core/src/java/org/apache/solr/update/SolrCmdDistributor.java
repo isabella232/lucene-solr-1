@@ -53,9 +53,10 @@ import org.slf4j.LoggerFactory;
 public class SolrCmdDistributor {
   private static final int MAX_RETRIES_ON_FORWARD = 25;
   public static Logger log = LoggerFactory.getLogger(SolrCmdDistributor.class);
-  
+
   private StreamingSolrServers servers;
-  
+  private boolean finished = false; // see finish()
+
   private int retryPause = 500;
   private int maxRetriesOnForward = MAX_RETRIES_ON_FORWARD;
   
@@ -86,6 +87,9 @@ public class SolrCmdDistributor {
   
   public void finish() {    
     try {
+      assert ! finished : "lifecycle sanity check";
+      finished = true;
+      
       blockAndDoRetries();
     } finally {
       servers.shutdown();
@@ -224,7 +228,7 @@ public class SolrCmdDistributor {
     
   }
 
-  private void blockAndDoRetries() {
+  public void blockAndDoRetries() {
     servers.blockUntilFinished();
     
     // wait for any async commits to complete
