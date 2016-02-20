@@ -57,6 +57,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.UpdateParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SolrjNamedThreadFactory;
+import org.apache.solr.common.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -266,7 +267,7 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
           } finally {
             try {
               if (response != null) {
-                EntityUtils.consume(response.getEntity());
+                Utils.consumeFully(response.getEntity());
               }
             } catch (Exception e) {
               log.error("Error consuming and closing http response stream.", e);
