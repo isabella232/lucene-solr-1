@@ -1,5 +1,7 @@
 package org.apache.solr.common.cloud;
 
+import java.util.Map;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -19,17 +21,22 @@ package org.apache.solr.common.cloud;
 
 import org.noggit.JSONUtil;
 
-import java.util.Map;
-
 
 public class Replica extends ZkNodeProps {
   private final String name;
   private final String nodeName;
+  private final String state;
 
   public Replica(String name, Map<String,Object> propMap) {
     super(propMap);
     this.name = name;
     nodeName = (String)propMap.get(ZkStateReader.NODE_NAME_PROP);
+    if (propMap.get(ZkStateReader.STATE_PROP) != null) {
+      this.state =  (String) propMap.get(ZkStateReader.STATE_PROP);
+    } else {
+      this.state = ZkStateReader.ACTIVE;                         //Default to ACTIVE
+      propMap.put(ZkStateReader.STATE_PROP, state.toString());
+    }
   }
 
   public String getName() {
@@ -39,6 +46,11 @@ public class Replica extends ZkNodeProps {
   /** The name of the node this replica resides on */
   public String getNodeName() {
     return nodeName;
+  }
+  
+  /** Returns the state of this replica. */
+  public String getState() {
+    return state;
   }
 
   @Override
