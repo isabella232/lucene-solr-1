@@ -84,6 +84,9 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.apache.solr.common.cloud.ZkStateReader.CORE_NAME_PROP;
+import static org.apache.solr.common.cloud.ZkStateReader.NODE_NAME_PROP;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -739,8 +742,8 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     return slices;
   }
   
-  private SolrCore getCoreByCollection(CoreContainer cores, String corename, String path) {
-    String collection = corename;
+  private SolrCore getCoreByCollection(CoreContainer cores, String collection,
+      String path) {
     ZkStateReader zkStateReader = cores.getZkController().getZkStateReader();
     
     ClusterState clusterState = zkStateReader.getClusterState();
@@ -748,30 +751,50 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     if (slices == null) {
       return null;
     }
+    Set<String> liveNodes = clusterState.getLiveNodes();
     // look for a core on this node
-    Set<Entry<String,Slice>> entries = slices.entrySet();
+    Set<Map.Entry<String,Slice>> entries = slices.entrySet();
     SolrCore core = null;
-    done:
-    for (Entry<String,Slice> entry : entries) {
+    
+    // Hitting the leaders is useful when it's an update request.
+    // For queries it doesn't matter and hence we don't distinguish here.
+    for (Map.Entry<String,Slice> entry : entries) {
       // first see if we have the leader
-      ZkNodeProps leaderProps = clusterState.getLeader(collection, entry.getKey());
-      if (leaderProps != null) {
-        core = checkProps(cores, path, leaderProps);
-      }
-      if (core != null) {
-        break done;
+      Replica leaderProps = clusterState.getLeader(collection, entry.getKey());
+      if (liveNodes.contains(leaderProps.getNodeName())
+          && ZkStateReader.ACTIVE.equals(leaderProps.getState())) {
+        if (leaderProps != null) {
+          core = checkProps(leaderProps);
+        }
+        if (core != null) {
+          return core;
+        }
       }
       
       // check everyone then
       Map<String,Replica> shards = entry.getValue().getReplicasMap();
-      Set<Entry<String,Replica>> shardEntries = shards.entrySet();
-      for (Entry<String,Replica> shardEntry : shardEntries) {
+      Set<Map.Entry<String,Replica>> shardEntries = shards.entrySet();
+      for (Map.Entry<String,Replica> shardEntry : shardEntries) {
         Replica zkProps = shardEntry.getValue();
-        core = checkProps(cores, path, zkProps);
-        if (core != null) {
-          break done;
+        if (liveNodes.contains(zkProps.getNodeName())
+            && ZkStateReader.ACTIVE.equals(zkProps.getState())) {
+          core = checkProps(zkProps);
+          if (core != null) {
+            return core;
+          }
         }
       }
+    }
+    return null;
+  }
+  
+  private SolrCore checkProps(ZkNodeProps zkProps) {
+    String corename;
+    SolrCore core = null;
+    if (cores.getZkController().getNodeName()
+        .equals(zkProps.getStr(NODE_NAME_PROP))) {
+      corename = zkProps.getStr(CORE_NAME_PROP);
+      core = cores.getCore(corename);
     }
     return core;
   }
