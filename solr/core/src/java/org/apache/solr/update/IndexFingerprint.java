@@ -75,12 +75,12 @@ public class IndexFingerprint {
     return maxDoc;
   }
 
-  /** Opens a new realtime searcher and returns it's fingerprint */
+  /** Opens a new realtime searcher and returns it's (possibly cached) fingerprint */
   public static IndexFingerprint getFingerprint(SolrCore core, long maxVersion) throws IOException {
     core.getUpdateHandler().getUpdateLog().openRealtimeSearcher();
     RefCounted<SolrIndexSearcher> newestSearcher = core.getUpdateHandler().getUpdateLog().uhandler.core.getRealtimeSearcher();
     try {
-      return getFingerprint(newestSearcher.get(), maxVersion);
+      return newestSearcher.get().getIndexFingerprint(maxVersion);
     } finally {
       if (newestSearcher != null) {
         newestSearcher.decref();
@@ -88,6 +88,7 @@ public class IndexFingerprint {
     }
   }
 
+  /** Calculates an index fingerprint */
   public static IndexFingerprint getFingerprint(SolrIndexSearcher searcher, long maxVersion) throws IOException {
     long start = System.currentTimeMillis();
 
