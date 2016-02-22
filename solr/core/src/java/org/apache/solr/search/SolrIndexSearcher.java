@@ -105,6 +105,7 @@ import org.apache.solr.request.UnInvertedField;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.schema.SchemaField;
+import org.apache.solr.update.IndexFingerprint;
 import org.apache.solr.update.SolrIndexConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,8 +168,11 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
   private final AtomicReader atomicReader;
   private String path;
   private final boolean reserveDirectory;
-  private final boolean createdDirectory; 
-  
+  private final boolean createdDirectory;
+
+  private volatile IndexFingerprint fingerprint;
+  private final Object fingerprintLock = new Object();
+
   private static DirectoryReader getReader(SolrCore core, SolrIndexConfig config, DirectoryFactory directoryFactory, String path) throws IOException {
     DirectoryReader reader = null;
     Directory dir = directoryFactory.get(path, DirContext.DEFAULT, config.lockType);
@@ -2167,6 +2171,20 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
   @Override
   public Explanation explain(Query query, int doc) throws IOException {
     return super.explain(QueryUtils.makeQueryable(query), doc);
+  }
+
+  /** @lucene.internal
+   * gets a cached version of the IndexFingerprint for this searcher
+   **/
+  public IndexFingerprint getIndexFingerprint(long maxVersion) throws IOException {
+    // possibly expensive, so prevent more than one thread from calculating it for this searcher
+    synchronized (fingerprintLock) {
+      if (fingerprint == null) {
+        fingerprint = IndexFingerprint.getFingerprint(this, maxVersion);
+      }
+    }
+
+    return fingerprint;
   }
 
   /////////////////////////////////////////////////////////////////////
