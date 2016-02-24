@@ -25,6 +25,7 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.lucene.index.BaseTestCheckIndex;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.NoLockFactory;
+import org.apache.lucene.util.LuceneTestCase.SuppressCodecs;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.cloud.AbstractFullDistribZkTestBase;
@@ -42,6 +43,7 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 
+@SuppressCodecs("Lucene3x")
 @ThreadLeakScope(Scope.NONE) // hdfs client currently leaks thread(s)
 public class CheckHdfsIndexTest extends AbstractFullDistribZkTestBase {
   private static MiniDFSCluster dfsCluster;
@@ -96,6 +98,8 @@ public class CheckHdfsIndexTest extends AbstractFullDistribZkTestBase {
   }
 
   public void doTest() throws Exception {
+    waitForRecoveriesToFinish(false);
+
     indexr(id, 1);
     commit();
 
