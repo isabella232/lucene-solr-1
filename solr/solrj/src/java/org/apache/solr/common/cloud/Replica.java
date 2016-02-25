@@ -21,6 +21,11 @@ import java.util.Map;
 
 import org.noggit.JSONUtil;
 
+import static org.apache.solr.common.cloud.ZkStateReader.BASE_URL_PROP;
+import static org.apache.solr.common.cloud.ZkStateReader.CORE_NAME_PROP;
+
+import java.util.Map;
+
 
 public class Replica extends ZkNodeProps {
   private final String name;
@@ -41,6 +46,10 @@ public class Replica extends ZkNodeProps {
 
   public String getName() {
     return name;
+  }
+  
+  public String getCoreUrl() {
+    return ZkCoreNodeProps.getCoreUrl(getStr(BASE_URL_PROP), getStr(CORE_NAME_PROP));
   }
 
   /** The name of the node this replica resides on */
