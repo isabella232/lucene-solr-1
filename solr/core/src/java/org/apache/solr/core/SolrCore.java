@@ -917,6 +917,9 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
         infoRegistry.put(bean.getName(), bean);
       }
     }
+    
+    // seed version buckets with max from index during core initialization ... requires a searcher!
+    seedVersionBucketsWithMaxFromIndex();
 
     CoreContainer cc = cd.getCoreContainer();
 
@@ -941,6 +944,22 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
 //    openHandles.put(this, new RuntimeException("unclosed core - name:" + getName() + " refs: " + refCount.get()));
 
     ruleExpiryLock = new ReentrantLock();
+  }
+  
+  private void seedVersionBucketsWithMaxFromIndex() {
+    UpdateHandler uh = getUpdateHandler();
+    if (uh != null && uh.getUpdateLog() != null) {
+      RefCounted<SolrIndexSearcher> newestSearcher = getRealtimeSearcher();
+      if (newestSearcher != null) {
+        try {
+          uh.getUpdateLog().onFirstSearcher(newestSearcher.get());
+        } finally {
+          newestSearcher.decref();
+        }
+      } else {
+        log.warn("No searcher available! Cannot seed version buckets with max from index.");
+      }
+    }
   }
     
   private Codec initCodec(SolrConfig solrConfig, final IndexSchema schema) {
@@ -1763,9 +1782,6 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
         }
 
         if (currSearcher == null) {
-          if (updateHandler != null && updateHandler.getUpdateLog() != null) {
-            updateHandler.getUpdateLog().onFirstSearcher(newSearcher);
-          }
 
           future = searcherExecutor.submit(new Callable() {
             @Override
