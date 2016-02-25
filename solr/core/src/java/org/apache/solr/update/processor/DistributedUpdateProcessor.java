@@ -650,6 +650,9 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
 
   @Override
   public void processAdd(AddUpdateCommand cmd) throws IOException {
+    
+    assert TestInjection.injectFailUpdateRequests();
+    
     updateCommand = cmd;
 
     if (zkEnabled) {
@@ -1232,6 +1235,9 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
 
   @Override
   public void processDelete(DeleteUpdateCommand cmd) throws IOException {
+    
+    assert TestInjection.injectFailUpdateRequests();
+    
     updateCommand = cmd;
 
     if (!cmd.isDeleteById()) {
@@ -1688,6 +1694,9 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
 
   @Override
   public void processCommit(CommitUpdateCommand cmd) throws IOException {
+    
+    assert TestInjection.injectFailUpdateRequests();
+    
     updateCommand = cmd;
     List<Node> nodes = null;
     boolean singleLeader = false;
