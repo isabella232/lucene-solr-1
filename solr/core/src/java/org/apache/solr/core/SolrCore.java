@@ -1764,8 +1764,12 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
             }
           });
         }
-        
-        if (currSearcher == null && firstSearcherListeners.size() > 0) {
+
+        if (currSearcher == null) {
+          if (updateHandler != null && updateHandler.getUpdateLog() != null) {
+            updateHandler.getUpdateLog().onFirstSearcher(newSearcher);
+          }
+
           future = searcherExecutor.submit(new Callable() {
             @Override
             public Object call() throws Exception {
