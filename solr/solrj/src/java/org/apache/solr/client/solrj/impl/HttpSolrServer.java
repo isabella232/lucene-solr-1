@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.Header;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
@@ -51,7 +51,6 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.client.params.ClientPNames;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
@@ -69,7 +68,6 @@ import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.RequestWriter;
-import org.apache.solr.client.solrj.request.SolrPing;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.client.solrj.util.ClientUtils;
@@ -506,15 +504,17 @@ public class HttpSolrServer extends SolrServer {
   protected NamedList<Object> executeMethod(HttpRequestBase method, final ResponseParser processor) throws SolrServerException {
     method.addHeader("User-Agent", AGENT);
     
+    HttpEntity entity = null;
     InputStream respBody = null;
     boolean shouldClose = true;
-    boolean success = false;
     try {
       // Execute the method.
       final HttpResponse response = httpClient.execute(method);
       int httpStatus = response.getStatusLine().getStatusCode();
       
       // Read the contents
+      entity = response.getEntity();
+      respBody = entity.getContent();
       respBody = response.getEntity().getContent();
       Header ctHeader = response.getLastHeader("content-type");
       String contentType;
@@ -555,7 +555,6 @@ public class HttpSolrServer extends SolrServer {
         rsp.add("stream", respBody);
         // Only case where stream should not be closed
         shouldClose = false;
-        success = true;
         return rsp;
       }
       
@@ -622,7 +621,6 @@ public class HttpSolrServer extends SolrServer {
         if (metadata != null) rss.setMetadata(metadata);
         throw rss;
       }
-      success = true;
       return rsp;
     } catch (ConnectException e) {
       throw new SolrServerException("Server refused connection at: "
@@ -635,15 +633,11 @@ public class HttpSolrServer extends SolrServer {
       throw new SolrServerException(
           "IOException occured when talking to server at: " + getBaseURL(), e);
     } finally {
-      if (respBody != null && shouldClose) {
+      if (shouldClose) {
         try {
-          respBody.close();
+          EntityUtils.consume(entity);
         } catch (IOException e) {
-          log.error("", e);
-        } finally {
-          if (!success) {
-            method.abort();
-          }
+          log.error("Error consuming and closing http response stream.", e);
         }
       }
     }
