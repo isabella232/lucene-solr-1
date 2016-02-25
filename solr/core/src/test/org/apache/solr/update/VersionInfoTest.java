@@ -19,6 +19,7 @@ package org.apache.solr.update;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.lucene.util.LuceneTestCase.SuppressCodecs;
 import org.apache.solr.common.util.Hash;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.request.SolrQueryRequest;
@@ -26,6 +27,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+@SuppressCodecs("Lucene3x")
 public class VersionInfoTest extends SolrTestCaseJ4 {
 
   @Test
