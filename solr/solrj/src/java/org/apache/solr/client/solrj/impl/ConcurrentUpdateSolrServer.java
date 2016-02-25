@@ -18,6 +18,7 @@
 package org.apache.solr.client.solrj.impl;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
@@ -156,6 +157,8 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
       log.debug("starting runner: {}", this);
       HttpPost method = null;
       HttpResponse response = null;            
+
+      InputStream rspBody = null;            
       try {
         sendAuthenticatingRequestIfNecessary();
         while (!queue.isEmpty()) {
@@ -234,6 +237,7 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
             method.addHeader("Content-Type", contentType);
                         
             response = server.getHttpClient().execute(method);
+            rspBody = response.getEntity().getContent();
             int statusCode = response.getStatusLine().getStatusCode();
             if (statusCode != HttpStatus.SC_OK) {
               StringBuilder msg = new StringBuilder();
@@ -245,7 +249,7 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
               // parse out the metadata from the SolrException
               try {
                 NamedList<Object> resp =
-                    server.parser.processResponse(response.getEntity().getContent(),
+                    server.parser.processResponse(rspBody,
                         response.getEntity().getContentType().getValue());
                 NamedList<Object> error = (NamedList<Object>) resp.get("error");
                 if (error != null)
@@ -262,10 +266,10 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
           } finally {
             try {
               if (response != null) {
-                response.getEntity().getContent().close();
+                EntityUtils.consume(response.getEntity());
               }
-            } catch (Exception ex) {
-              log.warn("", ex);
+            } catch (Exception e) {
+              log.error("Error consuming and closing http response stream.", e);
             }
           }
         }

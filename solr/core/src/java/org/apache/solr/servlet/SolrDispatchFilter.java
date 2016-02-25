@@ -552,7 +552,6 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       SolrQueryRequest solrReq, HttpServletResponse resp) throws IOException {
     HttpRequestBase method = null;
     HttpEntity httpEntity = null;
-    boolean success = false;
     try {
       String urlstr = coreUrl;
       String queryString = req.getQueryString();
@@ -653,23 +652,18 @@ public class SolrDispatchFilter extends BaseSolrFilter {
 
         InputStream is = httpEntity.getContent();
         OutputStream os = resp.getOutputStream();
-        try {
-          IOUtils.copyLarge(is, os);
-          os.flush();
-        } finally {
-          IOUtils.closeQuietly(os);   // TODO: I thought we weren't supposed to explicitly close servlet streams
-          IOUtils.closeQuietly(is);
-        }
+
+        IOUtils.copyLarge(is, os);
+        os.flush();
+
       }
-      success = true;
     } catch (IOException e) {
       sendError(null, solrReq, req, resp, new SolrException(
           SolrException.ErrorCode.SERVER_ERROR,
           "Error trying to proxy request for url: " + coreUrl, e));
     } finally {
-      if (method != null && !success) {
+      if (httpEntity != null) {
         EntityUtils.consumeQuietly(httpEntity);
-        method.abort();
       }
     }
 
