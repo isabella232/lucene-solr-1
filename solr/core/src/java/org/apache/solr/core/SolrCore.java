@@ -541,8 +541,6 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
                                                         getLatestSchema(), solrConfig.indexConfig, solrDelPolicy, codec);
         writer.close();
       }
-
- 
   }
 
   /** Creates an instance by trying a constructor that accepts a SolrCore before
@@ -917,10 +915,10 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
         infoRegistry.put(bean.getName(), bean);
       }
     }
-    
-    // seed version buckets with max from index during core initialization ... requires a searcher!
-    seedVersionBucketsWithMaxFromIndex();
 
+    // seed version buckets with max from index during core initialization ... requires a searcher!
+    seedVersionBuckets();
+    
     CoreContainer cc = cd.getCoreContainer();
 
     if (cc != null && cc.isZooKeeperAware()) {
@@ -945,14 +943,14 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
 
     ruleExpiryLock = new ReentrantLock();
   }
-  
-  private void seedVersionBucketsWithMaxFromIndex() {
+
+  public void seedVersionBuckets() {
     UpdateHandler uh = getUpdateHandler();
     if (uh != null && uh.getUpdateLog() != null) {
       RefCounted<SolrIndexSearcher> newestSearcher = getRealtimeSearcher();
       if (newestSearcher != null) {
         try {
-          uh.getUpdateLog().onFirstSearcher(newestSearcher.get());
+          uh.getUpdateLog().seedBucketsWithHighestVersion(newestSearcher.get());
         } finally {
           newestSearcher.decref();
         }
@@ -961,7 +959,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
       }
     }
   }
-    
+
   private Codec initCodec(SolrConfig solrConfig, final IndexSchema schema) {
     final PluginInfo info = solrConfig.getPluginInfo(CodecFactory.class.getName());
     final CodecFactory factory;
