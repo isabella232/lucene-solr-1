@@ -87,6 +87,7 @@ public class CloudSolrServer extends SolrServer {
   private final LBHttpSolrServer lbServer;
   private final boolean shutdownLBHttpSolrServer;
   private HttpClient myClient;
+  private final boolean clientIsInternal;
   Random rand = new Random();
   
   private final boolean updatesToLeaders;
@@ -126,7 +127,8 @@ public class CloudSolrServer extends SolrServer {
       this.lbServer.setRequestWriter(new BinaryRequestWriter());
       this.lbServer.setParser(new BinaryResponseParser());
       this.updatesToLeaders = true;
-      shutdownLBHttpSolrServer = true;
+      this.shutdownLBHttpSolrServer = true;
+      this.clientIsInternal = true;
   }
   
   public CloudSolrServer(String zkHost, boolean updatesToLeaders)
@@ -137,7 +139,8 @@ public class CloudSolrServer extends SolrServer {
     this.lbServer.setRequestWriter(new BinaryRequestWriter());
     this.lbServer.setParser(new BinaryResponseParser());
     this.updatesToLeaders = updatesToLeaders;
-    shutdownLBHttpSolrServer = true;
+    this.shutdownLBHttpSolrServer = true;
+    this.clientIsInternal = true;
   }
 
   /**
@@ -149,7 +152,8 @@ public class CloudSolrServer extends SolrServer {
     this.zkHost = zkHost;
     this.lbServer = lbServer;
     this.updatesToLeaders = true;
-    shutdownLBHttpSolrServer = false;
+    this.shutdownLBHttpSolrServer = false;
+    this.clientIsInternal = true;
   }
   
   /**
@@ -163,8 +167,21 @@ public class CloudSolrServer extends SolrServer {
     this.lbServer = lbServer;
     this.updatesToLeaders = updatesToLeaders;
     shutdownLBHttpSolrServer = false;
+    this.clientIsInternal = true;
   }
   
+  public CloudSolrServer(String zkHost, boolean updatesToLeaders,  HttpClient httpClient) {
+    this.zkHost = zkHost;
+    this.clientIsInternal = httpClient == null;
+    this.myClient = httpClient == null ? HttpClientUtil.createClient(null) : httpClient;
+    this.lbServer = new LBHttpSolrServer(myClient);
+    this.lbServer.setRequestWriter(new BinaryRequestWriter());
+    this.lbServer.setParser(new BinaryResponseParser());
+    this.updatesToLeaders = updatesToLeaders;
+    shutdownLBHttpSolrServer = true;
+
+  }
+
   public ResponseParser getParser() {
     return lbServer.getParser();
   }
@@ -705,7 +722,7 @@ public class CloudSolrServer extends SolrServer {
       lbServer.shutdown();
     }
     
-    if (myClient!=null) {
+    if (clientIsInternal && myClient!=null) {
       myClient.getConnectionManager().shutdown();
     }
 
