@@ -262,9 +262,4 @@ public class HdfsDirectory extends BaseDirectory {
     }
     return this.hdfsDirPath.equals(((HdfsDirectory) obj).hdfsDirPath);
   }
-
-  @Override
-  public String toString() {
-    return this.getClass().getSimpleName() + "@" + hdfsDirPath + " lockFactory=" + lockFactory;
-  }
 }
