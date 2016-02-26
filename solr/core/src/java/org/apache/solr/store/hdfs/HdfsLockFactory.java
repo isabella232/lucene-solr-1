@@ -171,7 +171,7 @@ public class HdfsLockFactory extends LockFactory {
         IOUtils.closeQuietly(fs);
       }
     }
-
+    
     @Override
     public boolean isLocked() throws IOException {
       boolean isLocked = false;
@@ -183,11 +183,7 @@ public class HdfsLockFactory extends LockFactory {
       }
       return isLocked;
     }
-
-    @Override
-    public String toString() {
-      return "HdfsLock(lockFile=" + lockPath + ")";
-    }
+    
   }
   
 }
