@@ -18,12 +18,25 @@ package org.apache.solr.common.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.util.EntityUtils;
 
 public class Utils {
 
+  public static Map<String, Object> makeMap(Object... keyVals) {
+    if ((keyVals.length & 0x01) != 0) {
+      throw new IllegalArgumentException("arguments should be key,value");
+    }
+    Map<String, Object> propMap = new LinkedHashMap<>(keyVals.length >> 1);
+    for (int i = 0; i < keyVals.length; i += 2) {
+      propMap.put(keyVals[i].toString(), keyVals[i + 1]);
+    }
+    return propMap;
+  }
+  
   /**
    * If the passed entity has content, make sure it is fully
    * read and closed.

@@ -107,7 +107,8 @@ public class ZkStateReader implements Closeable {
 
   public static final Set<String> KNOWN_CLUSTER_PROPS = unmodifiableSet(new HashSet<>(asList(
       LEGACY_CLOUD,
-      URL_SCHEME)));
+      URL_SCHEME,
+      ZkStateReader.AUTO_ADD_REPLICAS)));
 
   
   //

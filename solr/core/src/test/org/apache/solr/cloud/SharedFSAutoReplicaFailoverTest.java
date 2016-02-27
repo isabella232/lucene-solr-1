@@ -17,8 +17,11 @@ package org.apache.solr.cloud;
  * limitations under the License.
  */
 
+import static org.apache.solr.common.util.Utils.makeMap;
+
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
@@ -27,21 +30,25 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
+import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.SolrTestCaseJ4.SuppressSSL;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
+import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.response.CollectionAdminResponse;
 import org.apache.solr.cloud.hdfs.HdfsTestUtil;
 import org.apache.solr.common.cloud.ClusterStateUtil;
 import org.apache.solr.common.cloud.Slice;
+import org.apache.solr.common.cloud.ZkStateReader;
+import org.apache.solr.common.params.CollectionParams;
+import org.apache.solr.common.params.MapSolrParams;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
 
 @Slow
 @SuppressSSL
@@ -104,7 +111,7 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
       }
     }
   }
-  
+
   // very slow tests, especially since jetty is started and stopped
   // serially
   private void testBasics() throws Exception {
@@ -158,22 +165,48 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
 
     ChaosMonkey.start(jettys);
     ChaosMonkey.start(controlJetty);
-    
+
     assertTrue("Timeout waiting for all live and active", ClusterStateUtil.waitForAllActiveAndLiveReplicas(cloudClient.getZkStateReader(), collection1, 120000));
 
     assertSliceAndReplicaCount(collection1);
-    assertSingleReplicationAndShardSize(collection3, 5);
-    
+
     int jettyIndex = random().nextInt(jettys.size());
     ChaosMonkey.stop(jettys.get(jettyIndex));
     ChaosMonkey.start(jettys.get(jettyIndex));
-    
+
     assertTrue("Timeout waiting for all live and active", ClusterStateUtil.waitForAllActiveAndLiveReplicas(cloudClient.getZkStateReader(), collection1, 60000));
-    
+
+    //disable autoAddReplicas
+    Map m = makeMap(
+        "action", CollectionParams.CollectionAction.CLUSTERPROP.toLower(),
+        "name", ZkStateReader.AUTO_ADD_REPLICAS,
+        "val", "false");
+
+    SolrRequest request = new QueryRequest(new MapSolrParams(m));
+    request.setPath("/admin/collections");
+    cloudClient.request(request);
+
+    int currentCount = ClusterStateUtil.getLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection1);
+
+    ChaosMonkey.stop(jettys.get(3));
+
+    //solr-no-core.xml has defined workLoopDelay=10s and waitAfterExpiration=10s
+    //Hence waiting for 30 seconds to be on the safe side.
+    Thread.sleep(30000);
+    //Ensures that autoAddReplicas has not kicked in.
+    assertTrue(currentCount > ClusterStateUtil.getLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection1));
+
+    //enable autoAddReplicas
+    m = makeMap(
+        "action", CollectionParams.CollectionAction.CLUSTERPROP.toLower(),
+        "name", ZkStateReader.AUTO_ADD_REPLICAS);
+
+    request = new QueryRequest(new MapSolrParams(m));
+    request.setPath("/admin/collections");
+    cloudClient.request(request);
+
+    assertTrue("Timeout waiting for all live and active", ClusterStateUtil.waitForAllActiveAndLiveReplicas(cloudClient.getZkStateReader(), collection1, 60000));
     assertSliceAndReplicaCount(collection1);
-    
-    assertSingleReplicationAndShardSize(collection3, 5);
-    ClusterStateUtil.waitForLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection3, 5, 30000);
   }
 
   private void assertSingleReplicationAndShardSize(String collection, int numSlices) {
