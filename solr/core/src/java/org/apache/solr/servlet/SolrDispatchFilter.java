@@ -35,6 +35,7 @@ import org.apache.http.HeaderIterator;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpResponse;
+import org.apache.hadoop.security.authentication.client.AuthenticatedURL;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.Aliases;
@@ -83,6 +84,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Cookie;
 
 import static org.apache.solr.common.cloud.ZkStateReader.CORE_NAME_PROP;
 import static org.apache.solr.common.cloud.ZkStateReader.NODE_NAME_PROP;
@@ -550,6 +552,18 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     }
   }
 
+  private boolean isAuthCookieAvailable(HttpServletRequest req) {
+    Cookie[] cookies = req.getCookies();
+    if (cookies != null) {
+      for (Cookie cookie : cookies) {
+        if (AuthenticatedURL.AUTH_COOKIE.equals(cookie.getName())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private void remoteQuery(String coreUrl, HttpServletRequest req,
       SolrQueryRequest solrReq, HttpServletResponse resp) throws IOException {
     HttpRequestBase method = null;
@@ -568,10 +582,13 @@ public class SolrDispatchFilter extends BaseSolrFilter {
         if (doAsUserName == null) {
           // doAsUserName is null, let's add it to the request so authorization
           // works properly
-          
-          StringBuilder doAsParam = new StringBuilder("&").append(SolrHadoopAuthenticationFilter.DO_AS_PARAM)
-            .append("=").append(userName);
-          queryString = queryString == null ? doAsParam.toString() : queryString + doAsParam.toString();
+          StringBuilder doAsParam = new StringBuilder();
+          // CDH-37569 - Impersonation is necessary only if the Auth cookie is not available.
+          if(!isAuthCookieAvailable(req)) {
+            doAsParam.append(SolrHadoopAuthenticationFilter.DO_AS_PARAM)
+                     .append("=").append(userName);
+          }
+          queryString = queryString == null ? doAsParam.toString() : queryString + "&" + doAsParam.toString();
         }
       }
       urlstr += queryString == null ? "" : "?" + queryString;
