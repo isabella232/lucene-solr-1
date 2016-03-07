@@ -27,12 +27,12 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
   <groupId>org.apache.solr</groupId>
-  <artifactId>solr-sentry-handlers</artifactId>
+  <artifactId>solr-depends-sentry-libs</artifactId>
   <packaging>jar</packaging>
-  <name>Apache Solr Sentry Request Handlers</name>
-  <description>Apache Solr Sentry Request Handlers</description>
+  <name>Sentry libs that Solr depends on.</name>
+  <description>Sentry libs that Solr depends on.  Used for packaging purposes.</description>
     <properties>
-    <module-directory>solr/contrib/sentry-handlers</module-directory>
+    <module-directory>solr/contrib/depends-sentry-libs</module-directory>
     <relative-top-level>../../../..</relative-top-level>
     <module-path>${relative-top-level}/${module-directory}</module-path>
   </properties>
@@ -57,10 +57,10 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-@solr-sentry-handlers.internal.dependencies@
-@solr-sentry-handlers.external.dependencies@
-@solr-sentry-handlers.internal.test.dependencies@
-@solr-sentry-handlers.external.test.dependencies@
+@solr-depends-sentry-libs.internal.dependencies@
+@solr-depends-sentry-libs.external.dependencies@
+@solr-depends-sentry-libs.internal.test.dependencies@
+@solr-depends-sentry-libs.external.test.dependencies@
   </dependencies>
   <build>
     <sourceDirectory>${module-path}/src/java</sourceDirectory>
