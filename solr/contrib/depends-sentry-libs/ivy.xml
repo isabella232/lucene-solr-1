@@ -17,10 +17,10 @@
    under the License.
 -->
 <ivy-module version="2.0" xmlns:maven="http://ant.apache.org/ivy/maven">
-    <info organisation="org.apache.solr" module="sentry-handlers"/>
+    <info organisation="org.apache.solr" module="depends-sentry-libs"/>
 
     <configurations defaultconfmapping="compile->master">
-    <!-- artifacts in the "compile" configuration will go into sentry-handlers/lib/ -->
+    <!-- artifacts in the "compile" configuration will go into depends-sentry-libs/lib/ -->
     <conf name="compile" transitive="false" />
     </configurations>
 
