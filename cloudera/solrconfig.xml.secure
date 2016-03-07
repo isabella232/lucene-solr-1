@@ -907,7 +907,7 @@
   <!-- realtime get handler, guaranteed to return the latest stored fields of
        any document, without the need to commit or open a new searcher.  The
        current implementation relies on the updateLog feature being enabled. -->
-  <requestHandler name="/get" class="solr.RealTimeGetHandler">
+  <requestHandler name="/get" class="solr.SecureRealTimeGetHandler">
      <lst name="defaults">
        <str name="omitHeader">true</str>
        <str name="wt">json</str>
@@ -1364,6 +1364,9 @@
     <!-- Auth token defined to allow any role to access the document.
          Uncomment to enable. -->
     <!--<str name="allRolesToken">*</str>-->
+  </searchComponent>
+
+  <searchComponent name="secureGet" class="org.apache.solr.handler.component.SecureRealTimeGetComponent" >
   </searchComponent>
 
   <!-- A request handler for demonstrating the spellcheck component.  
