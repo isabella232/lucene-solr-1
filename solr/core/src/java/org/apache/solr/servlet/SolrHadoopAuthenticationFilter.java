@@ -38,9 +38,11 @@ import org.apache.hadoop.security.authentication.util.SignerSecretProvider;
 import org.apache.hadoop.security.authentication.util.Signer;
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter;
 import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationHandler;
+import org.apache.hadoop.security.token.delegation.web.HttpUserGroupInformation;
 import org.apache.hadoop.security.token.delegation.web.KerberosDelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.token.delegation.web.PseudoDelegationTokenAuthenticationHandler;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 
 import static org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthenticationFilter.PROXYUSER_PREFIX;
 
@@ -104,6 +106,11 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
    * Request attribute constant for the user name.
    */
   public static final String USER_NAME = "solr.user.name";
+
+  /**
+   * Request attribute constant for the ProxyUser name.
+   */
+  public static final String DO_AS_USER_NAME = "solr.do.as.user.name";
 
   /**
    * Http param for requesting ProxyUser support.
@@ -391,6 +398,13 @@ public class SolrHadoopAuthenticationFilter extends DelegationTokenAuthenticatio
         }
         else {
           httpRequest.setAttribute(USER_NAME, httpRequest.getRemoteUser());
+          UserGroupInformation ugi = HttpUserGroupInformation.get();
+          if (ugi != null && ugi.getAuthenticationMethod() == AuthenticationMethod.PROXY) {
+            UserGroupInformation realUserUgi = ugi.getRealUser();
+            if (realUserUgi != null) {
+              httpRequest.setAttribute(DO_AS_USER_NAME, realUserUgi.getShortUserName());
+            }
+          }
           filterChain.doFilter(servletRequest, servletResponse);
         }
       }
