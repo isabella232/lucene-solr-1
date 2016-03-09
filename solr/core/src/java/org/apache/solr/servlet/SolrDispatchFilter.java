@@ -754,11 +754,9 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     for (Map.Entry<String,Slice> entry : entries) {
       // first see if we have the leader
       Replica leaderProps = clusterState.getLeader(collection, entry.getKey());
-      if (liveNodes.contains(leaderProps.getNodeName())
+      if (leaderProps != null && liveNodes.contains(leaderProps.getNodeName())
           && ZkStateReader.ACTIVE.equals(leaderProps.getState())) {
-        if (leaderProps != null) {
-          core = checkProps(leaderProps);
-        }
+        core = checkProps(leaderProps);
         if (core != null) {
           return core;
         }
