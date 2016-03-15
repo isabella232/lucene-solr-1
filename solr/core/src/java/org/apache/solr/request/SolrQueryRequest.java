@@ -31,7 +31,7 @@ import java.util.Map;
  * 
  *
  */
-public interface SolrQueryRequest {
+public interface SolrQueryRequest extends AutoCloseable {
 
   /** returns the current request parameters */
   public SolrParams getParams();

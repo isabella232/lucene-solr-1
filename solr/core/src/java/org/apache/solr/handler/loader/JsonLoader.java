@@ -104,6 +104,8 @@ public class JsonLoader extends ContentStreamLoader {
   
         parser = new JSONParser(reader);
         this.processUpdate();
+      } catch (JSONParser.ParseException e) {
+          throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "Cannot parse provided JSON: " + e.getMessage());
       }
       finally {
         IOUtils.closeQuietly(reader);
