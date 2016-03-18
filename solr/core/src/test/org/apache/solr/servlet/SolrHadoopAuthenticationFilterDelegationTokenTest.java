@@ -214,11 +214,29 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
 
   private void doSolrRequest(String token, int expectedStatusCode, String url)
   throws Exception {
+    doSolrRequest(token, expectedStatusCode, url, 1);
+  }
+
+  private void doSolrRequest(String token, int expectedStatusCode, String url, int trials)
+  throws Exception {
+    int lastStatusCode = 0;
+    for (int i = 0; i < trials; ++i) {
+      lastStatusCode = getStatusCode(token, expectedStatusCode, url);
+      if (lastStatusCode == expectedStatusCode) {
+        return;
+      }
+      Thread.sleep(1000);
+    }
+    assertEquals("Did not receieve excepted status code", expectedStatusCode, lastStatusCode);
+  }
+
+  private int getStatusCode(String token, int expectedStatusCode, String url)
+  throws Exception {
     HttpGet get = new HttpGet(getTokenQueryString(
       url, null, "op", token, null, null));
     HttpResponse response = getHttpResponse(get);
-    assertEquals(expectedStatusCode, response.getStatusLine().getStatusCode());
     EntityUtils.consumeQuietly(response.getEntity());
+    return response.getStatusLine().getStatusCode();
   }
 
   private void doSolrRequest(HttpSolrServer server, SolrRequest request,
@@ -261,14 +279,21 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     verifyTokenValid(token);
   }
 
-  private void verifyTokenCancelled(String token) throws Exception {
+  private void verifyTokenCancelled(String token, boolean cancelToOtherURL) throws Exception {
     String otherServerUrl =
       miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
 
-    // fail with token on both servers
-    doSolrRequest(token, ErrorCode.FORBIDDEN.code);
-    doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl);
+    // fail with token on both servers.  If cancelToOtherURL is true,
+    // the request went to other url, so FORBIDDEN should be returned immediately.
+    // The cancelled token may take awhile to propogate to the standard url (via ZK).
+    // This is of course the opposite if cancelToOtherURL is false.
+    if (!cancelToOtherURL) {
+      doSolrRequest(token, ErrorCode.FORBIDDEN.code, solrServer.getBaseURL(), 10);
+    } else {
+      doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl, 10);
+    }
 
+    
     // fail without token on both servers
     doSolrRequest(null, ErrorCode.UNAUTHORIZED.code);
     doSolrRequest(null, ErrorCode.UNAUTHORIZED.code, otherServerUrl);
@@ -283,7 +308,7 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
 
       // cancel token, note don't need to be authenticated to cancel (no user specified)
       cancelDelegationToken(token, 200);
-      verifyTokenCancelled(token);
+      verifyTokenCancelled(token, false);
     }
 
     {
@@ -294,7 +319,7 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
       String otherServerUrl =
         miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
       cancelDelegationToken(token, 200, otherServerUrl);
-      verifyTokenCancelled(token);
+      verifyTokenCancelled(token, true);
     }
   }
 
