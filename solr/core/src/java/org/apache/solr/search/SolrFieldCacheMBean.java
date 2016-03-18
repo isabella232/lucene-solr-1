@@ -37,6 +37,7 @@ import org.apache.lucene.util.FieldCacheSanityChecker.Insanity;
 public class SolrFieldCacheMBean implements SolrInfoMBean {
 
   protected FieldCacheSanityChecker checker = new FieldCacheSanityChecker();
+  private boolean disableEntryList = Boolean.getBoolean("disableSolrFieldCacheMBeanEntryList");
 
   @Override
   public String getName() { return this.getClass().getName(); }
@@ -60,9 +61,11 @@ public class SolrFieldCacheMBean implements SolrInfoMBean {
     NamedList stats = new SimpleOrderedMap();
     CacheEntry[] entries = FieldCache.DEFAULT.getCacheEntries();
     stats.add("entries_count", entries.length);
-    for (int i = 0; i < entries.length; i++) {
-      CacheEntry e = entries[i];
-      stats.add("entry#" + i, e.toString());
+    if (!disableEntryList) {
+      for (int i = 0; i < entries.length; i++) {
+        CacheEntry e = entries[i];
+        stats.add("entry#" + i, e.toString());
+      }
     }
 
     Insanity[] insanity = checker.check(entries);
