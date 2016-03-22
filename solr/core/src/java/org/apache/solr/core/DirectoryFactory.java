@@ -50,6 +50,9 @@ public abstract class DirectoryFactory implements NamedListInitializedPlugin,
   public enum DirContext {DEFAULT, META_DATA}
 
   private static final Logger log = LoggerFactory.getLogger(DirectoryFactory.class.getName());
+
+
+  protected volatile CoreContainer coreContainer;
   
   /**
    * Indicates a Directory will no longer be used, and when it's ref count
@@ -287,5 +290,9 @@ public abstract class DirectoryFactory implements NamedListInitializedPlugin,
    */
   public Collection<SolrInfoMBean> offerMBeans() {
     return Collections.emptySet();
+  }
+
+  public void initCoreContainer(CoreContainer cc) {
+    this.coreContainer = cc;
   }
 }
