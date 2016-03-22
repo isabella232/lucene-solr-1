@@ -470,10 +470,13 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
     if (info != null) {
       log.info(info.className);
       dirFactory = getResourceLoader().newInstance(info.className, DirectoryFactory.class);
+      // allow DirectoryFactory instances to access the CoreContainer
+      dirFactory.initCoreContainer(getCoreDescriptor().getCoreContainer());
       dirFactory.init(info.initArgs);
     } else {
       log.info("solr.NRTCachingDirectoryFactory");
       dirFactory = new NRTCachingDirectoryFactory();
+      dirFactory.initCoreContainer(getCoreDescriptor().getCoreContainer());
     }
     // And set it
     directoryFactory = dirFactory;
