@@ -101,6 +101,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
 
   @Override
   public void init(NamedList args) {
+    super.init(args);
     params = SolrParams.toSolrParams(args);
     this.hdfsDataDir = params.get(HDFS_HOME);
     if (this.hdfsDataDir != null && this.hdfsDataDir.length() == 0) {

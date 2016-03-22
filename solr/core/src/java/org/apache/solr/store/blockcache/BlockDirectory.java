@@ -30,6 +30,7 @@ import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.LockFactory;
+import org.apache.solr.core.ShutdownAwareDirectory;
 import org.apache.solr.store.hdfs.HdfsDirectory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,7 @@ import org.slf4j.LoggerFactory;
 /**
  * @lucene.experimental
  */
-public class BlockDirectory extends Directory {
+public class BlockDirectory extends Directory implements ShutdownAwareDirectory {
   public static Logger LOG = LoggerFactory.getLogger(BlockDirectory.class);
   
   public static final long BLOCK_SHIFT = Integer.getInteger("solr.hdfs.blockcache.blockshift", 13);
@@ -227,6 +228,13 @@ public class BlockDirectory extends Directory {
     protected void closeInternal() throws IOException {
       source.close();
     }
+  }
+  
+  @Override
+  public void closeOnShutdown() throws IOException {
+    LOG.info("BlockDirectory closing on shutdown");
+    // we are shutting down, no need to clean up cache
+    directory.close();
   }
   
   @Override

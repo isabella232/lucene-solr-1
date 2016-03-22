@@ -301,9 +301,15 @@ public abstract class CachingDirectoryFactory extends DirectoryFactory {
   }
 
   private void close(CacheValue val) {
+    log.info("Closing directory, CoreContainer#isShutdown={}", coreContainer != null ? coreContainer.isShutDown() : "null");
     try {
-      log.info("Closing directory: " + val.path);
-      val.directory.close();
+      if (coreContainer != null && coreContainer.isShutDown() && val.directory instanceof ShutdownAwareDirectory) {
+        log.info("Closing directory on shutdown: " + val.path);
+        ((ShutdownAwareDirectory) val.directory).closeOnShutdown();
+      } else {
+        log.info("Closing directory: " + val.path);
+        val.directory.close();
+      }
     } catch (Exception e) {
       SolrException.log(log, "Error closing directory", e);
     }
