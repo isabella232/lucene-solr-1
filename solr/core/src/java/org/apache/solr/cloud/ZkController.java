@@ -672,17 +672,42 @@ public final class ZkController {
 
   public void publishAndWaitForDownStates() throws KeeperException,
       InterruptedException {
-
-    publishNodeAsDown(getNodeName());
-
+    
+    ClusterState clusterState = zkStateReader.getClusterState();
+    Set<String> collections = clusterState.getCollections();
+    List<String> updatedNodes = new ArrayList<>();
+    for (String collectionName : collections) {
+      DocCollection collection = clusterState.getCollection(collectionName);
+      Collection<Slice> slices = collection.getSlices();
+      for (Slice slice : slices) {
+        Collection<Replica> replicas = slice.getReplicas();
+        for (Replica replica : replicas) {
+          if (getNodeName().equals(replica.getNodeName())
+              && !(replica.getStr(ZkStateReader.STATE_PROP)
+                  .equals(ZkStateReader.DOWN))) {
+            ZkNodeProps m = new ZkNodeProps(Overseer.QUEUE_OPERATION, "state",
+                ZkStateReader.STATE_PROP, ZkStateReader.DOWN,
+                ZkStateReader.BASE_URL_PROP, getBaseUrl(),
+                ZkStateReader.CORE_NAME_PROP,
+                replica.getStr(ZkStateReader.CORE_NAME_PROP),
+                ZkStateReader.ROLES_PROP,
+                replica.getStr(ZkStateReader.ROLES_PROP),
+                ZkStateReader.NODE_NAME_PROP, getNodeName(),
+                ZkStateReader.SHARD_ID_PROP,
+                replica.getStr(ZkStateReader.SHARD_ID_PROP),
+                ZkStateReader.COLLECTION_PROP, collectionName,
+                ZkStateReader.CORE_NODE_NAME_PROP, replica.getName());
+            updatedNodes.add(replica.getStr(ZkStateReader.CORE_NAME_PROP));
+            overseerJobQueue.offer(ZkStateReader.toJSON(m));
+          }
+        }
+      }
+    }
     
     // now wait till the updates are in our state
     long now = System.nanoTime();
     long timeout = now + TimeUnit.NANOSECONDS.convert(60, TimeUnit.SECONDS);
-    boolean foundStates = true;
-    ClusterState clusterState = zkStateReader.getClusterState();
-    Set<String> collections = clusterState.getCollections();
-    
+    boolean foundStates = false;
     while (System.nanoTime() < timeout) {
       clusterState = zkStateReader.getClusterState();
       collections = clusterState.getCollections();
@@ -692,14 +717,17 @@ public final class ZkController {
         for (Slice slice : slices) {
           Collection<Replica> replicas = slice.getReplicas();
           for (Replica replica : replicas) {
-            if (getNodeName().equals(replica.getNodeName()) && !ZkStateReader.DOWN.equals(replica.getState())) {
-              foundStates = false;
+            if (replica.getStr(ZkStateReader.STATE_PROP).equals(
+                ZkStateReader.DOWN)) {
+              updatedNodes.remove(replica.getStr(ZkStateReader.CORE_NAME_PROP));
+              
             }
           }
         }
       }
-
-      if (foundStates) {
+      
+      if (updatedNodes.size() == 0) {
+        foundStates = true;
         Thread.sleep(1000);
         break;
       }
@@ -708,7 +736,7 @@ public final class ZkController {
     if (!foundStates) {
       log.warn("Timed out waiting to see all nodes published as DOWN in our cluster state.");
     }
-
+    
   }
   
   /**
