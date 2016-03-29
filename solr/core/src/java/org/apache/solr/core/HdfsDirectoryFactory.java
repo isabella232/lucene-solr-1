@@ -77,12 +77,19 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   public static final String HDFS_HOME = "solr.hdfs.home";
   
   public static final String CONFIG_DIRECTORY = "solr.hdfs.confdir";
+
+  public static final String CACHE_MERGES = "solr.hdfs.blockcache.cachemerges";
+  public static final String CACHE_READONCE = "solr.hdfs.blockcache.cachereadonce";
   
   private SolrParams params;
   
   private String hdfsDataDir;
   
   private String confDir;
+
+  private boolean cacheReadOnce;
+
+  private boolean cacheMerges;
 
   private static BlockCache globalBlockCache;
   
@@ -109,6 +116,8 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
     } else {
       LOG.info(HDFS_HOME + "=" + this.hdfsDataDir);
     }
+    cacheMerges = params.getBool(CACHE_MERGES, false);
+    cacheReadOnce = params.getBool(CACHE_READONCE, false);
     boolean kerberosEnabled = params.getBool(KERBEROS_ENABLED, false);
     LOG.info("Solr Kerberos Authentication "
         + (kerberosEnabled ? "enabled" : "disabled"));
@@ -169,7 +178,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
       int readBufferSize = params.getInt("solr.hdfs.blockcache.read.buffersize", blockSize);
       hdfsDir = new HdfsDirectory(new Path(path), conf, readBufferSize);
       dir = new BlockDirectory(path, hdfsDir, cache, null,
-          blockCacheReadEnabled, false);
+          blockCacheReadEnabled, false, cacheMerges, cacheReadOnce);
     } else {
       hdfsDir = new HdfsDirectory(new Path(path), conf);
       dir = hdfsDir;
