@@ -93,12 +93,22 @@ public class BlockDirectory extends Directory {
   private final Set<String> blockCacheFileTypes;
   private final boolean blockCacheReadEnabled;
   private final boolean blockCacheWriteEnabled;
+  private boolean cacheMerges;
+  private boolean cacheReadOnce;
 
   public BlockDirectory(String dirName, Directory directory, Cache cache,
       Set<String> blockCacheFileTypes, boolean blockCacheReadEnabled,
       boolean blockCacheWriteEnabled) throws IOException {
+    this(dirName, directory, cache, blockCacheFileTypes, blockCacheReadEnabled, blockCacheWriteEnabled, true, true);
+  }
+
+  public BlockDirectory(String dirName, Directory directory, Cache cache,
+      Set<String> blockCacheFileTypes, boolean blockCacheReadEnabled,
+      boolean blockCacheWriteEnabled, boolean cacheMerges, boolean cacheReadOnce) throws IOException {
     this.dirName = dirName;
     this.directory = directory;
+    this.cacheMerges = cacheMerges;
+    this.cacheReadOnce = cacheReadOnce;
     blockSize = BLOCK_SIZE;
     this.cache = cache;
     if (blockCacheFileTypes == null || blockCacheFileTypes.isEmpty()) {
@@ -332,6 +342,17 @@ public class BlockDirectory extends Directory {
       return false;
     }
     switch (context.context) {
+      // depending on params, we don't cache on merges or when only reading once
+      case MERGE: {
+        return cacheMerges;
+      }
+      case READ: {
+        if (context.readOnce) {
+          return cacheReadOnce;
+        } else {
+          return true;
+        }
+      }
       default: {
         return true;
       }
