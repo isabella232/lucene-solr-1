@@ -24,6 +24,7 @@ import org.apache.solr.common.util.SimpleOrderedMap;
 
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrInfoMBean;
+import org.apache.solr.core.JmxMonitoredMap.JmxAugmentedSolrInfoMBean;
 
 import org.apache.lucene.search.FieldCache;
 import org.apache.lucene.search.FieldCache.CacheEntry;
@@ -34,10 +35,11 @@ import org.apache.lucene.util.FieldCacheSanityChecker.Insanity;
  * A SolrInfoMBean that provides introspection of the Lucene FieldCache, this is <b>NOT</b> a cache that is managed by Solr.
  *
  */
-public class SolrFieldCacheMBean implements SolrInfoMBean {
+public class SolrFieldCacheMBean implements JmxAugmentedSolrInfoMBean {
 
   protected FieldCacheSanityChecker checker = new FieldCacheSanityChecker();
   private boolean disableEntryList = Boolean.getBoolean("disableSolrFieldCacheMBeanEntryList");
+  private boolean disableJmxEntryList = Boolean.getBoolean("disableSolrFieldCacheMBeanEntryListJmx");
 
   @Override
   public String getName() { return this.getClass().getName(); }
@@ -58,10 +60,19 @@ public class SolrFieldCacheMBean implements SolrInfoMBean {
   }
   @Override
   public NamedList getStatistics() {
+    return getStats(!disableEntryList);
+  }
+
+  @Override
+  public NamedList getStatisticsForJmx() {
+    return getStats(!disableEntryList && !disableJmxEntryList);
+  }
+
+  private NamedList getStats(boolean listEntries) {
     NamedList stats = new SimpleOrderedMap();
     CacheEntry[] entries = FieldCache.DEFAULT.getCacheEntries();
     stats.add("entries_count", entries.length);
-    if (!disableEntryList) {
+    if (listEntries) {
       for (int i = 0; i < entries.length; i++) {
         CacheEntry e = entries[i];
         stats.add("entry#" + i, e.toString());
