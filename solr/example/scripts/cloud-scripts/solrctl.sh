@@ -563,7 +563,7 @@ while test $# != 0 ; do
         ;;
 
     sentry)
-      [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
+      [ $# -gt 1 ] || usage "Error: incorrect specification of arguments for $1"
       # NOTE: Instead of doing the normal "eval" method for invoking the sentrycli script
       # we put the entire command here so it is only evaled once (on the user's command line).
       # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
@@ -580,7 +580,7 @@ while test $# != 0 ; do
           SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --drop_role -r $3
           shift 3
           ;;
-           --add-role-group)
+        --add-role-group)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
           SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --add_role_group -r $3 -g $4
           shift 4
