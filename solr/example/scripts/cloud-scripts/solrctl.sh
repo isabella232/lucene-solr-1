@@ -71,6 +71,7 @@ Commands:
                 [--grant-privilege role privilege]
                 [--revoke-privilege role privilege]
                 [--list-privileges role]
+                [--convert-policy-file file]
   "
   exit 1
 }
@@ -568,26 +569,27 @@ while test $# != 0 ; do
       # we put the entire command here so it is only evaled once (on the user's command line).
       # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
       # works correctly, but needs to be escaped if evaled.
-      SENTRY_ADMIN_CMD="${SOLR_HOME}/bin/sentrycli.sh -conf ${SENTRY_CONF_DIR}/sentry-site.xml"
+      SENTRY_CLI_CMD="${SOLR_HOME}/bin/sentrycli.sh org.apache.sentry.provider.db.generic.tools.SentryShellSolr -conf ${SENTRY_CONF_DIR}/sentry-site.xml"
+      SENTRY_CONFIGTOOL_CMD="${SOLR_HOME}/bin/sentrycli.sh org.apache.sentry.provider.db.generic.tools.SentryConfigToolSolr -conf ${SENTRY_CONF_DIR}/sentry-site.xml"
       case "$2" in
         --create-role)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --create_role -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --create_role -r $3
           shift 3
           ;;
         --drop-role)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --drop_role -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --drop_role -r $3
           shift 3
           ;;
         --add-role-group)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --add_role_group -r $3 -g $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --add_role_group -r $3 -g $4
           shift 4
           ;;
         --delete-role-group)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --delete_role_group -r $3 -g $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --delete_role_group -r $3 -g $4
           shift 4
           ;;
         --list-roles)
@@ -596,22 +598,27 @@ while test $# != 0 ; do
             SENTRY_LIST_ROLE_GROUP="$3 $4"
             shift 2
           fi
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --list_role $SENTRY_LIST_ROLE_GROUP
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --list_role $SENTRY_LIST_ROLE_GROUP
           shift 2
           ;;
         --grant-privilege)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --grant_privilege_role -r $3 -p $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --grant_privilege_role -r $3 -p $4
           shift 4
           ;;
         --revoke-privilege)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --revoke_privilege_role -r $3 -p $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --revoke_privilege_role -r $3 -p $4
           shift 4
           ;;
         --list-privileges)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_ADMIN_CMD} --list_privilege -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --list_privilege -r $3
+          shift 3
+          ;;
+        --convert-policy-file)
+          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CONFIGTOOL_CMD} -p $3 -v -c -i
           shift 3
           ;;
         *)

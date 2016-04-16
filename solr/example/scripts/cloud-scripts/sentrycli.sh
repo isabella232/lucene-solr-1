@@ -13,5 +13,5 @@ JVM="java"
 
 sdir="`dirname \"$0\"`"
 
-PATH=$JAVA_HOME/bin:$PATH $JVM $SENTRYCLI_JVM_FLAGS -Dlog4j.configuration=file:$sdir/log4j.properties -classpath "$sdir/../solr-webapp/webapp/WEB-INF/lib/*:$sdir/../lib/ext/*" org.apache.sentry.provider.db.generic.tools.SentryShellSolr ${1+"$@"}
+PATH=$JAVA_HOME/bin:$PATH $JVM $SENTRYCLI_JVM_FLAGS -Dlog4j.configuration=file:$sdir/log4j.properties -classpath "$sdir/../webapps/solr/WEB-INF/lib/*:$sdir/../lib/ext/*" ${1+"$@"}
 
