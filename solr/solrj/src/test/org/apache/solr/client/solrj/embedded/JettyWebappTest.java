@@ -65,6 +65,7 @@ public class JettyWebappTest extends SolrTestCaseJ4
     super.setUp();
     System.setProperty("solr.solr.home", ExternalPaths.EXAMPLE_HOME);
     System.setProperty("tests.shardhandler.randomSeed", Long.toString(random().nextLong()));
+    System.setProperty("solr.tests.doContainerStreamCloseAssert", "false");
 
     File dataDir = createTempDir();
     dataDir.mkdirs();
@@ -96,6 +97,7 @@ public class JettyWebappTest extends SolrTestCaseJ4
     } catch( Exception ex ) {}
     System.clearProperty("tests.shardhandler.randomSeed");
     System.clearProperty("solr.data.dir");
+    System.clearProperty("solr.tests.doContainerStreamCloseAssert");
     super.tearDown();
   }
 

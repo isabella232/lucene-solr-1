@@ -150,19 +150,16 @@ public class JMXJsonServlet extends HttpServlet {
    */
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response) {
-    try {
-      response.setContentType("application/json; charset=utf8");
+    response.setContentType("application/json; charset=utf8");
 
-      PrintWriter writer = response.getWriter();
-
-      JsonFactory jsonFactory = new JsonFactory();
-      JsonGenerator jg = jsonFactory.createJsonGenerator(writer);
+    JsonFactory jsonFactory = new JsonFactory();
+    try (JsonGenerator jg = jsonFactory.createJsonGenerator(response.getWriter())) {
       jg.useDefaultPrettyPrinter();
       jg.writeStartObject();
+      jg.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET); // Do not close servlet streams
       if (mBeanServer == null) {
         jg.writeStringField("result", "ERROR");
         jg.writeStringField("message", "No MBeanServer could be found");
-        jg.close();
         LOG.error("No MBeanServer could be found.");
         response.setStatus(HttpServletResponse.SC_NOT_FOUND);
         return;
@@ -175,13 +172,11 @@ public class JMXJsonServlet extends HttpServlet {
         if (splitStrings.length != 2) {
           jg.writeStringField("result", "ERROR");
           jg.writeStringField("message", "query format is not as expected.");
-          jg.close();
           response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
           return;
         }
         listBeans(jg, new ObjectName(splitStrings[0]), splitStrings[1],
             response);
-        jg.close();
         return;
       }
 
@@ -191,8 +186,6 @@ public class JMXJsonServlet extends HttpServlet {
         qry = "*:*";
       }
       listBeans(jg, new ObjectName(qry), null, response);
-      jg.close();
-
     } catch ( IOException e ) {
       LOG.error("Caught an exception while processing JMX request", e);
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -289,7 +282,6 @@ public class JMXJsonServlet extends HttpServlet {
             + " was found.");
         jg.writeEndObject();
         jg.writeEndArray();
-        jg.close();
         response.setStatus(HttpServletResponse.SC_NOT_FOUND);
         return;
       }

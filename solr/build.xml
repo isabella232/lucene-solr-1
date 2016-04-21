@@ -302,6 +302,10 @@
   <target name="check-forbidden-apis" depends="-install-forbidden-apis" description="Check forbidden API calls in compiled class files.">
     <subant target="check-forbidden-apis" inheritall="false" >
       <propertyset refid="uptodate.and.compiled.properties"/>
+      <property name="forbidden-base-excludes" value="
+        org/apache/solr/servlet/ServletInputStreamWrapper.class
+        org/apache/solr/servlet/ServletOutputStreamWrapper.class
+      "/>
       <fileset dir="core" includes="build.xml"/>
       <fileset dir="solrj" includes="build.xml"/>
       <fileset dir="test-framework" includes="build.xml"/>

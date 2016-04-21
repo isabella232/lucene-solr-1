@@ -27,6 +27,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.solr.core.CoreContainer;
@@ -50,11 +51,14 @@ public final class LoadAdminUiServlet extends BaseSolrServlet {
     CoreContainer cores = (CoreContainer) request.getAttribute("org.apache.solr.CoreContainer");
 
     InputStream in = getServletContext().getResourceAsStream("/admin.html");
+    Writer out = null;
     if(in != null && cores != null) {
       try {
         response.setCharacterEncoding("UTF-8");
         response.setContentType("text/html");
-        Writer out = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8);
+
+        // Protect container owned streams from being closed by us, see SOLR-8933
+        out = new OutputStreamWriter(new CloseShieldOutputStream(response.getOutputStream()), StandardCharsets.UTF_8);
 
         String html = IOUtils.toString(in, "UTF-8");
         Package pack = SolrCore.class.getPackage();
@@ -71,9 +75,9 @@ public final class LoadAdminUiServlet extends BaseSolrServlet {
         };
         
         out.write( StringUtils.replaceEach(html, search, replace) );
-        out.flush();
       } finally {
         IOUtils.closeQuietly(in);
+        IOUtils.closeQuietly(out);
       }
     } else {
       response.sendError(404);

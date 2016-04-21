@@ -43,6 +43,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.io.input.CloseShieldInputStream;
 import org.apache.lucene.util.IOUtils;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
@@ -463,7 +464,8 @@ public class SolrRequestParsers
 
     @Override
     public InputStream getStream() throws IOException {
-      return req.getInputStream();
+      // Protect container owned streams from being closed by us, see SOLR-8933
+      return new CloseShieldInputStream(req.getInputStream());
     }
   }
 
@@ -602,7 +604,8 @@ public class SolrRequestParsers
       final Charset charset = (cs == null) ? StandardCharsets.UTF_8 : Charset.forName(cs);
       InputStream in = null;
       try {
-        in = req.getInputStream();
+        // Protect container owned streams from being closed by us, see SOLR-8933
+        in = new CloseShieldInputStream(req.getInputStream());
         final long bytesRead = parseFormDataContent(FastInputStream.wrap(in), maxLength, charset, map, false);
         if (bytesRead == 0L && totalLength > 0L) {
           throw getParameterIncompatibilityException();
