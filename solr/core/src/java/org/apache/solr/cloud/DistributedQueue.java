@@ -234,27 +234,39 @@ public class DistributedQueue {
     }
   }
   
-  
-  private class LatchChildWatcher implements Watcher {
+  /**
+   * Watcher that blocks until a WatchedEvent occurs for a znode.
+   */ 
+  private final class LatchWatcher implements Watcher {
     
-    final Object lock;
-    private WatchedEvent event = null;
+    private final Object lock;
+    private WatchedEvent event;
+    private Event.EventType latchEventType;
     
-    public LatchChildWatcher() {
-      this.lock = new Object();
+    LatchWatcher(Object lock) {
+      this(lock, null);
     }
 
-    public LatchChildWatcher(Object lock) {
-      this.lock = lock;
+    LatchWatcher(Event.EventType eventType) {
+      this(new Object(), eventType);
     }
-    
+
+    LatchWatcher(Object lock, Event.EventType eventType) {
+      this.lock = lock;
+      this.latchEventType = eventType;
+    }
+
     @Override
     public void process(WatchedEvent event) {
-      LOG.info("LatchChildWatcher fired on path: " + event.getPath() + " state: "
-          + event.getState() + " type " + event.getType());
-      synchronized (lock) {
-        this.event = event;
-        lock.notifyAll();
+      Event.EventType eventType = event.getType();
+      // None events are ignored
+      // If latchEventType is not null, only fire if the type matches
+      if (eventType != Event.EventType.None && (latchEventType == null || eventType == latchEventType)) {
+        LOG.info("{} fired on path {} state {}", eventType, event.getPath(), event.getState());
+        synchronized (lock) {
+          this.event = event;
+          lock.notifyAll();
+	}
       }
     }
     
@@ -272,13 +284,13 @@ public class DistributedQueue {
 
   // we avoid creating *many* watches in some cases
   // by saving the childrenWatcher and the children associated - see SOLR-6336
-  private LatchChildWatcher childrenWatcher;
+  private LatchWatcher childrenWatcher;
   private TreeMap<Long,String> fetchedChildren;
   private final Object childrenWatcherLock = new Object();
 
   private Map<Long, String> getChildren(long wait) throws InterruptedException, KeeperException
   {
-    LatchChildWatcher watcher;
+    LatchWatcher watcher;
     TreeMap<Long,String> children;
     synchronized (childrenWatcherLock) {
       watcher = childrenWatcher;
@@ -286,7 +298,8 @@ public class DistributedQueue {
     }
 
     if (watcher == null ||  watcher.getWatchedEvent() != null) {
-      watcher = new LatchChildWatcher();
+      // this watcher is only interested in child change events
+      watcher = new LatchWatcher(Watcher.Event.EventType.NodeChildrenChanged);
       while (true) {
         try {
           children = orderedChildren(watcher);
@@ -390,7 +403,7 @@ public class DistributedQueue {
           null, CreateMode.EPHEMERAL_SEQUENTIAL);
 
       Object lock = new Object();
-      LatchChildWatcher watcher = new LatchChildWatcher(lock);
+      LatchWatcher watcher = new LatchWatcher(lock);
       Stat stat = zookeeper.exists(watchID, watcher, true);
 
       // create the request node
