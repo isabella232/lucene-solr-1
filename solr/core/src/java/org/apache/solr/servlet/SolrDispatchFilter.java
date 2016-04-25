@@ -940,7 +940,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       ServletInputStream is = req.getInputStream();
       while (is.read() != -1) {}
     } catch (IOException e) {
-      log.info("Could not consume full client request", e);
+      log.debug("Could not consume full client request", e);
     }
   }
 
