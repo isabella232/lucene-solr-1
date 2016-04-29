@@ -62,7 +62,6 @@ import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrResourceLoader;
-import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.handler.ContentStreamHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequestBase;
@@ -146,7 +145,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
 
   protected String pathPrefix = null; // strip this from the beginning of a path
   protected String abortErrorMessage = null;
-  protected final HttpClient httpClient = HttpClientUtil.createClient(new ModifiableSolrParams());
+  protected HttpClient httpClient;
 
   // Effectively immutable
   private Boolean testMode = null;
@@ -181,6 +180,8 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       this.pathPrefix = config.getInitParameter( "path-prefix" );
 
       this.cores = createCoreContainer();
+      this.httpClient = cores.getUpdateShardHandler().getHttpClient();
+      
       log.info("user.dir=" + System.getProperty("user.dir"));
     }
     catch( Throwable t ) {
