@@ -565,6 +565,7 @@ while test $# != 0 ; do
 
     sentry)
       [ $# -gt 1 ] || usage "Error: incorrect specification of arguments for $1"
+      export LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties
       # NOTE: Instead of doing the normal "eval" method for invoking the sentrycli script
       # we put the entire command here so it is only evaled once (on the user's command line).
       # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
