@@ -177,6 +177,7 @@ SOLR_ADMIN_CURL='curl -i --retry 5 -s -L -k --negotiate -u :'
 SOLR_ADMIN_CHAT=echo
 SOLR_ADMIN_API_CMD='solr_webapi'
 
+HADOOP_HOME=${SOLR_HOME:-/usr/lib/hadoop/}
 SOLR_HOME=${SOLR_HOME:-/usr/lib/solr/}
 
 # Autodetect JAVA_HOME if not defined
@@ -565,6 +566,8 @@ while test $# != 0 ; do
 
     sentry)
       [ $# -gt 1 ] || usage "Error: incorrect specification of arguments for $1"
+      # Put hadoop native libs in java.library.path to avoid a WARN in logs
+      SENTRYCLI_JVM_FLAGS="${SENTRYCLI_JVM_FLAGS} -Djava.library.path=${HADOOP_HOME}/lib/native"
       export LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties
       # NOTE: Instead of doing the normal "eval" method for invoking the sentrycli script
       # we put the entire command here so it is only evaled once (on the user's command line).
