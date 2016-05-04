@@ -31,7 +31,9 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -62,6 +64,7 @@ import org.apache.solr.common.params.UpdateParams;
 import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
+import org.apache.solr.core.CachingDirectoryFactory;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.core.DirectoryFactory;
@@ -405,7 +408,7 @@ public class CoreAdminHandler extends RequestHandlerBase {
     List<RefCounted<SolrIndexSearcher>> searchers = Lists.newArrayList();
     // stores readers created from indexDir param values
     List<DirectoryReader> readersToBeClosed = Lists.newArrayList();
-    List<Directory> dirsToBeReleased = Lists.newArrayList();
+    Map<Directory,Boolean> dirsToBeReleased = new HashMap<>();
     if (core != null) {
       try {
         String[] dirNames = params.getParams(CoreAdminParams.INDEX_DIR);
@@ -425,9 +428,16 @@ public class CoreAdminHandler extends RequestHandlerBase {
           }
         } else  {
           DirectoryFactory dirFactory = core.getDirectoryFactory();
+          
           for (int i = 0; i < dirNames.length; i++) {
+            boolean markAsDone = false;
+            if (dirFactory instanceof CachingDirectoryFactory) {
+              if (!((CachingDirectoryFactory)dirFactory).getLivePaths().contains(dirNames[i])) {
+                markAsDone = true;
+              }
+            }
             Directory dir = dirFactory.get(dirNames[i], DirContext.DEFAULT, core.getSolrConfig().indexConfig.lockType);
-            dirsToBeReleased.add(dir);
+            dirsToBeReleased.put(dir, markAsDone);
             // TODO: why doesn't this use the IR factory? what is going on here?
             readersToBeClosed.add(DirectoryReader.open(dir));
           }
@@ -464,8 +474,14 @@ public class CoreAdminHandler extends RequestHandlerBase {
           if (solrCore != null) solrCore.close();
         }
         IOUtils.closeWhileHandlingException(readersToBeClosed);
-        for (Directory dir : dirsToBeReleased) {
+        Set<Entry<Directory,Boolean>> entries = dirsToBeReleased.entrySet();
+        for (Entry<Directory,Boolean> entry : entries) {
           DirectoryFactory dirFactory = core.getDirectoryFactory();
+          Directory dir = entry.getKey();
+          boolean markAsDone = entry.getValue();
+          if (markAsDone) {
+            dirFactory.doneWithDirectory(dir);
+          }
           dirFactory.release(dir);
         }
         if (wrappedReq != null) wrappedReq.close();
