@@ -82,7 +82,9 @@ ERROR_INIT_ALREADY_INITIALIZED=101
 ERROR_INIT_LIVE_NODES=102
 
 die() {
-  echo "$1"
+  if [ ! -z "$1" ] ; then
+    echo $1
+  fi
   exit ${2:-$ERROR_GENERIC}
 }
 
@@ -578,22 +580,22 @@ while test $# != 0 ; do
       case "$2" in
         --create-role)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --create_role -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --create_role -r $3 || die ""
           shift 3
           ;;
         --drop-role)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --drop_role -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --drop_role -r $3 || die ""
           shift 3
           ;;
         --add-role-group)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --add_role_group -r $3 -g $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --add_role_group -r $3 -g $4 || die ""
           shift 4
           ;;
         --delete-role-group)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --delete_role_group -r $3 -g $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --delete_role_group -r $3 -g $4 || die ""
           shift 4
           ;;
         --list-roles)
@@ -602,27 +604,27 @@ while test $# != 0 ; do
             SENTRY_LIST_ROLE_GROUP="$3 $4"
             shift 2
           fi
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --list_role $SENTRY_LIST_ROLE_GROUP
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --list_role $SENTRY_LIST_ROLE_GROUP || die ""
           shift 2
           ;;
         --grant-privilege)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --grant_privilege_role -r $3 -p $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --grant_privilege_role -r $3 -p $4 || die ""
           shift 4
           ;;
         --revoke-privilege)
           [ $# -eq 4 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --revoke_privilege_role -r $3 -p $4
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --revoke_privilege_role -r $3 -p $4 || die ""
           shift 4
           ;;
         --list-privileges)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --list_privilege -r $3
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CLI_CMD} --list_privilege -r $3 || die ""
           shift 3
           ;;
         --convert-policy-file)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CONFIGTOOL_CMD} -p $3 -v -c -i
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CONFIGTOOL_CMD} -p $3 -v -c -i || die ""
           shift 3
           ;;
         *)
