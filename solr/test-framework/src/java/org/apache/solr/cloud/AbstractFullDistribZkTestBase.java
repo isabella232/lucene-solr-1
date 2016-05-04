@@ -1656,6 +1656,11 @@ public abstract class AbstractFullDistribZkTestBase extends AbstractDistribZkTes
    ;
 
   }
+  
+  protected void assertCollectionNotExists(String collectionName, int timeoutSeconds) throws Exception {
+    waitForCollectionToDisappear(collectionName, getCommonCloudSolrServer().getZkStateReader(), false, true, timeoutSeconds);
+    assertFalse(cloudClient.getZkStateReader().getZkClient().exists(ZkStateReader.COLLECTIONS_ZKNODE + "/" + collectionName, true));
+  }
 
   protected CollectionAdminResponse createCollection(Map<String,List<Integer>> collectionInfos,
       String collectionName, int numShards, int replicationFactor, int maxShardsPerNode, SolrServer client, String createNodeSetStr) throws SolrServerException, IOException {

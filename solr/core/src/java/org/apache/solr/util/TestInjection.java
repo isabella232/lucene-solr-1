@@ -81,6 +81,7 @@ public class TestInjection {
   
   private static Set<Timer> timers = Collections.synchronizedSet(new HashSet<Timer>());
 
+
   public static void reset() {
     nonGracefullClose = null;
     failReplicaRequests = null;
