@@ -83,6 +83,7 @@ import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.NumberUtils;
 import org.apache.solr.util.RefCounted;
 import org.apache.solr.util.SafetyValveConstants;
+import org.apache.solr.util.TestInjection;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -674,7 +675,7 @@ public class CoreAdminHandler extends RequestHandlerBase {
     boolean deleteInstanceDir = params.getBool(CoreAdminParams.DELETE_INSTANCE_DIR, false);
 
     coreContainer.unload(cname, deleteIndexDir, deleteDataDir, deleteInstanceDir);
-
+    assert TestInjection.injectNonExistentCoreExceptionAfterUnload(cname);
   }
 
   /**
