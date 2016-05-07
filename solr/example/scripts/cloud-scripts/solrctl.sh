@@ -71,7 +71,7 @@ Commands:
                 [--grant-privilege role privilege]
                 [--revoke-privilege role privilege]
                 [--list-privileges role]
-                [--convert-policy-file file]
+                [--convert-policy-file file [-dry-run]]
   "
   exit 1
 }
@@ -623,9 +623,17 @@ while test $# != 0 ; do
           shift 3
           ;;
         --convert-policy-file)
-          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
-          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CONFIGTOOL_CMD} -p $3 -v -c -i || die ""
-          shift 3
+          [ $# -eq 3 ] || [ $# -eq  4 ] || usage "Error: incorrect specification of arguments for $2"
+          importpolicy="-i"
+          if [ $# -eq 4 -a "$4" = "-dry-run" ] ; then
+            importpolicy=
+          fi
+          SENTRYCLI_JVM_FLAGS=${SENTRYCLI_JVM_FLAGS} ${SENTRY_CONFIGTOOL_CMD} -p $3 -v -c $importpolicy || die ""
+          if [ -z $importpolicy ] ; then
+            shift 4
+          else
+            shift 3
+          fi
           ;;
         *)
           shift 1
