@@ -179,7 +179,7 @@ SOLR_ADMIN_CURL='curl -i --retry 5 -s -L -k --negotiate -u :'
 SOLR_ADMIN_CHAT=echo
 SOLR_ADMIN_API_CMD='solr_webapi'
 
-HADOOP_HOME=${SOLR_HOME:-/usr/lib/hadoop/}
+HADOOP_HOME=${HADOOP_HOME:-/usr/lib/hadoop/}
 SOLR_HOME=${SOLR_HOME:-/usr/lib/solr/}
 
 # Autodetect JAVA_HOME if not defined
