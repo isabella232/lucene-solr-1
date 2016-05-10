@@ -47,6 +47,7 @@ import org.apache.solr.request.SimpleFacets;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.search.QueryParsing;
 import org.apache.solr.search.SyntaxError;
+import org.apache.solr.util.RTimer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,8 +104,17 @@ public class FacetComponent extends SearchComponent {
       }
 
       SimpleFacets f = new SimpleFacets(rb.req, rb.getResults().docSet, params, rb);
+
+      RTimer timer = null;
+      FacetDebugInfo fdebug = null;
+
+      if (rb.isDebug()) {
+        fdebug = new FacetDebugInfo();
+        rb.req.getContext().put("FacetDebugInfo-nonJson", fdebug);
+        timer = new RTimer();
+      }
       
-      NamedList<Object> counts = f.getFacetCounts();
+      NamedList<Object> counts = f.getFacetCounts(fdebug);
       String[] pivots = params.getParams(FacetParams.FACET_PIVOT);
       if (pivots != null && pivots.length > 0) {
         PivotFacetProcessor pivotProcessor 
@@ -116,6 +126,11 @@ public class FacetComponent extends SearchComponent {
         }
       }
       
+      if (fdebug != null) {
+        long timeElapsed = (long) timer.getTime();
+        fdebug.setElapse(timeElapsed);
+      }
+
       rb.rsp.add("facet_counts", counts);
     }
   }

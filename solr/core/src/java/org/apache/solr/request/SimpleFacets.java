@@ -58,7 +58,6 @@ import org.apache.lucene.search.grouping.term.TermGroupFacetCollector;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.CharsRef;
-import org.apache.lucene.util.CharsRefBuilder;
 import org.apache.lucene.util.StringHelper;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.solr.common.SolrException;
@@ -73,6 +72,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.StrUtils;
+import org.apache.solr.handler.component.FacetDebugInfo;
 import org.apache.solr.handler.component.ResponseBuilder;
 import org.apache.solr.request.IntervalFacets.FacetInterval;
 import org.apache.solr.schema.BoolField;
@@ -100,6 +100,7 @@ import org.apache.solr.util.BoundedTreeSet;
 import org.apache.solr.util.DateMathParser;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.LongPriorityQueue;
+import org.apache.solr.util.RTimer;
 
 /**
  * A class that generates simple Facet information for a request.
@@ -129,6 +130,9 @@ public class SimpleFacets {
   protected String key;             // what name should the results be stored under
   protected int threads;
 
+  protected FacetDebugInfo fdebugParent;
+  protected FacetDebugInfo fdebug;
+
   public SimpleFacets(SolrQueryRequest req,
                       DocSet docs,
                       SolrParams params) {
@@ -147,6 +151,9 @@ public class SimpleFacets {
     this.rb = rb;
   }
 
+  public void setFacetDebugInfo(FacetDebugInfo fdebugParent) {
+    this.fdebugParent = fdebugParent;
+  }
 
   protected void parseParams(String type, String param) throws SyntaxError, IOException {
     localParams = QueryParsing.getLocalParams(param, req.getParams());
@@ -252,7 +259,7 @@ public class SimpleFacets {
    * @see FacetParams#FACET
    * @return a NamedList of Facet Count info or null
    */
-  public NamedList<Object> getFacetCounts() {
+  public NamedList<Object> getFacetCounts(FacetDebugInfo fdebug) {
 
     // if someone called this method, benefit of the doubt: assume true
     if (!params.getBool(FacetParams.FACET,true))
@@ -261,7 +268,19 @@ public class SimpleFacets {
     facetResponse = new SimpleOrderedMap<>();
     try {
       facetResponse.add("facet_queries", getFacetQueryCounts());
-      facetResponse.add("facet_fields", getFacetFieldCounts());
+      if (fdebug != null) {
+        FacetDebugInfo fd = new FacetDebugInfo();
+        fd.putInfoItem("action", "field facet");
+        fd.setProcessor(this.getClass().getSimpleName());
+        fdebug.addChild(fd);
+        setFacetDebugInfo(fd);
+        final RTimer timer = new RTimer();
+        facetResponse.add("facet_fields", getFacetFieldCounts());
+        long timeElapsed = (long) timer.getTime();
+        fd.setElapse(timeElapsed);
+      } else {
+        facetResponse.add("facet_fields", getFacetFieldCounts());
+      }
       facetResponse.add("facet_dates", getFacetDateCounts());
       facetResponse.add("facet_ranges", getFacetRangeCounts());
       facetResponse.add("facet_intervals", getFacetIntervalCounts());
@@ -274,6 +293,9 @@ public class SimpleFacets {
     return facetResponse;
   }
 
+  public NamedList<Object> getFacetCounts() {
+    return getFacetCounts(null);
+  }
   /**
    * Returns a list of facet counts for each of the facet queries 
    * specified in the params
@@ -443,6 +465,14 @@ public class SimpleFacets {
       method = FacetMethod.FC;
     }
 
+    RTimer timer = null;
+    if (fdebug != null) {
+       fdebug.putInfoItem("method", method.name());
+       fdebug.putInfoItem("inputDocSetSize", docs.size());
+       fdebug.putInfoItem("field", field);
+       timer = new RTimer();
+    }
+
     if (params.getFieldBool(field, GroupParams.GROUP_FACET, false)) {
       counts = getGroupedCounts(searcher, base, field, multiToken, offset,limit, mincount, missing, sort, prefix);
     } else {
@@ -469,17 +499,25 @@ public class SimpleFacets {
           break;
         case FC:
           if (sf.hasDocValues()) {
-            counts = DocValuesFacets.getCounts(searcher, base, field, offset,limit, mincount, missing, sort, prefix);
+            counts = DocValuesFacets.getCounts(searcher, base, field, offset,limit, mincount, missing, sort, prefix, fdebug);
+            fdebug.putInfoItem("sub-method", "docvalues");
           } else if (multiToken || TrieField.getMainValuePrefix(ft) != null) {
             UnInvertedField uif = UnInvertedField.getUnInvertedField(field, searcher);
             counts = uif.getCounts(searcher, base, offset, limit, mincount,missing,sort,prefix);
+            fdebug.putInfoItem("sub-method", "uninverted");
           } else {
-            counts = getFieldCacheCounts(searcher, base, field, offset,limit, mincount, missing, sort, prefix);
+            counts = getFieldCacheCounts(searcher, base, field, offset,limit, mincount, missing, sort, prefix, fdebug);
+            fdebug.putInfoItem("sub-method", "fieldcache");
           }
           break;
         default:
           throw new AssertionError();
       }
+    }
+
+    if (fdebug != null) {
+      long timeElapsed = (long) timer.getTime();
+      fdebug.setElapse(timeElapsed);
     }
 
     return counts;
@@ -572,9 +610,17 @@ public class SimpleFacets {
     final Semaphore semaphore = new Semaphore((maxThreads <= 0) ? Integer.MAX_VALUE : maxThreads);
     List<Future<NamedList>> futures = new ArrayList<>(facetFs.length);
 
+    if (fdebugParent != null) {
+      fdebugParent.putInfoItem("maxThreads", maxThreads);
+    }
+
     try {
       //Loop over fields; submit to executor, keeping the future
       for (String f : facetFs) {
+        if (fdebugParent != null) {
+          fdebug = new FacetDebugInfo();
+          fdebugParent.addChild(fdebug);
+        }
         parseParams(FacetParams.FACET_FIELD, f);
         final String termList = localParams == null ? null : localParams.get(CommonParams.TERMS);
         final String workerKey = key;
@@ -678,7 +724,7 @@ public class SimpleFacets {
    * Use the Lucene FieldCache to get counts for each unique field value in <code>docs</code>.
    * The field must have at most one indexed token per document.
    */
-  public static NamedList<Integer> getFieldCacheCounts(SolrIndexSearcher searcher, DocSet docs, String fieldName, int offset, int limit, int mincount, boolean missing, String sort, String prefix) throws IOException {
+  public static NamedList<Integer> getFieldCacheCounts(SolrIndexSearcher searcher, DocSet docs, String fieldName, int offset, int limit, int mincount, boolean missing, String sort, String prefix, FacetDebugInfo fdebug) throws IOException {
     // TODO: If the number of terms is high compared to docs.size(), and zeros==false,
     //  we should use an alternate strategy to avoid
     //  1) creating another huge int[] for the counts
@@ -731,6 +777,9 @@ public class SimpleFacets {
       // count collection array only needs to be as big as the number of terms we are
       // going to collect counts for.
       final int[] counts = new int[nTerms];
+      if (fdebug != null) {
+        fdebug.putInfoItem("numBuckets", nTerms);
+      }
 
       DocIterator iter = docs.iterator();
 

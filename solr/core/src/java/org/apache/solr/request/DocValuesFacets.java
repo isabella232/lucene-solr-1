@@ -33,11 +33,11 @@ import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.CharsRef;
-import org.apache.lucene.util.CharsRefBuilder;
 import org.apache.lucene.util.LongValues;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.solr.common.params.FacetParams;
 import org.apache.solr.common.util.NamedList;
+import org.apache.solr.handler.component.FacetDebugInfo;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.search.DocSet;
@@ -59,7 +59,7 @@ import org.apache.solr.util.LongPriorityQueue;
 public class DocValuesFacets {
   private DocValuesFacets() {}
   
-  public static NamedList<Integer> getCounts(SolrIndexSearcher searcher, DocSet docs, String fieldName, int offset, int limit, int mincount, boolean missing, String sort, String prefix) throws IOException {
+  public static NamedList<Integer> getCounts(SolrIndexSearcher searcher, DocSet docs, String fieldName, int offset, int limit, int mincount, boolean missing, String sort, String prefix, FacetDebugInfo fdebug) throws IOException {
     SchemaField schemaField = searcher.getSchema().getField(fieldName);
     FieldType ft = schemaField.getType();
     NamedList<Integer> res = new NamedList<>();
@@ -116,8 +116,11 @@ public class DocValuesFacets {
 
       // count collection array only needs to be as big as the number of terms we are
       // going to collect counts for.
-      final int[] counts = new int[nTerms];
 
+      final int[] counts = new int[nTerms];
+      if (fdebug != null) {
+        fdebug.putInfoItem("numBuckets", nTerms);
+      }
       Filter filter = docs.getTopFilter();
       List<AtomicReaderContext> leaves = searcher.getTopReaderContext().leaves();
       for (int subIndex = 0; subIndex < leaves.size(); subIndex++) {
