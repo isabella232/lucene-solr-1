@@ -276,7 +276,7 @@ public class SimpleFacets {
         setFacetDebugInfo(fd);
         final RTimer timer = new RTimer();
         facetResponse.add("facet_fields", getFacetFieldCounts());
-        long timeElapsed = (long) timer.getTime();
+        long timeElapsed = (long) timer.stop();
         fd.setElapse(timeElapsed);
       } else {
         facetResponse.add("facet_fields", getFacetFieldCounts());
@@ -500,14 +500,20 @@ public class SimpleFacets {
         case FC:
           if (sf.hasDocValues()) {
             counts = DocValuesFacets.getCounts(searcher, base, field, offset,limit, mincount, missing, sort, prefix, fdebug);
-            fdebug.putInfoItem("sub-method", "docvalues");
+            if (fdebug != null) {
+              fdebug.putInfoItem("sub-method", "docvalues");
+            }
           } else if (multiToken || TrieField.getMainValuePrefix(ft) != null) {
             UnInvertedField uif = UnInvertedField.getUnInvertedField(field, searcher);
             counts = uif.getCounts(searcher, base, offset, limit, mincount,missing,sort,prefix);
-            fdebug.putInfoItem("sub-method", "uninverted");
+            if (fdebug != null) {
+              fdebug.putInfoItem("sub-method", "uninverted");
+            }
           } else {
             counts = getFieldCacheCounts(searcher, base, field, offset,limit, mincount, missing, sort, prefix, fdebug);
-            fdebug.putInfoItem("sub-method", "fieldcache");
+            if (fdebug != null) {
+              fdebug.putInfoItem("sub-method", "fieldcache");
+            }
           }
           break;
         default:
@@ -516,7 +522,7 @@ public class SimpleFacets {
     }
 
     if (fdebug != null) {
-      long timeElapsed = (long) timer.getTime();
+      long timeElapsed = (long) timer.stop();
       fdebug.setElapse(timeElapsed);
     }
 
