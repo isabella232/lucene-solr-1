@@ -127,7 +127,7 @@ public class FacetComponent extends SearchComponent {
       }
       
       if (fdebug != null) {
-        long timeElapsed = (long) timer.getTime();
+        long timeElapsed = (long) timer.stop();
         fdebug.setElapse(timeElapsed);
       }
 
