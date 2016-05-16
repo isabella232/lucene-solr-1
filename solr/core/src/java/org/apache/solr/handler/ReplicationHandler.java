@@ -68,6 +68,7 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.common.util.FastOutputStream;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
@@ -84,6 +85,7 @@ import org.apache.solr.response.BinaryQueryResponseWriter;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.update.SolrIndexWriter;
+import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.apache.solr.util.NumberUtils;
 import org.apache.solr.util.PropertiesInputStream;
 import org.apache.solr.util.RefCounted;
@@ -149,6 +151,12 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
   private SnapPuller snapPuller;
 
   private ReentrantLock snapPullLock = new ReentrantLock();
+
+  private ExecutorService restoreExecutor = Executors.newSingleThreadExecutor(new DefaultSolrThreadFactory("restoreExecutor"));
+
+  private volatile Future<Boolean> restoreFuture;
+
+  private volatile String currentRestoreName;
 
   private String includeConfFiles;
 
@@ -222,6 +230,11 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
     } else if (command.equalsIgnoreCase(CMD_BACKUP)) {
       doSnapShoot(new ModifiableSolrParams(solrParams), rsp, req);
       rsp.add(STATUS, OK_STATUS);
+    } else if(command.equalsIgnoreCase(CMD_RESTORE)) {
+      restore(new ModifiableSolrParams(solrParams), rsp, req);
+      rsp.add(STATUS, OK_STATUS);
+    } else if (command.equalsIgnoreCase(CMD_RESTORE_STATUS)) {
+      rsp.add(CMD_RESTORE_STATUS, getRestoreStatus());
     } else if (command.equalsIgnoreCase(CMD_DELETE_BACKUP)) {
       deleteSnapshot(new ModifiableSolrParams(solrParams), rsp, req);
       rsp.add(STATUS, OK_STATUS);
@@ -346,7 +359,7 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
         nl.remove(SnapPuller.POLL_INTERVAL);
         tempSnapPuller = new SnapPuller(nl, this, core);
       }
-      return tempSnapPuller.fetchLatestIndex(core, forceReplication);
+      return tempSnapPuller.fetchLatestIndex(forceReplication);
     } catch (Exception e) {
       SolrException.log(LOG, "SnapPull failed ", e);
     } finally {
@@ -360,6 +373,72 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
 
   boolean isReplicating() {
     return snapPullLock.isLocked();
+  }
+
+  private void restore(SolrParams params, SolrQueryResponse rsp, SolrQueryRequest req) {
+    if (restoreFuture != null && !restoreFuture.isDone()) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Restore in progress. Cannot run multiple restore operations" +
+          "for the same core");
+    }
+    String name = params.get(NAME);
+    String location = params.get(LOCATION);
+
+    //If location is not provided then assume that the restore index is present inside the data directory.
+    if (location == null) {
+      location = core.getDataDir();
+    }
+
+    //If name is not provided then look for the last unnamed( the ones with the snapshot.timestamp format)
+    //snapshot folder since we allow snapshots to be taken without providing a name. Pick the latest timestamp.
+    if (name == null) {
+      File[] files = new File(location).listFiles();
+      List<OldBackupDirectory> dirs = new ArrayList<>();
+      for (File f : files) {
+        OldBackupDirectory obd = new OldBackupDirectory(f);
+        if (obd.dir != null) {
+          dirs.add(obd);
+        }
+      }
+      Collections.sort(dirs);
+      if (dirs.size() == 0) {
+        throw new SolrException(ErrorCode.BAD_REQUEST, "No backup name specified and none found in " + core.getDataDir());
+      }
+      name = dirs.get(0).dir.getName();
+    } else {
+      //"snapshot." is prefixed by snapshooter
+      name = "snapshot." + name;
+    }
+
+    RestoreCore restoreCore = new RestoreCore(core, location, name);
+    restoreFuture = restoreExecutor.submit(restoreCore);
+    currentRestoreName = name;
+  }
+
+  private NamedList<Object> getRestoreStatus() {
+    NamedList<Object> status = new SimpleOrderedMap<>();
+
+    if (restoreFuture == null) {
+      status.add(STATUS, "No restore actions in progress");
+      return status;
+    }
+
+    status.add("snapshotName", currentRestoreName);
+    if (restoreFuture.isDone()) {
+      try {
+        boolean success = restoreFuture.get();
+        if (success) {
+          status.add(STATUS, SUCCESS);
+        } else {
+          status.add(STATUS, FAILED);
+        }
+      } catch (Exception e) {
+        status.add(STATUS, FAILED);
+        status.add(EXCEPTION, e.getMessage());
+      }
+    } else {
+      status.add(STATUS, "In Progress");
+    }
+    return status;
   }
 
   private void doSnapShoot(SolrParams params, SolrQueryResponse rsp,
@@ -1061,6 +1140,9 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
         if (snapPuller != null) {
           snapPuller.destroy();
         }
+        if(restoreExecutor != null) {
+          ExecutorUtil.shutdownAndAwaitTermination(restoreExecutor);
+        }
       }
 
       @Override
@@ -1343,8 +1425,16 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
         IOUtils.closeQuietly(inputStream);
       }
     }
-  } 
-  
+  }
+
+  private static final String LOCATION = "location";
+
+  private static final String SUCCESS = "success";
+
+  private static final String FAILED = "failed";
+
+  private static final String EXCEPTION = "exception";
+
   public static final String MASTER_URL = "masterUrl";
 
   public static final String STATUS = "status";
@@ -1354,6 +1444,10 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
   public static final String CMD_DETAILS = "details";
 
   public static final String CMD_BACKUP = "backup";
+
+  public static final String CMD_RESTORE = "restore";
+
+  public static final String CMD_RESTORE_STATUS = "restorestatus";
 
   public static final String CMD_FETCH_INDEX = "fetchindex";
 

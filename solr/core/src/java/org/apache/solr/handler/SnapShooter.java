@@ -135,7 +135,7 @@ public class SnapShooter {
   }
 
   void createSnapshot(final IndexCommit indexCommit, ReplicationHandler replicationHandler) {
-    LOG.info("Creating backup snapshot...");
+    LOG.info("Creating backup snapshot " + (snapshotName == null ? "<not named>" : snapshotName) + " at " + snapDir);
     NamedList<Object> details = new NamedList<>();
     details.add("startTime", new Date().toString());
     String directoryName = null;
@@ -157,7 +157,7 @@ public class SnapShooter {
       details.add("snapshotCompletedAt", date);
       LOG.info("Done creating backup snapshot, completed at: " + date);
       details.add("snapshotName", snapshotName);
-      LOG.info("Done creating backup snapshot: " + (snapshotName == null ? "<not named>" : snapshotName));
+      LOG.info("Done creating backup snapshot: " + (snapshotName == null ? "<not named>" : snapshotName) + " at " + snapDir);
     } catch (Exception e) {
       SnapPuller.delTree(snapShotDir);
       LOG.error("Exception while creating snapshot", e);

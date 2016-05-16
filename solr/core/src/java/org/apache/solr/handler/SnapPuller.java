@@ -306,21 +306,20 @@ public class SnapPuller {
 
   private boolean successfulInstall = false;
 
-  boolean fetchLatestIndex(final SolrCore core, boolean forceReplication) throws IOException, InterruptedException {
-    return fetchLatestIndex(core, forceReplication, false);
+  boolean fetchLatestIndex(boolean forceReplication) throws IOException, InterruptedException {
+    return fetchLatestIndex(forceReplication, false);
   }
   
   /**
    * This command downloads all the necessary files from master to install a index commit point. Only changed files are
    * downloaded. It also downloads the conf files (if they are modified).
    *
-   * @param core the SolrCore
    * @param forceReplication force a replication in all cases 
    * @param forceCoreReload force a core reload in all cases
    * @return true on success, false if slave is already in sync
    * @throws IOException if an exception occurs
    */
-  boolean fetchLatestIndex(final SolrCore core, boolean forceReplication, boolean forceCoreReload) throws IOException, InterruptedException {
+  boolean fetchLatestIndex(boolean forceReplication, boolean forceCoreReload) throws IOException, InterruptedException {
     boolean cleanupDone = false;
     successfulInstall = false;
     replicationStartTime = System.currentTimeMillis();
@@ -330,7 +329,7 @@ public class SnapPuller {
     String indexDirPath = null;
     boolean deleteTmpIdxDir = true;
     
-    if (!core.getSolrCoreState().getLastReplicateIndexSuccess()) {
+    if (!solrCore.getSolrCoreState().getLastReplicateIndexSuccess()) {
       forceReplication = true;
     }
     
@@ -347,12 +346,12 @@ public class SnapPuller {
       long latestGeneration = (Long) response.get(GENERATION);
 
       // TODO: make sure that getLatestCommit only returns commit points for the main index (i.e. no side-car indexes)
-      IndexCommit commit = core.getDeletionPolicy().getLatestCommit();
+      IndexCommit commit = solrCore.getDeletionPolicy().getLatestCommit();
       if (commit == null) {
         // Presumably the IndexWriter hasn't been opened yet, and hence the deletion policy hasn't been updated with commit points
         RefCounted<SolrIndexSearcher> searcherRefCounted = null;
         try {
-          searcherRefCounted = core.getNewestSearcher(false);
+          searcherRefCounted = solrCore.getNewestSearcher(false);
           if (searcherRefCounted == null) {
             LOG.warn("No open searcher found - fetch aborted");
             return false;
@@ -368,15 +367,15 @@ public class SnapPuller {
         if (forceReplication && commit.getGeneration() != 0) {
           // since we won't get the files for an empty index,
           // we just clear ours and commit
-          RefCounted<IndexWriter> iw = core.getUpdateHandler().getSolrCoreState().getIndexWriter(core);
+          RefCounted<IndexWriter> iw = solrCore.getUpdateHandler().getSolrCoreState().getIndexWriter(solrCore);
           try {
             iw.get().deleteAll();
           } finally {
             iw.decref();
           }
-          SolrQueryRequest req = new LocalSolrQueryRequest(core,
+          SolrQueryRequest req = new LocalSolrQueryRequest(solrCore,
               new ModifiableSolrParams());
-          core.getUpdateHandler().commit(new CommitUpdateCommand(req, false));
+          solrCore.getUpdateHandler().commit(new CommitUpdateCommand(req, false));
         }
         
         //there is nothing to be replicated
@@ -410,13 +409,13 @@ public class SnapPuller {
           || commit.getGeneration() >= latestGeneration || forceReplication;
 
       String tmpIdxDirName = "index." + new SimpleDateFormat(SnapShooter.DATE_FMT, Locale.ROOT).format(new Date());
-      tmpIndex = createTempindexDir(core, tmpIdxDirName);
+      tmpIndex = createTempindexDir(solrCore, tmpIdxDirName);
 
-      tmpIndexDir = core.getDirectoryFactory().get(tmpIndex, DirContext.DEFAULT, core.getSolrConfig().indexConfig.lockType);
+      tmpIndexDir = solrCore.getDirectoryFactory().get(tmpIndex, DirContext.DEFAULT, solrCore.getSolrConfig().indexConfig.lockType);
       
       // cindex dir...
-      indexDirPath = core.getIndexDir();
-      indexDir = core.getDirectoryFactory().get(indexDirPath, DirContext.DEFAULT, core.getSolrConfig().indexConfig.lockType);
+      indexDirPath = solrCore.getIndexDir();
+      indexDir = solrCore.getDirectoryFactory().get(indexDirPath, DirContext.DEFAULT, solrCore.getSolrConfig().indexConfig.lockType);
 
       try {
         
@@ -470,7 +469,7 @@ public class SnapPuller {
           } finally {
             writer.decref();
           }
-          solrCore.getUpdateHandler().getSolrCoreState().closeIndexWriter(core, true);
+          solrCore.getUpdateHandler().getSolrCoreState().closeIndexWriter(solrCore, true);
         }
         boolean reloadCore = false;
         
@@ -488,7 +487,7 @@ public class SnapPuller {
             reloadCore = true;
             downloadConfFiles(confFilesToDownload, latestGeneration);
             if (isFullCopyNeeded) {
-              successfulInstall = modifyIndexProps(tmpIdxDirName);
+              successfulInstall = modifyIndexProps(solrCore, tmpIdxDirName);
               deleteTmpIdxDir = false;
             } else {
               successfulInstall = moveIndexFiles(tmpIndexDir, indexDir);
@@ -499,8 +498,8 @@ public class SnapPuller {
                 // may be closed
                 if (indexDir != null) {
                   LOG.info("removing old index directory " + indexDir);
-                  core.getDirectoryFactory().doneWithDirectory(indexDir);
-                  core.getDirectoryFactory().remove(indexDir);
+                  solrCore.getDirectoryFactory().doneWithDirectory(indexDir);
+                  solrCore.getDirectoryFactory().remove(indexDir);
                 }
               }
               
@@ -512,7 +511,7 @@ public class SnapPuller {
           } else {
             terminateAndWaitFsyncService();
             if (isFullCopyNeeded) {
-              successfulInstall = modifyIndexProps(tmpIdxDirName);
+              successfulInstall = modifyIndexProps(solrCore, tmpIdxDirName);
               deleteTmpIdxDir = false;
             } else {
               successfulInstall = moveIndexFiles(tmpIndexDir, indexDir);
@@ -524,7 +523,7 @@ public class SnapPuller {
           }
         } finally {
           if (!isFullCopyNeeded) {
-            solrCore.getUpdateHandler().getSolrCoreState().openIndexWriter(core);
+            solrCore.getUpdateHandler().getSolrCoreState().openIndexWriter(solrCore);
           }
         }
         
@@ -540,8 +539,8 @@ public class SnapPuller {
             // may be closed
             if (indexDir != null) {
               LOG.info("removing old index directory " + indexDir);
-              core.getDirectoryFactory().doneWithDirectory(indexDir);
-              core.getDirectoryFactory().remove(indexDir);
+              solrCore.getDirectoryFactory().doneWithDirectory(indexDir);
+              solrCore.getDirectoryFactory().remove(indexDir);
             }
           }
           if (isFullCopyNeeded) {
@@ -554,11 +553,11 @@ public class SnapPuller {
         replicationStartTime = 0;
         
         if (!isFullCopyNeeded && !forceReplication && !successfulInstall) {
-          cleanup(core, tmpIndexDir, indexDir, deleteTmpIdxDir);
+          cleanup(solrCore, tmpIndexDir, indexDir, deleteTmpIdxDir);
           cleanupDone = true;
           // we try with a full copy of the index
           LOG.warn("Replication attempt was not successful - trying a full index replication reloadCore={}", reloadCore);
-          successfulInstall = fetchLatestIndex(core, true, reloadCore);
+          successfulInstall = fetchLatestIndex(true, reloadCore);
         }
         
         return successfulInstall;
@@ -574,7 +573,7 @@ public class SnapPuller {
       }
     } finally {
       if (!cleanupDone) {
-        cleanup(core, tmpIndexDir, indexDir, deleteTmpIdxDir);
+        cleanup(solrCore, tmpIndexDir, indexDir, deleteTmpIdxDir);
       }
     }
   }
@@ -885,7 +884,7 @@ public class SnapPuller {
     boolean checkSummed = false;
   }
   
-  private CompareResult compareFile(Directory indexDir, Version version, String filename, Long backupIndexFileLen, Long backupIndexFileChecksum) {
+  protected static CompareResult compareFile(Directory indexDir, Version version, String filename, Long backupIndexFileLen, Long backupIndexFileChecksum) {
     CompareResult compareResult = new CompareResult();
     try {
       try (final IndexInput indexInput = indexDir.openInput(filename, IOContext.READONCE)) {
@@ -1104,12 +1103,12 @@ public class SnapPuller {
   /**
    * If the index is stale by any chance, load index from a different dir in the data dir.
    */
-  private boolean modifyIndexProps(String tmpIdxDirName) {
+  protected static boolean modifyIndexProps(SolrCore core, String tmpIdxDirName) {
     LOG.info("New index installed. Updating index properties... index="+tmpIdxDirName);
     Properties p = new Properties();
     Directory dir = null;
     try {
-      dir = solrCore.getDirectoryFactory().get(solrCore.getDataDir(), DirContext.META_DATA, solrCore.getSolrConfig().indexConfig.lockType);
+      dir = core.getDirectoryFactory().get(core.getDataDir(), DirContext.META_DATA, core.getSolrConfig().indexConfig.lockType);
       if (slowFileExists(dir, SnapPuller.INDEX_PROPERTIES)){
         final IndexInput input = dir.openInput(SnapPuller.INDEX_PROPERTIES, DirectoryFactory.IOCONTEXT_NO_CACHE);
   
@@ -1147,7 +1146,7 @@ public class SnapPuller {
     } finally {
       if (dir != null) {
         try {
-          solrCore.getDirectoryFactory().release(dir);
+          core.getDirectoryFactory().release(dir);
         } catch (IOException e) {
           SolrException.log(LOG, "", e);
         }

@@ -29,6 +29,7 @@ import org.apache.lucene.util.TestUtil;
 import org.apache.solr.SolrJettyTestBase;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.common.SolrInputDocument;
@@ -115,6 +116,21 @@ public class TestReplicationHandlerBackup extends SolrJettyTestBase {
     masterClient.shutdown();
     masterClient  = null;
   }
+
+  protected static int indexDocs(SolrServer masterClient) throws IOException, SolrServerException {
+    int nDocs = TestUtil.nextInt(random(), 1, 100);
+    masterClient.deleteByQuery("*:*");
+    for (int i = 0; i < nDocs; i++) {
+      SolrInputDocument doc = new SolrInputDocument();
+      doc.addField("id", i);
+      doc.addField("name", "name = " + i);
+      masterClient.add(doc);
+    }
+
+    masterClient.commit();
+    return nDocs;
+  }
+
 
 
   @Test
@@ -235,6 +251,19 @@ public class TestReplicationHandlerBackup extends SolrJettyTestBase {
       if (deleteBackupThread.fail != null) {
         fail(deleteBackupThread.fail);
       }
+    }
+  }
+
+  public static void runBackupCommand(JettySolrRunner masterJetty, String cmd, String params) throws IOException {
+    String masterUrl = buildUrl(masterJetty.getLocalPort(), context) + "/" + DEFAULT_TEST_CORENAME
+        + "/replication?command=" + cmd + params;
+    InputStream stream = null;
+    try {
+      URL url = new URL(masterUrl);
+      stream = url.openStream();
+      stream.close();
+    } finally {
+      IOUtils.closeQuietly(stream);
     }
   }
 
