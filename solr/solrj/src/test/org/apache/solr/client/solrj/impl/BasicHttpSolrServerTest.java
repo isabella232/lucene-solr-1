@@ -455,7 +455,6 @@ public class BasicHttpSolrServerTest extends SolrJettyTestBase {
   }
   
   @Test
-  @AwaitsFix(bugUrl = "Ignore this test for now, compression depends on the response size")
   public void testCompression() throws Exception {
     HttpSolrServer server = new HttpSolrServer(jetty.getBaseUrl().toString() +
                                                "/debug/foo");
