@@ -516,7 +516,6 @@ public class HttpSolrServer extends SolrServer {
       // Read the contents
       entity = response.getEntity();
       respBody = entity.getContent();
-      respBody = response.getEntity().getContent();
       Header ctHeader = response.getLastHeader("content-type");
       String contentType;
       if (ctHeader != null) {
