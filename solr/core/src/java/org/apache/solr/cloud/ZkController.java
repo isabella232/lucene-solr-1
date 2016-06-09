@@ -657,11 +657,11 @@ public final class ZkController {
     // now wait till the updates are in our state
     long now = System.nanoTime();
     long timeout = now + TimeUnit.NANOSECONDS.convert(60, TimeUnit.SECONDS);
-    boolean foundStates = true;
     ClusterState clusterState = zkStateReader.getClusterState();
     Set<String> collections = clusterState.getCollections();
     
     while (System.nanoTime() < timeout) {
+      boolean foundStates = true;
       clusterState = zkStateReader.getClusterState();
       collections = clusterState.getCollections();
       for (String collectionName : collections) {
@@ -677,16 +677,13 @@ public final class ZkController {
         }
       }
 
-      if (foundStates) {
-        Thread.sleep(1000);
-        break;
-      }
       Thread.sleep(1000);
-    }
-    if (!foundStates) {
-      log.warn("Timed out waiting to see all nodes published as DOWN in our cluster state.");
+      if (foundStates) {
+        return;
+      }
     }
 
+    log.warn("Timed out waiting to see all nodes published as DOWN in our cluster state.");
   }
   
   /**
