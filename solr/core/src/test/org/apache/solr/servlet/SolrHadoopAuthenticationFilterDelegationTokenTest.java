@@ -28,7 +28,6 @@ import org.apache.http.util.EntityUtils;
 
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.cloud.HttpParamDelegationTokenMiniSolrCloudCluster;
-import org.apache.solr.cloud.MiniSolrCloudCluster;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrResponse;
 import org.apache.solr.client.solrj.SolrServer;
@@ -38,12 +37,11 @@ import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.DelegationTokenRequest;
 import org.apache.solr.client.solrj.response.DelegationTokenResponse;
 import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.ContentStream;
-import static org.apache.solr.servlet.SolrHadoopAuthenticationFilter.SOLR_PROXYUSER_PREFIX;
 import static org.apache.solr.cloud.HttpParamDelegationTokenMiniSolrCloudCluster.USER_PARAM;
-import static org.apache.solr.cloud.HttpParamDelegationTokenMiniSolrCloudCluster.REMOTE_HOST_PARAM;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -51,6 +49,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -63,7 +62,8 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
   private static Logger log = LoggerFactory.getLogger(SolrHadoopAuthenticationFilterDelegationTokenTest.class);
   private static final int NUM_SERVERS = 2;
   private static HttpParamDelegationTokenMiniSolrCloudCluster miniCluster;
-  private static HttpSolrServer solrServer;
+  private static HttpSolrServer solrServerPrimary;
+  private static HttpSolrServer solrServerSecondary;
 
   @BeforeClass
   public static void startup() throws Exception {
@@ -71,7 +71,9 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     miniCluster = new HttpParamDelegationTokenMiniSolrCloudCluster(NUM_SERVERS, null,
       new File(testHome, "solr-no-core.xml"), null, sslConfig);
     JettySolrRunner runner = miniCluster.getJettySolrRunners().get(0);
-    solrServer = new HttpSolrServer(runner.getBaseUrl().toString());
+    solrServerPrimary = new HttpSolrServer(runner.getBaseUrl().toString());
+    JettySolrRunner runnerSecondary = miniCluster.getJettySolrRunners().get(1);
+    solrServerSecondary = new HttpSolrServer(runnerSecondary.getBaseUrl().toString());
   }
 
   @AfterClass
@@ -80,53 +82,14 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
       miniCluster.shutdown();
     }
     miniCluster = null;
-    solrServer.shutdown();
-    solrServer = null;
-  }
-
-  private SolrRequest getProxyRequest(String user, String doAs, String remoteHost) {
-    final ModifiableSolrParams params = new ModifiableSolrParams();
-    params.set(USER_PARAM, user);
-    params.set("doAs", doAs);
-    if (remoteHost != null) params.set(REMOTE_HOST_PARAM, remoteHost);
-    return new CoreAdminRequest() {
-      @Override
-      public SolrParams getParams() {
-        return params;
-      }
-    };
-  }
-
-  private String getExpectedGroupExMsg(String user, String doAs) {
-    return "User: " + user + " is not allowed to impersonate " + doAs;
-  }
-
-  private String getExpectedHostExMsg(String user) {
-    return "Unauthorized connection for super-user: " + user;
-  }
-
-  private String getTokenQueryString(String baseURL, String user, String op,
-      String delegation, String token, String renewer) {
-    StringBuilder builder = new StringBuilder();
-    builder.append(baseURL).append("/admin/cores?");
-    if (user != null) {
-      builder.append(USER_PARAM).append("=").append(user).append("&");
-    }
-    builder.append("op=").append(op);
-    if (delegation != null) {
-      builder.append("&delegation=").append(delegation);
-    }
-    if (token != null) {
-      builder.append("&token=").append(token);
-    }
-    if (renewer != null) {
-      builder.append("&renewer=").append(renewer);
-    }
-    return builder.toString();
+    solrServerPrimary.shutdown();
+    solrServerPrimary = null;
+    solrServerSecondary.shutdown();
+    solrServerSecondary = null;
   }
 
   private HttpResponse getHttpResponse(HttpUriRequest request) throws Exception {
-    HttpClient httpClient = solrServer.getHttpClient();
+    HttpClient httpClient = solrServerPrimary.getHttpClient();
     HttpResponse response = null;
     boolean success = false;
     try {
@@ -149,17 +112,17 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
         return params;
       }
     };
-    DelegationTokenResponse.Get getResponse = get.process(solrServer);
+    DelegationTokenResponse.Get getResponse = get.process(solrServerPrimary);
     return getResponse.getDelegationToken();
   }
 
   private long renewDelegationToken(final String token ,final int expectedStatusCode,
       final String user) throws Exception {
-    return renewDelegationToken(token, expectedStatusCode, user, solrServer.getBaseURL());
+    return renewDelegationToken(token, expectedStatusCode, user, solrServerPrimary);
   }
 
   private long renewDelegationToken(final String token, final int expectedStatusCode,
-      final String user, final String url) throws Exception {
+      final String user, HttpSolrServer server) throws Exception {
     DelegationTokenRequest.Renew renew = new DelegationTokenRequest.Renew(token) {
       @Override
       public SolrParams getParams() {
@@ -175,7 +138,6 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
         return queryParams;
       }
     };
-    HttpSolrServer server = new HttpSolrServer(url);
     try {
       DelegationTokenResponse.Renew renewResponse = renew.process(server);
       assertEquals(200, expectedStatusCode);
@@ -183,45 +145,40 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     } catch (HttpSolrServer.RemoteSolrException ex) {
       assertEquals(expectedStatusCode, ex.code());
       return -1;
-    } finally {
-      server.shutdown();
     }
   }
 
   private void cancelDelegationToken(String token, int expectedStatusCode)
   throws Exception {
-    cancelDelegationToken(token, expectedStatusCode, solrServer.getBaseURL());
+    cancelDelegationToken(token, expectedStatusCode, solrServerPrimary);
   }
 
-  private void cancelDelegationToken(String token, int expectedStatusCode, String url)
+  private void cancelDelegationToken(String token, int expectedStatusCode, HttpSolrServer server)
   throws Exception {
     DelegationTokenRequest.Cancel cancel = new DelegationTokenRequest.Cancel(token);
-    HttpSolrServer server = new HttpSolrServer(url);
     try {
       DelegationTokenResponse.Cancel cancelResponse = cancel.process(server);
       assertEquals(200, expectedStatusCode);
     } catch (HttpSolrServer.RemoteSolrException ex) {
       assertEquals(expectedStatusCode, ex.code());
-    } finally {
-      server.shutdown();
     }
   }
 
   private void doSolrRequest(String token, int expectedStatusCode)
   throws Exception {
-    doSolrRequest(token, expectedStatusCode, solrServer.getBaseURL());
+    doSolrRequest(token, expectedStatusCode, solrServerPrimary);
   }
 
-  private void doSolrRequest(String token, int expectedStatusCode, String url)
+  private void doSolrRequest(String token, int expectedStatusCode, HttpSolrServer server)
   throws Exception {
-    doSolrRequest(token, expectedStatusCode, url, 1);
+    doSolrRequest(token, expectedStatusCode, server, 1);
   }
 
-  private void doSolrRequest(String token, int expectedStatusCode, String url, int trials)
+  private void doSolrRequest(String token, int expectedStatusCode, HttpSolrServer server, int trials)
   throws Exception {
     int lastStatusCode = 0;
     for (int i = 0; i < trials; ++i) {
-      lastStatusCode = getStatusCode(token, expectedStatusCode, url);
+      lastStatusCode = getStatusCode(token, null, null, server);
       if (lastStatusCode == expectedStatusCode) {
         return;
       }
@@ -230,13 +187,42 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     assertEquals("Did not receieve excepted status code", expectedStatusCode, lastStatusCode);
   }
 
-  private int getStatusCode(String token, int expectedStatusCode, String url)
+  private int getStatusCode(String token, final String user, final String op, HttpSolrServer server)
   throws Exception {
-    HttpGet get = new HttpGet(getTokenQueryString(
-      url, null, "op", token, null, null));
-    HttpResponse response = getHttpResponse(get);
-    EntityUtils.consumeQuietly(response.getEntity());
-    return response.getStatusLine().getStatusCode();
+    if (token != null) {
+      System.setProperty(HttpSolrServer.DELEGATION_TOKEN_PROPERTY, token);
+    }
+    try {
+      HttpSolrServer delegationTokenServer = new HttpSolrServer(server.getBaseURL(), null, server.getParser());
+      try {
+        CoreAdminRequest req = new CoreAdminRequest() {
+          @Override
+          public SolrParams getParams() {
+            ModifiableSolrParams p = new ModifiableSolrParams(super.getParams());
+            if (user != null) p.set(USER_PARAM, user);
+            if (op != null) p.set("op", op);
+            return p;
+          }
+        };
+        req.setAction( CoreAdminParams.CoreAdminAction.STATUS );
+        if (user != null || op != null) {
+          Set<String> queryParams = new HashSet<String>();
+          if (user != null) queryParams.add(USER_PARAM);
+          if (op != null) queryParams.add("op");
+          req.setQueryParams(queryParams);
+        }
+        try {
+          req.process(delegationTokenServer);
+          return 200;
+        } catch (HttpSolrServer.RemoteSolrException re) {
+          return re.code();
+        }
+      } finally {
+        delegationTokenServer.shutdown();
+      }
+    } finally {
+      System.clearProperty(HttpSolrServer.DELEGATION_TOKEN_PROPERTY);
+    }
   }
 
   private void doSolrRequest(HttpSolrServer server, SolrRequest request,
@@ -257,12 +243,10 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     doSolrRequest(null, ErrorCode.UNAUTHORIZED.code);
 
     // pass with token on other server
-    String otherServerUrl =
-      miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
-    doSolrRequest(token, 200, otherServerUrl);
+    doSolrRequest(token, 200, solrServerSecondary);
 
     // fail without token on other server
-    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code, otherServerUrl);
+    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code, solrServerSecondary);
   }
 
   /**
@@ -280,23 +264,20 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
   }
 
   private void verifyTokenCancelled(String token, boolean cancelToOtherURL) throws Exception {
-    String otherServerUrl =
-      miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
-
     // fail with token on both servers.  If cancelToOtherURL is true,
     // the request went to other url, so FORBIDDEN should be returned immediately.
     // The cancelled token may take awhile to propogate to the standard url (via ZK).
     // This is of course the opposite if cancelToOtherURL is false.
     if (!cancelToOtherURL) {
-      doSolrRequest(token, ErrorCode.FORBIDDEN.code, solrServer.getBaseURL(), 10);
+      doSolrRequest(token, ErrorCode.FORBIDDEN.code, solrServerPrimary, 10);
     } else {
-      doSolrRequest(token, ErrorCode.FORBIDDEN.code, otherServerUrl, 10);
+      doSolrRequest(token, ErrorCode.FORBIDDEN.code, solrServerSecondary, 10);
     }
 
     
     // fail without token on both servers
     doSolrRequest(null, ErrorCode.UNAUTHORIZED.code);
-    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code, otherServerUrl);
+    doSolrRequest(null, ErrorCode.UNAUTHORIZED.code, solrServerSecondary);
   }
 
   @Test
@@ -316,9 +297,7 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
       String token = getDelegationToken(null, "user");
       assertNotNull(token);
 
-      String otherServerUrl =
-        miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
-      cancelDelegationToken(token, 200, otherServerUrl);
+      cancelDelegationToken(token, 200, solrServerSecondary);
       verifyTokenCancelled(token, true);
     }
   }
@@ -328,14 +307,12 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     // cancel a bogu token
     cancelDelegationToken("BOGUS", ErrorCode.NOT_FOUND.code);
 
-    String otherServerUrl =
-      miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
     {
       // cancel twice, first on same server
       String token = getDelegationToken(null, "bar");
       assertNotNull(token);
       cancelDelegationToken(token, 200);
-      cancelDelegationToken(token, ErrorCode.NOT_FOUND.code, otherServerUrl);
+      cancelDelegationToken(token, ErrorCode.NOT_FOUND.code, solrServerSecondary);
       cancelDelegationToken(token, ErrorCode.NOT_FOUND.code);
     }
 
@@ -343,8 +320,8 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
       // cancel twice, first on other server
       String token = getDelegationToken(null, "bar");
       assertNotNull(token);
-      cancelDelegationToken(token, 200, otherServerUrl);
-      cancelDelegationToken(token, ErrorCode.NOT_FOUND.code, otherServerUrl);
+      cancelDelegationToken(token, 200, solrServerSecondary);
+      cancelDelegationToken(token, ErrorCode.NOT_FOUND.code, solrServerSecondary);
       cancelDelegationToken(token, ErrorCode.NOT_FOUND.code);
     }
   }
@@ -361,13 +338,11 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     }
 
     {
-      String otherServerUrl =
-        miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
       // renew on different server
       String token = getDelegationToken(renewer, user);
       assertNotNull(token);
       long currentTimeMillis = System.currentTimeMillis();
-      assertTrue(renewDelegationToken(token, 200, user, otherServerUrl) > currentTimeMillis);
+      assertTrue(renewDelegationToken(token, 200, user, solrServerSecondary) > currentTimeMillis);
       verifyTokenValid(token);
     }
   }
@@ -383,20 +358,17 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
 
   @Test
   public void testDelegationTokenRenewFail() throws Exception {
-    String otherServerUrl =
-      miniCluster.getJettySolrRunners().get(1).getBaseUrl().toString();
-
     // don't set renewer and try to renew as an a different user
     String token = getDelegationToken(null, "bar");
     assertNotNull(token);
     renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "foo");
-    renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "foo", otherServerUrl);
+    renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "foo", solrServerSecondary);
 
     // set renewer and try to renew as different user
     token = getDelegationToken("renewUser", "bar");
     assertNotNull(token);
     renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "notRenewUser");
-    renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "notRenewUser", otherServerUrl);
+    renewDelegationToken(token, ErrorCode.FORBIDDEN.code, "notRenewUser", solrServerSecondary);
   }
 
   /**
@@ -404,12 +376,7 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
    */
   @Test
   public void testDelegationOtherOp() throws Exception {
-    HttpGet get = new HttpGet(getTokenQueryString(
-      solrServer.getBaseURL(), "bar", "someSolrOperation", null, null, null));
-    HttpResponse response = getHttpResponse(get);
-    byte [] body = IOUtils.toByteArray(response.getEntity().getContent());
-    assertTrue(new String(body, "UTF-8").contains("<int name=\"status\">0</int>"));
-    EntityUtils.consumeQuietly(response.getEntity());
+    assertEquals(200, getStatusCode(null, "bar", "someSolrOperation", solrServerPrimary));
   }
 
   private SolrRequest getAdminCoreRequest(final SolrParams params) {
@@ -441,16 +408,15 @@ public class SolrHadoopAuthenticationFilterDelegationTokenTest extends SolrTestC
     assertNotNull(token);
 
     SolrRequest request = getAdminCoreRequest(new ModifiableSolrParams());
-    JettySolrRunner runner = miniCluster.getJettySolrRunners().get(0);
 
     // test without token
-    HttpSolrServer ss = new HttpSolrServer(runner.getBaseUrl().toString());
+    HttpSolrServer ss = new HttpSolrServer(solrServerPrimary.getBaseURL());
     doSolrRequest(ss, request, ErrorCode.UNAUTHORIZED.code);
     ss.shutdown();
 
     System.setProperty(HttpSolrServer.DELEGATION_TOKEN_PROPERTY, token);
     try {
-      ss = new HttpSolrServer(runner.getBaseUrl().toString());
+      ss = new HttpSolrServer(solrServerPrimary.getBaseURL());
       // test with token via property
       doSolrRequest(ss, request, 200);
 
