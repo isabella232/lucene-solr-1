@@ -18,9 +18,12 @@
 package org.apache.solr.handler.admin;
 
 import static org.apache.solr.common.cloud.DocCollection.DOC_ROUTER;
+import static org.apache.solr.common.params.CommonParams.NAME;
+
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -72,6 +75,8 @@ import org.apache.solr.core.DirectoryFactory.DirContext;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrXMLCoresLocator;
 import org.apache.solr.handler.RequestHandlerBase;
+import org.apache.solr.handler.RestoreCore;
+import org.apache.solr.handler.SnapShooter;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
@@ -290,6 +295,14 @@ public class CoreAdminHandler extends RequestHandlerBase {
           }
           break;
         }
+        case BACKUPCORE: {
+          this.handleBackupCoreAction(req, rsp);
+          break;
+        }
+        case RESTORECORE: {
+          this.handleRestoreCoreAction(req, rsp);
+          break;
+        }
         default: {
           this.handleCustomAction(req, rsp);
           break;
@@ -301,6 +314,76 @@ public class CoreAdminHandler extends RequestHandlerBase {
     rsp.setHttpCaching(false);
   }
 
+  protected void handleBackupCoreAction(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
+    ZkController zkController = coreContainer.getZkController();
+    if (zkController == null) {
+      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "Internal SolrCloud API");
+    }
+
+    final SolrParams params = req.getParams();
+    String cname = params.get(CoreAdminParams.CORE);
+    if (cname == null) {
+      throw new IllegalArgumentException(CoreAdminParams.CORE + " is required");
+    }
+
+    String name = params.get(NAME);
+    if (name == null) {
+      throw new IllegalArgumentException(CoreAdminParams.NAME + " is required");
+    }
+
+    String location = params.get("location");
+    if (location == null) {
+      throw new IllegalArgumentException("location is required");
+    }
+
+    try (SolrCore core = coreContainer.getCore(cname)) {
+      SnapShooter snapShooter = new SnapShooter(core, location, name);
+      // validateCreateSnapshot will create parent dirs instead of throw; that choice is dubious.
+      //  But we want to throw. One reason is that
+      //  this dir really should, in fact must, already exist here if triggered via a collection backup on a shared
+      //  file system. Otherwise, perhaps the FS location isn't shared -- we want an error.
+      if (!Files.exists(snapShooter.getLocation())) {
+        throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
+            "Directory to contain snapshots doesn't exist: " + snapShooter.getLocation().toAbsolutePath());
+      }
+      snapShooter.validateCreateSnapshot();
+      snapShooter.createSnapshot();
+    } catch (Exception e) {
+      throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
+          "Failed to backup core=" + cname + " because " + e, e);
+    }
+  }
+
+  protected void handleRestoreCoreAction(SolrQueryRequest req, SolrQueryResponse rsp) throws Exception {
+    ZkController zkController = coreContainer.getZkController();
+    if (zkController == null) {
+      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "Only valid for SolrCloud");
+    }
+
+    final SolrParams params = req.getParams();
+    String cname = params.get(CoreAdminParams.CORE);
+    if (cname == null) {
+      throw new IllegalArgumentException(CoreAdminParams.CORE + " is required");
+    }
+
+    String name = params.get(NAME);
+    if (name == null) {
+      throw new IllegalArgumentException(CoreAdminParams.NAME + " is required");
+    }
+
+    String location = params.get("location");
+    if (location == null) {
+      throw new IllegalArgumentException("location is required");
+    }
+
+    try (SolrCore core = coreContainer.getCore(cname)) {
+      RestoreCore restoreCore = new RestoreCore(core, location, name);
+      boolean success = restoreCore.doRestore();
+      if (!success) {
+        throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Failed to restore core=" + core.getName());
+      }
+    }
+  }
 
   /**
    * Handle the core admin SPLIT action.

@@ -871,7 +871,7 @@ public class SnapPuller {
     }
   }
 
-  private boolean filesToAlwaysDownloadIfNoChecksums(String filename,
+  static boolean filesToAlwaysDownloadIfNoChecksums(String filename,
       long size, CompareResult compareResult) {
     // without checksums to compare, we always download .si, .liv, segments_N,
     // and any very small files

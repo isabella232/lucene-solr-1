@@ -46,7 +46,9 @@ public interface CollectionParams
     ADDREPLICA,
     OVERSEERSTATUS,
     LIST,
-    CLUSTERSTATUS;
+    CLUSTERSTATUS,
+    BACKUP,
+    RESTORE;
     
     public static CollectionAction get( String p )
     {

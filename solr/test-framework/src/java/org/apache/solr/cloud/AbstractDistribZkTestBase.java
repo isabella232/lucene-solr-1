@@ -152,6 +152,11 @@ public abstract class AbstractDistribZkTestBase extends BaseDistributedSearchTes
       Map<String,Slice> slices = clusterState.getSlicesMap(collection);
       assertNotNull("Could not find collection:" + collection, slices);
       for (Map.Entry<String,Slice> entry : slices.entrySet()) {
+        Slice slice = entry.getValue();
+        if (slice.getState() == Slice.CONSTRUCTION) { // similar to replica recovering; pretend its the same thing
+          if (verbose) System.out.println("Found a slice in construction state; will wait.");
+            sawLiveRecovering = true;
+        }
         Map<String,Replica> shards = entry.getValue().getReplicasMap();
         for (Map.Entry<String,Replica> shard : shards.entrySet()) {
           if (verbose) System.out.println("replica:" + shard.getValue().getName() + " rstate:"
@@ -237,7 +242,7 @@ public abstract class AbstractDistribZkTestBase extends BaseDistributedSearchTes
     fail("Illegal state, was: " + coreState + " expected:" + expectedState + " clusterState:" + reader.getClusterState());
   }
   
-  protected void assertAllActive(String collection,ZkStateReader zkStateReader)
+  protected static void assertAllActive(String collection,ZkStateReader zkStateReader)
       throws KeeperException, InterruptedException {
 
       zkStateReader.updateClusterState(true);
@@ -247,12 +252,15 @@ public abstract class AbstractDistribZkTestBase extends BaseDistributedSearchTes
         throw new IllegalArgumentException("Cannot find collection:" + collection);
       }
       for (Map.Entry<String,Slice> entry : slices.entrySet()) {
+        Slice slice = entry.getValue();
+        if (!slice.getState().equals(Slice.ACTIVE)) {
+          fail("Not all shards are ACTIVE - found a shard " + slice.getName() + " that is: " + slice.getState());
+        }
         Map<String,Replica> shards = entry.getValue().getReplicasMap();
         for (Map.Entry<String,Replica> shard : shards.entrySet()) {
-
-          String state = shard.getValue().getStr(ZkStateReader.STATE_PROP);
-          if (!state.equals(ZkStateReader.ACTIVE)) {
-            fail("Not all shards are ACTIVE - found a shard that is: " + state);
+          Replica replica = shard.getValue();
+          if (!replica.getState().equals(ZkStateReader.ACTIVE)) {
+            fail("Not all replicas are ACTIVE - found a replica " + replica.getName() + " that is: " + replica.getState());
           }
         }
       }

@@ -18,13 +18,29 @@ package org.apache.solr.common.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.util.EntityUtils;
+import org.noggit.CharArr;
+import org.noggit.JSONWriter;
 
 public class Utils {
+
+  public static byte[] toJSON(Object o) {
+    if(o == null) return new byte[0];
+    CharArr out = new CharArr();
+    new JSONWriter(out, 2).write(o); // indentation by default
+    return toUTF8(out);
+  }
+
+  public static byte[] toUTF8(CharArr out) {
+    byte[] arr = new byte[out.size() * 3];
+    int nBytes = ByteUtils.UTF16toUTF8(out, 0, out.size(), arr, 0);
+    return Arrays.copyOf(arr, nBytes);
+  }
 
   public static Map<String, Object> makeMap(Object... keyVals) {
     if ((keyVals.length & 0x01) != 0) {

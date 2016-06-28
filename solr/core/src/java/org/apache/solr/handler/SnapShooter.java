@@ -17,17 +17,24 @@
 package org.apache.solr.handler;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
@@ -37,7 +44,10 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.DirectoryFactory;
 import org.apache.solr.core.DirectoryFactory.DirContext;
+import org.apache.solr.core.IndexDeletionPolicyWrapper;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.search.SolrIndexSearcher;
+import org.apache.solr.util.RefCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,20 +88,34 @@ public class SnapShooter {
     }
   }
 
-  void createSnapAsync(final IndexCommit indexCommit, final int numberToKeep, final ReplicationHandler replicationHandler) {
-    replicationHandler.core.getDeletionPolicy().saveCommitPoint(indexCommit.getGeneration());
-
+  void createSnapAsync(final IndexCommit indexCommit, final int numberToKeep, final ResultCollector<NamedList> resultCollector) {
+    solrCore.getDeletionPolicy().saveCommitPoint(indexCommit.getGeneration());
     new Thread() {
       @Override
       public void run() {
-        if(snapshotName != null) {
-          createSnapshot(indexCommit, replicationHandler);
-        } else {
-          deleteOldBackups(numberToKeep);
-          createSnapshot(indexCommit, replicationHandler);
+        try {
+          if(snapshotName != null) {
+            resultCollector.collect(createSnapshot(indexCommit));
+          } else {
+            deleteOldBackups(numberToKeep);
+            resultCollector.collect(createSnapshot(indexCommit));
+          }
+        } catch (Exception e) {
+          LOG.error("Exception while creating snapshot", e);
+          NamedList snapShootDetails = new NamedList<>();
+          snapShootDetails.add("snapShootException", e.getMessage());
+          resultCollector.collect(snapShootDetails);
+        } finally {
+          solrCore.getDeletionPolicy().releaseCommitPoint(indexCommit.getGeneration());
         }
       }
     }.start();
+  }
+
+  /** Gets the parent directory of the snapshots.  This is the {@code location} given in the constructor after
+   * being resolved against the core instance dir. */
+  public Path getLocation() {
+    return Paths.get(snapDir);
   }
 
   public void validateDeleteSnapshot() {
@@ -117,7 +141,7 @@ public class SnapShooter {
     }.start();
   }
 
-  void validateCreateSnapshot() throws IOException {
+  public void validateCreateSnapshot() throws IOException {
     Lock lock = lockFactory.makeLock(directoryName + ".lock");
     snapShotDir = new File(snapDir, directoryName);
     if (lock.isLocked()) {
@@ -128,22 +152,42 @@ public class SnapShooter {
       throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
           "Snapshot directory already exists: " + snapShotDir.getAbsolutePath());
     }
-    if (!snapShotDir.mkdirs()) {
+    if (!snapShotDir.mkdirs()) { // note: TODO reconsider mkdirs vs mkdir
       throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
           "Unable to create snapshot directory: " + snapShotDir.getAbsolutePath());
     }
   }
 
-  void createSnapshot(final IndexCommit indexCommit, ReplicationHandler replicationHandler) {
+  public NamedList createSnapshot() throws Exception {
+    IndexDeletionPolicyWrapper deletionPolicy = solrCore.getDeletionPolicy();
+    RefCounted<SolrIndexSearcher> searcher = solrCore.getSearcher();
+    try {
+      IndexCommit indexCommit = solrCore.getDeletionPolicy().getLatestCommit();
+      if (indexCommit == null) {
+        indexCommit = searcher.get().getIndexReader().getIndexCommit();
+      }
+      deletionPolicy.saveCommitPoint(indexCommit.getGeneration());
+      try {
+        return createSnapshot(indexCommit);
+      } finally {
+        deletionPolicy.releaseCommitPoint(indexCommit.getGeneration());
+      }
+    } finally {
+      searcher.decref();
+    }
+  }
+
+  //note: remember to reserve the indexCommit first so it won't get deleted concurrently
+  NamedList createSnapshot(final IndexCommit indexCommit) throws Exception {
     LOG.info("Creating backup snapshot " + (snapshotName == null ? "<not named>" : snapshotName) + " at " + snapDir);
     NamedList<Object> details = new NamedList<>();
     details.add("startTime", new Date().toString());
     String directoryName = null;
+    boolean success = false;
 
     try {
       Collection<String> files = indexCommit.getFileNames();
       FileCopier fileCopier = new FileCopier();
-
       Directory dir = solrCore.getDirectoryFactory().get(solrCore.getIndexDir(), DirContext.DEFAULT, solrCore.getSolrConfig().indexConfig.lockType);
       try {
         fileCopier.copyFiles(dir, files, snapShotDir);
@@ -158,19 +202,11 @@ public class SnapShooter {
       LOG.info("Done creating backup snapshot, completed at: " + date);
       details.add("snapshotName", snapshotName);
       LOG.info("Done creating backup snapshot: " + (snapshotName == null ? "<not named>" : snapshotName) + " at " + snapDir);
-    } catch (Exception e) {
-      SnapPuller.delTree(snapShotDir);
-      LOG.error("Exception while creating snapshot", e);
-      details.add("snapShootException", e.getMessage());
+      success = true;
+      return details;
     } finally {
-      replicationHandler.core.getDeletionPolicy().releaseCommitPoint(indexCommit.getGeneration());
-      replicationHandler.snapShootDetails = details;
-      if (lock != null) {
-        try {
-          lock.close();
-        } catch (IOException e) {
-          LOG.error("Unable to release snapshoot lock: " + directoryName + ".lock");
-        }
+      if (!success) {
+        SnapPuller.delTree(snapShotDir);
       }
     }
   }

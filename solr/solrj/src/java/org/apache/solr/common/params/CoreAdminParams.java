@@ -135,8 +135,10 @@ public abstract class CoreAdminParams
     LOAD_ON_STARTUP,
     TRANSIENT,
     OVERSEEROP,
-    REQUESTSTATUS;
-    
+    REQUESTSTATUS,
+    BACKUPCORE,
+    RESTORECORE;
+
     public static CoreAdminAction get( String p )
     {
       if( p != null ) {

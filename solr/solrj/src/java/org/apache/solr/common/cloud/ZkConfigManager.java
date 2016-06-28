@@ -51,6 +51,17 @@ public class ZkConfigManager {
     this.zkClient = zkClient;
   }
 
+  /**
+   * Download a config from Zookeeper and write it to the filesystem
+   * @param configName  the config to download
+   * @param dir         the {@link Path} to write files under
+   * @throws IOException
+   *                    if an I/O error occurs or the config does not exist
+   */
+  public void downloadConfigDir(String configName, Path dir) throws IOException {
+    zkClient.downloadFromZK(CONFIGS_ZKNODE + "/" + configName, dir);
+  }
+
  private void uploadToZK(final Path rootPath, final String zkPath) throws IOException {
 
     if (!Files.exists(rootPath))

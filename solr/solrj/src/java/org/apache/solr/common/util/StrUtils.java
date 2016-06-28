@@ -19,6 +19,7 @@ package org.apache.solr.common.util;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Locale;
 import java.io.IOException;
@@ -147,7 +148,7 @@ public class StrUtils {
    * Creates a backslash escaped string, joining all the items. 
    * @see #escapeTextWithSeparator
    */
-  public static String join(List<?> items, char separator) {
+  public static String join(Collection<?> items, char separator) {
     StringBuilder sb = new StringBuilder(items.size() << 3);
     boolean first=true;
     for (Object o : items) {

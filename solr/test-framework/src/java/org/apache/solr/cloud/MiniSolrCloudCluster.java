@@ -20,15 +20,19 @@ package org.apache.solr.cloud;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.TreeMap;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.embedded.JettyConfig;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.embedded.SSLConfig;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
@@ -51,6 +55,31 @@ import com.google.common.io.Files;
 public class MiniSolrCloudCluster {
   
   private static Logger log = LoggerFactory.getLogger(MiniSolrCloudCluster.class);
+
+  public static final String DEFAULT_CLOUD_SOLR_XML = "<solr>\n" +
+      "\n" +
+      "  <str name=\"shareSchema\">${shareSchema:false}</str>\n" +
+      "  <str name=\"configSetBaseDir\">${configSetBaseDir:configsets}</str>\n" +
+      "  <str name=\"coreRootDirectory\">${coreRootDirectory:.}</str>\n" +
+      "\n" +
+      "  <shardHandlerFactory name=\"shardHandlerFactory\" class=\"HttpShardHandlerFactory\">\n" +
+      "    <str name=\"urlScheme\">${urlScheme:}</str>\n" +
+      "    <int name=\"socketTimeout\">${socketTimeout:90000}</int>\n" +
+      "    <int name=\"connTimeout\">${connTimeout:15000}</int>\n" +
+      "  </shardHandlerFactory>\n" +
+      "\n" +
+      "  <solrcloud>\n" +
+      "    <str name=\"host\">127.0.0.1</str>\n" +
+      "    <int name=\"hostPort\">${hostPort:8983}</int>\n" +
+      "    <str name=\"hostContext\">${hostContext:solr}</str>\n" +
+      "    <int name=\"zkClientTimeout\">${solr.zkclienttimeout:30000}</int>\n" +
+      "    <bool name=\"genericCoreNodeNames\">${genericCoreNodeNames:true}</bool>\n" +
+      "    <int name=\"leaderVoteWait\">10000</int>\n" +
+      "    <int name=\"distribUpdateConnTimeout\">${distribUpdateConnTimeout:45000}</int>\n" +
+      "    <int name=\"distribUpdateSoTimeout\">${distribUpdateSoTimeout:340000}</int>\n" +
+      "  </solrcloud>\n" +
+      "  \n" +
+      "</solr>\n";
 
   private ZkTestServer zkServer;
   private final boolean externalZkServer;
@@ -103,10 +132,61 @@ public class MiniSolrCloudCluster {
       SortedMap<Class, String> extraRequestFilters,
       SSLConfig sslConfig,
       ZkTestServer zkTestServer) throws Exception {
-    testDir = Files.createTempDir();
+
+    try (InputStream is = new FileInputStream(solrXml)) {
+      init(numServers, hostContext, IOUtils.toByteArray(is), extraServlets, extraRequestFilters, sslConfig, zkTestServer);
+    }
 
     this.externalZkServer = zkTestServer != null;
-    if (!externalZkServer) {
+    this.solrClient = new CloudSolrServer(getZkServer().getZkAddress());
+  }
+
+  /**
+   * Create a MiniSolrCloudCluster
+   *
+   * @param numServers number of Solr servers to start
+   * @param solrXml solr.xml file to be uploaded to ZooKeeper
+   * @param jettyConfig Jetty configuration
+   *
+   * @throws Exception if there was an error starting the cluster
+   */
+  public MiniSolrCloudCluster(int numServers, String solrXml, JettyConfig jettyConfig) throws Exception {
+    this(numServers, solrXml, jettyConfig, null);
+  }
+
+  public MiniSolrCloudCluster(int numServers, String solrXml, JettyConfig jettyConfig, ZkTestServer zkTestServer) throws Exception {
+    this(numServers, jettyConfig.context, solrXml, new TreeMap<>(jettyConfig.extraServlets),
+        new TreeMap<Class, String>(jettyConfig.extraFilters), jettyConfig.sslConfig, zkTestServer);
+  }
+
+  /**
+   * "Mini" SolrCloud cluster to be used for testing
+   * @param numServers number of Solr servers to start
+   * @param hostContext context path of Solr servers used by Jetty
+   * @param solrXml solr.xml file to be uploaded to ZooKeeper
+   * @param extraServlets Extra servlets to be started by Jetty
+   * @param extraRequestFilters extra filters to be started by Jetty
+   * @param sslConfig SSL configuration
+   * @param zkTestServer ZkTestServer to use.  If null, one will be created
+   */
+  public MiniSolrCloudCluster(int numServers, String hostContext, String solrXml,
+      SortedMap<ServletHolder, String> extraServlets,
+      SortedMap<Class, String> extraRequestFilters,
+      SSLConfig sslConfig,
+      ZkTestServer zkTestServer) throws Exception {
+    init(numServers, hostContext, solrXml.getBytes(Charset.defaultCharset()), extraServlets, extraRequestFilters, sslConfig, zkTestServer);
+    this.externalZkServer = zkTestServer != null;
+    this.solrClient = new CloudSolrServer(getZkServer().getZkAddress());
+  }
+
+  public void init(int numServers, String hostContext, byte[] solrXml,
+      SortedMap<ServletHolder, String> extraServlets,
+      SortedMap<Class, String> extraRequestFilters,
+      SSLConfig sslConfig,
+      ZkTestServer zkTestServer) throws Exception {
+    testDir = Files.createTempDir();
+
+    if (zkTestServer == null) {
       String zkDir = testDir.getAbsolutePath() + File.separator
         + "zookeeper/server1/data";
       zkTestServer = new ZkTestServer(zkDir);
@@ -115,15 +195,12 @@ public class MiniSolrCloudCluster {
     this.zkServer = zkTestServer;
 
     SolrZkClient zkClient = null;
-    InputStream is = null;
     try {
       zkClient = new SolrZkClient(zkServer.getZkHost(),
         AbstractZkTestCase.TIMEOUT, 45000, null);
       zkClient.makePath("/solr", false, true);
-      is = new FileInputStream(solrXml);
-      zkClient.create("/solr/solr.xml", IOUtils.toByteArray(is), CreateMode.PERSISTENT, true);
+      zkClient.create("/solr/solr.xml", solrXml, CreateMode.PERSISTENT, true);
     } finally {
-      IOUtils.closeQuietly(is);
       if (zkClient != null) zkClient.close();
     }
 
@@ -139,9 +216,8 @@ public class MiniSolrCloudCluster {
         startJettySolrRunner(hostContext, extraServlets, extraRequestFilters, sslConfig);
       }
     }
-
-    this.solrClient = new CloudSolrServer(getZkServer().getZkAddress());
   }
+
 
   /**
    * @return ZooKeeper server used by the MiniCluster

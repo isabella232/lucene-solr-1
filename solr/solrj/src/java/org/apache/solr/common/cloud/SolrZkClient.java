@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -783,6 +785,27 @@ public class SolrZkClient implements Closeable {
         }
       }
     });
+  }
+
+  public void downloadFromZK(String zkPath, Path dir) throws IOException {
+    try {
+      List<String> files = getChildren(zkPath, null, true);
+      Files.createDirectories(dir);
+      for (String file : files) {
+        List<String> children = getChildren(zkPath + "/" + file, null, true);
+        if (children.size() == 0) {
+          byte[] data = getData(zkPath + "/" + file, null, null, true);
+          Path filename = dir.resolve(file);
+          log.info("Writing file {}", filename);
+          Files.write(filename, data);
+        } else {
+          downloadFromZK(zkPath + "/" + file, dir.resolve(file));
+        }
+      }
+    } catch (KeeperException | InterruptedException e) {
+      throw new IOException("Error downloading files from zookeeper path " + zkPath + " to " + dir.toString(),
+          SolrZkClient.checkInterrupted(e));
+    }
   }
 
   private interface ZkVisitor {

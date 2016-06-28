@@ -109,7 +109,7 @@ public class TestRestoreCore extends SolrJettyTestBase {
   @Test
   public void testSimpleRestore() throws Exception {
 
-    int nDocs = TestReplicationHandlerBackup.indexDocs(masterClient);
+    int nDocs = usually() ? TestReplicationHandlerBackup.indexDocs(masterClient) : 0;
 
     String snapshotName;
     String location;

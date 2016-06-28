@@ -871,23 +871,22 @@ public class Overseer implements Closeable {
         String routerName = routerSpec.get("name") == null ? DocRouter.DEFAULT_NAME : (String) routerSpec.get("name");
         DocRouter router = DocRouter.getDocRouter(routerName);
 
-        List<DocRouter.Range> ranges = router.partitionRange(shards.size(), router.fullRange());
+        Object messageShardsObj = message.get("shards");
+        Map<String, Slice> slices;
+        if (messageShardsObj instanceof Map) { // we are being explicitly told the slice data (e.g. coll restore)
+          slices = Slice.loadAllFromMap((Map<String, Object>)messageShardsObj);
+        } else {
+          List<DocRouter.Range> ranges = router.partitionRange(shards.size(), router.fullRange());//maybe null
 
-//        Map<String, DocCollection> newCollections = new LinkedHashMap<String,DocCollection>();
+          slices = new LinkedHashMap<>();
+          for (int i = 0; i < shards.size(); i++) {
+            String sliceName = shards.get(i);
 
+            Map<String, Object> sliceProps = new LinkedHashMap<>(1);
+            sliceProps.put(Slice.RANGE, ranges == null ? null : ranges.get(i));
 
-        Map<String, Slice> newSlices = new LinkedHashMap<>();
-//        newCollections.putAll(state.getCollectionStates());
-        for (int i = 0; i < shards.size(); i++) {
-          String sliceName = shards.get(i);
-        /*}
-        for (int i = 0; i < numShards; i++) {
-          final String sliceName = "shard" + (i+1);*/
-
-          Map<String, Object> sliceProps = new LinkedHashMap<>(1);
-          sliceProps.put(Slice.RANGE, ranges == null? null: ranges.get(i));
-
-          newSlices.put(sliceName, new Slice(sliceName, null, sliceProps));
+            slices.put(sliceName, new Slice(sliceName, null, sliceProps));
+          }
         }
 
         // TODO: fill in with collection properties read from the /collections/<collectionName> node
@@ -904,7 +903,7 @@ public class Overseer implements Closeable {
         collectionProps.put(DocCollection.DOC_ROUTER_OLD, DocRouter.getCompatibleRouterFormatIfPossible(routerSpec, routerName));
 
         if(message.getStr("fromApi") == null) collectionProps.put("autoCreated","true");
-        DocCollection newCollection = new DocCollection(collectionName, newSlices, collectionProps, router);
+        DocCollection newCollection = new DocCollection(collectionName, slices, collectionProps, router);
 
 //        newCollections.put(collectionName, newCollection);
           return state.copyWith(singletonMap(newCollection.getName(), newCollection));

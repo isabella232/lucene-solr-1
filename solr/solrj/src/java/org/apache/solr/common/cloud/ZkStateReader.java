@@ -96,6 +96,7 @@ public class ZkStateReader implements Closeable {
   public static final String LEGACY_CLOUD = "legacyCloud";
 
   public static final String URL_SCHEME = "urlScheme";
+  public static final String BACKUP_LOCATION = "location";
   
   protected volatile ClusterState clusterState;
 
@@ -108,7 +109,8 @@ public class ZkStateReader implements Closeable {
   public static final Set<String> KNOWN_CLUSTER_PROPS = unmodifiableSet(new HashSet<>(asList(
       LEGACY_CLOUD,
       URL_SCHEME,
-      ZkStateReader.AUTO_ADD_REPLICAS)));
+      ZkStateReader.AUTO_ADD_REPLICAS,
+      BACKUP_LOCATION)));
 
   
   //
@@ -209,8 +211,11 @@ public class ZkStateReader implements Closeable {
 
   private volatile boolean closed = false;
 
+  private final ZkConfigManager configManager;
+
   public ZkStateReader(SolrZkClient zkClient) {
     this.zkClient = zkClient;
+    this.configManager = new ZkConfigManager(zkClient);
     initZkCmdExecutor(zkClient.getZkClientTimeout());
   }
 
@@ -239,13 +244,18 @@ public class ZkStateReader implements Closeable {
 
           }
         });
+    this.configManager = new ZkConfigManager(zkClient);
   }
   
   private void initZkCmdExecutor(int zkClientTimeout) {
     // we must retry at least as long as the session timeout
     cmdExecutor = new ZkCmdExecutor(zkClientTimeout);
   }
-  
+
+  public ZkConfigManager getConfigManager() {
+    return configManager;
+  }
+
   // load and publish a new CollectionInfo
   public void updateClusterState(boolean immediate) throws KeeperException, InterruptedException {
     updateClusterState(immediate, false);

@@ -466,8 +466,12 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
       // small race here before the commit point is saved
       SnapShooter snapShooter = new SnapShooter(core, params.get("location"), params.get("name"));
       snapShooter.validateCreateSnapshot();
-      snapShooter.createSnapAsync(indexCommit, numberToKeep, this);
-      
+      snapShooter.createSnapAsync(indexCommit, numberToKeep, new ResultCollector<NamedList>() {
+        @Override
+        public void collect(NamedList result) {
+          ReplicationHandler.this.snapShootDetails = result;
+        }
+      });
     } catch (Exception e) {
       LOG.warn("Exception during creating a snapshot", e);
       rsp.add("exception", e);
@@ -1220,7 +1224,12 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
               numberToKeep = Integer.MAX_VALUE;
             }            
             SnapShooter snapShooter = new SnapShooter(core, null, null);
-            snapShooter.createSnapAsync(currentCommitPoint, numberToKeep, ReplicationHandler.this);
+            snapShooter.createSnapAsync(currentCommitPoint, numberToKeep,  new ResultCollector<NamedList>() {
+              @Override
+              public void collect(NamedList result) {
+                ReplicationHandler.this.snapShootDetails = result;
+              }
+            });
           } catch (Exception e) {
             LOG.error("Exception while snapshooting", e);
           }

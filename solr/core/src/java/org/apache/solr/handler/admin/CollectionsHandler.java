@@ -26,6 +26,7 @@ import static org.apache.solr.cloud.OverseerCollectionMessageHandler.DELETEREPLI
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.NUM_SLICES;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.REQUESTID;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.SHARDS_PROP;
+import static org.apache.solr.cloud.OverseerCollectionMessageHandler.COLL_PROP_PREFIX;
 
 import static org.apache.solr.common.cloud.DocCollection.DOC_ROUTER;
 import static org.apache.solr.common.cloud.DocCollection.DOC_ROUTER_OLD;
@@ -36,8 +37,11 @@ import static org.apache.solr.common.params.CollectionParams.CollectionAction.AD
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.CLUSTERPROP;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.OVERSEERSTATUS;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.REMOVEROLE;
+import static org.apache.solr.common.params.CollectionParams.CollectionAction.BACKUP;
+import static org.apache.solr.common.params.CollectionParams.CollectionAction.RESTORE;
 import static org.apache.solr.common.cloud.ZkStateReader.MAX_SHARDS_PER_NODE;
 import static org.apache.solr.common.cloud.ZkStateReader.AUTO_ADD_REPLICAS;
+import static org.apache.solr.common.cloud.ZkStateReader.REPLICATION_FACTOR;
 import static org.apache.solr.common.params.CommonParams.NAME;
 import static org.apache.solr.common.params.CommonParams.VALUE_LONG;
 
@@ -56,6 +60,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.CoreAdminRequest.RequestSyncShard;
+import org.apache.solr.client.solrj.util.SolrIdentifierValidator;
 import org.apache.solr.cloud.DistributedQueue;
 import org.apache.solr.cloud.DistributedQueue.QueueEvent;
 import org.apache.solr.cloud.Overseer;
@@ -226,12 +231,69 @@ public class CollectionsHandler extends RequestHandlerBase {
         this.handleClusterStatus(req, rsp);
         break;
       }
+      case BACKUP:  {
+        this.handleBackup(req, rsp);
+        break;
+      }
+      case RESTORE:  {
+        this.handleRestore(req, rsp);
+        break;
+      }
       default: {
           throw new RuntimeException("Unknown action: " + action);
       }
     }
 
     rsp.setHttpCaching(false);
+  }
+
+  private void handleBackup(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
+    req.getParams().required().check(NAME, COLLECTION_PROP);
+
+    String collectionName = req.getParams().get(COLLECTION_PROP);
+    ClusterState clusterState = coreContainer.getZkController().getClusterState();
+    if (!clusterState.hasCollection(collectionName)) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' does not exist, no action taken.");
+    }
+
+    String location = req.getParams().get("location");
+    if (location == null) {
+      location = (String) coreContainer.getZkController().getZkStateReader().getClusterProps().get("location");
+    }
+    if (location == null) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "'location' is not specified as a query parameter or set as a cluster property");
+    }
+    Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP);
+    params.put("location", location);
+    params.put(Overseer.QUEUE_OPERATION, BACKUP.toLower());
+    handleResponse(BACKUP.toLower(), new ZkNodeProps(params), rsp);
+  }
+
+  private void handleRestore(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
+    req.getParams().required().check(NAME, COLLECTION_PROP);
+
+    String collectionName = SolrIdentifierValidator.validateCollectionName(req.getParams().get(COLLECTION_PROP));
+    ClusterState clusterState = coreContainer.getZkController().getClusterState();
+    //We always want to restore into an collection name which doesn't  exist yet.
+    if (clusterState.hasCollection(collectionName)) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' exists, no action taken.");
+    }
+
+    String location = req.getParams().get("location");
+    if (location == null) {
+      location = (String) coreContainer.getZkController().getZkStateReader().getClusterProps().get("location");
+    }
+    if (location == null) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "'location' is not specified as a query parameter or set as a cluster property");
+    }
+
+    Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP);
+    params.put("location", location);
+    // from CREATE_OP:
+    req.getParams().getAll(params, COLL_CONF, REPLICATION_FACTOR, MAX_SHARDS_PER_NODE, AUTO_ADD_REPLICAS);
+    copyPropertiesIfNotNull(req.getParams(), params);
+    params.put(Overseer.QUEUE_OPERATION, RESTORE.toLower());
+    handleResponse(RESTORE.toLower(), new ZkNodeProps(params), rsp);
   }
 
   private void handleOverseerStatus(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
