@@ -104,7 +104,9 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
   
   // @Deprecated- see on ZkStateReader
   public static final String MAX_SHARDS_PER_NODE = "maxShardsPerNode";
-  
+
+  public static final String CREATE_NODE_SET_EMPTY = "EMPTY";
+
   public static final String CREATE_NODE_SET = "createNodeSet";
   
   public static final String DELETECOLLECTION = "deletecollection";
@@ -1722,9 +1724,8 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       }
 
       int maxShardsPerNode = message.getInt(ZkStateReader.MAX_SHARDS_PER_NODE, 1);
-      String createNodeSetStr; 
-      List<String> createNodeList = ((createNodeSetStr = message.getStr(CREATE_NODE_SET)) == null)?null:StrUtils.splitSmart(createNodeSetStr, ",", true);
-      
+      String createNodeSetStr = message.getStr(CREATE_NODE_SET);
+      List<String> createNodeList = (createNodeSetStr == null)?null:StrUtils.splitSmart((CREATE_NODE_SET_EMPTY.equals(createNodeSetStr)?"":createNodeSetStr), ",", true);
       if (repFactor <= 0) {
         throw new SolrException(ErrorCode.BAD_REQUEST, ZkStateReader.REPLICATION_FACTOR + " must be greater than 0");
       }
@@ -1745,36 +1746,44 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       nodeList.addAll(nodes);
       if (createNodeList != null) nodeList.retainAll(createNodeList);
       Collections.shuffle(nodeList);
-      
-      if (nodeList.size() <= 0) {
-        throw new SolrException(ErrorCode.BAD_REQUEST, "Cannot create collection " + collectionName
-            + ". No live Solr-instances" + ((createNodeList != null)?" among Solr-instances specified in " + CREATE_NODE_SET + ":" + createNodeSetStr:""));
+
+      boolean corelessCollection = CREATE_NODE_SET_EMPTY.equals(createNodeSetStr);
+
+      if (corelessCollection) {
+        log.warn("It is unusual to create a collection ("+collectionName+") without cores.");
+
+      } else {
+        if (nodeList.size() <= 0) {
+          throw new SolrException(ErrorCode.BAD_REQUEST, "Cannot create collection " + collectionName
+              + ". No live Solr-instances" + ((createNodeList != null)?" among Solr-instances specified in " + CREATE_NODE_SET + ":" + createNodeSetStr:""));
+        }
+
+        if (repFactor > nodeList.size()) {
+          log.warn("Specified "
+              + ZkStateReader.REPLICATION_FACTOR
+              + " of "
+              + repFactor
+              + " on collection "
+              + collectionName
+              + " is higher than or equal to the number of Solr instances currently live or part of your " + CREATE_NODE_SET + "("
+              + nodeList.size()
+              + "). Its unusual to run two replica of the same slice on the same Solr-instance.");
+        }
+
+        int maxShardsAllowedToCreate = maxShardsPerNode * nodeList.size();
+        int requestedShardsToCreate = numSlices * repFactor;
+        if (maxShardsAllowedToCreate < requestedShardsToCreate) {
+          throw new SolrException(ErrorCode.BAD_REQUEST, "Cannot create collection " + collectionName + ". Value of "
+              + ZkStateReader.MAX_SHARDS_PER_NODE + " is " + maxShardsPerNode
+              + ", and the number of live nodes is " + nodeList.size()
+              + ". This allows a maximum of " + maxShardsAllowedToCreate
+              + " to be created. Value of " + NUM_SLICES + " is " + numSlices
+              + " and value of " + ZkStateReader.REPLICATION_FACTOR + " is " + repFactor
+              + ". This requires " + requestedShardsToCreate
+              + " shards to be created (higher than the allowed number)");
+        }
       }
-      
-      if (repFactor > nodeList.size()) {
-        log.warn("Specified "
-            + ZkStateReader.REPLICATION_FACTOR
-            + " of "
-            + repFactor
-            + " on collection "
-            + collectionName
-            + " is higher than or equal to the number of Solr instances currently live or part of your " + CREATE_NODE_SET + "("
-            + nodeList.size()
-            + "). Its unusual to run two replica of the same slice on the same Solr-instance.");
-      }
-      
-      int maxShardsAllowedToCreate = maxShardsPerNode * nodeList.size();
-      int requestedShardsToCreate = numSlices * repFactor;
-      if (maxShardsAllowedToCreate < requestedShardsToCreate) {
-        throw new SolrException(ErrorCode.BAD_REQUEST, "Cannot create collection " + collectionName + ". Value of "
-            + ZkStateReader.MAX_SHARDS_PER_NODE + " is " + maxShardsPerNode
-            + ", and the number of live nodes is " + nodeList.size()
-            + ". This allows a maximum of " + maxShardsAllowedToCreate
-            + " to be created. Value of " + NUM_SLICES + " is " + numSlices
-            + " and value of " + ZkStateReader.REPLICATION_FACTOR + " is " + repFactor
-            + ". This requires " + requestedShardsToCreate
-            + " shards to be created (higher than the allowed number)");
-      }
+
       boolean isLegacyCloud =  Overseer.isLegacy(zkStateReader.getClusterProps());
 
       String configName = createConfNode(collectionName, message, isLegacyCloud);
@@ -1791,6 +1800,11 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       }
       if (!created)
         throw new SolrException(ErrorCode.SERVER_ERROR, "Could not fully createcollection: " + message.getStr("name"));
+
+      if (corelessCollection) {
+        log.info("Finished create command for collection: {}", collectionName);
+        return;
+      }
 
       // For tracking async calls.
       HashMap<String, String> requestMap = new HashMap<String, String>();

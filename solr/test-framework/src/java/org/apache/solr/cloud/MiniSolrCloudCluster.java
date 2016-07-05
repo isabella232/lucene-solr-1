@@ -24,14 +24,22 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedMap;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.embedded.SSLConfig;
+import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.cloud.AbstractFullDistribZkTestBase.CloudSolrServerClient;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkConfigManager;
+import org.apache.solr.common.params.CollectionParams.CollectionAction;
+import org.apache.solr.common.params.CoreAdminParams;
+import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.util.NamedList;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -48,6 +56,7 @@ public class MiniSolrCloudCluster {
   private final boolean externalZkServer;
   private List<JettySolrRunner> jettys;
   private File testDir;
+  private final CloudSolrServer solrClient;
 
   /**
    * "Mini" SolrCloud cluster to be used for testing
@@ -130,6 +139,8 @@ public class MiniSolrCloudCluster {
         startJettySolrRunner(hostContext, extraServlets, extraRequestFilters, sslConfig);
       }
     }
+
+    this.solrClient = new CloudSolrServer(getZkServer().getZkAddress());
   }
 
   /**
@@ -198,11 +209,59 @@ public class MiniSolrCloudCluster {
     }
   }
 
+  public CloudSolrServer getSolrClient() {
+    return solrClient;
+  }
+
+  public NamedList<Object> createCollection(String name, int numShards, int replicationFactor,
+      String configName, Map<String, String> collectionProperties) throws SolrServerException, IOException {
+    return createCollection(name, numShards, replicationFactor, configName, null, collectionProperties);
+  }
+
+  public NamedList<Object> createCollection(String name, int numShards, int replicationFactor,
+      String configName, String createNodeSet, Map<String, String> collectionProperties) throws SolrServerException, IOException {
+    final ModifiableSolrParams params = new ModifiableSolrParams();
+    params.set(CoreAdminParams.ACTION, CollectionAction.CREATE.name());
+    params.set(CoreAdminParams.NAME, name);
+    params.set("numShards", numShards);
+    params.set("replicationFactor", replicationFactor);
+    params.set("collection.configName", configName);
+    if (null != createNodeSet) {
+      params.set(OverseerCollectionMessageHandler.CREATE_NODE_SET, createNodeSet);
+    }
+    if(collectionProperties != null) {
+      for(Map.Entry<String, String> property : collectionProperties.entrySet()){
+        params.set(CoreAdminParams.PROPERTY_PREFIX + property.getKey(), property.getValue());
+      }
+    }
+
+    return makeCollectionsRequest(params);
+  }
+
+  public NamedList<Object> deleteCollection(String name) throws SolrServerException, IOException {
+    final ModifiableSolrParams params = new ModifiableSolrParams();
+    params.set(CoreAdminParams.ACTION, CollectionAction.DELETE.name());
+    params.set(CoreAdminParams.NAME, name);
+
+    return makeCollectionsRequest(params);
+  }
+
+  private NamedList<Object> makeCollectionsRequest(final ModifiableSolrParams params) throws SolrServerException, IOException {
+
+    final QueryRequest request = new QueryRequest(params);
+    request.setPath("/admin/collections");
+
+    return solrClient.request(request);
+  }
+
   /**
    * Shut down the cluster, including all Solr nodes and ZooKeeper
    */
   public void shutdown() throws Exception {
     try {
+      if (solrClient != null) {
+        solrClient.shutdown();
+      }
       for (int i = jettys.size() - 1; i >= 0; --i) {
         stopJettySolrRunner(i);
       }

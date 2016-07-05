@@ -41,6 +41,7 @@ import org.apache.solr.common.params.CollectionParams.CollectionAction;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
+import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.util.RevertDefaultThreadHandlerRule;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -181,6 +182,69 @@ public class TestMiniSolrCloudCluster extends LuceneTestCase {
         zkClient.close();
       }
     }
+  }
+
+  @Test
+  public void testCollectionCreateWithoutCoresThenDelete() throws Exception {
+
+    final String collectionName = "testSolrCloudCollectionWithoutCores";
+
+    String testHome = SolrTestCaseJ4.TEST_HOME();
+    MiniSolrCloudCluster cluster = null;
+
+    try {
+     cluster = new MiniSolrCloudCluster(NUM_SERVERS, null, new File(testHome, "solr-no-core.xml"),
+          null, null);
+
+      assertNotNull(cluster.getZkServer());
+      assertFalse(cluster.getJettySolrRunners().isEmpty());
+
+      // create collection
+      createCollection(cluster, collectionName, OverseerCollectionMessageHandler.CREATE_NODE_SET_EMPTY);
+
+      try (SolrZkClient zkClient = new SolrZkClient
+          (cluster.getZkServer().getZkAddress(), AbstractZkTestCase.TIMEOUT, 45000, null);
+          ZkStateReader zkStateReader = new ZkStateReader(zkClient)) {
+
+        // wait for collection to appear
+        AbstractDistribZkTestBase.waitForRecoveriesToFinish(collectionName, zkStateReader, true, true, 330);
+
+        // check the collection's corelessness
+        {
+          int coreCount = 0;
+          for (Map.Entry<String,Slice> entry : zkStateReader.getClusterState().getSlicesMap(collectionName).entrySet()) {
+            coreCount += entry.getValue().getReplicasMap().entrySet().size();
+          }
+          assertEquals(0, coreCount);
+        }
+
+        // delete the collection we created earlier
+        cluster.deleteCollection(collectionName);
+        AbstractDistribZkTestBase.waitForCollectionToDisappear(collectionName, zkStateReader, true, true, 330);
+      }
+
+    } finally {
+      if (cluster != null) {
+        cluster.shutdown();
+      }
+    }
+  }
+
+  private void createCollection(MiniSolrCloudCluster miniCluster, String collectionName, String createNodeSet) throws Exception {
+    String configName = "solrCloudCollectionConfig";
+    File configDir = new File(SolrTestCaseJ4.TEST_HOME() + File.separator + "collection1" + File.separator + "conf");
+    miniCluster.uploadConfigDir(configDir, configName);
+
+    Map<String, String> collectionProperties = new HashMap<>();
+    collectionProperties.put(CoreDescriptor.CORE_CONFIG, "solrconfig-tlog.xml");
+    collectionProperties.put("solr.tests.maxBufferedDocs", "100000");
+    collectionProperties.put("solr.tests.ramBufferSizeMB", "100");
+    // use non-test classes so RandomizedRunner isn't necessary
+    collectionProperties.put("solr.tests.mergePolicy", "org.apache.lucene.index.TieredMergePolicy");
+    collectionProperties.put("solr.tests.mergeScheduler", "org.apache.lucene.index.ConcurrentMergeScheduler");
+    collectionProperties.put("solr.directoryFactory", "solr.RAMDirectoryFactory");
+
+    miniCluster.createCollection(collectionName, NUM_SHARDS, REPLICATION_FACTOR, configName, createNodeSet, collectionProperties);
   }
 
   protected void uploadConfigToZk(String configDir, String configName) throws Exception {
