@@ -1,5 +1,3 @@
-package org.apache.solr.util;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,33 +14,24 @@ package org.apache.solr.util;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.solr.util;
 
-import org.apache.solr.core.ConfigSolr;
-import org.apache.solr.core.CoresLocator;
+import com.carrotsearch.randomizedtesting.ThreadFilter;
 
-/**
- *
- */
-public class MockConfigSolr extends ConfigSolr {
+public class BadHdfsThreadsFilter implements ThreadFilter {
 
   @Override
-  public CoresLocator getCoresLocator() {
-    return null;
-  }
-
-  @Override
-  protected String getShardHandlerFactoryConfigPath() {
-    return null;
-  }
-
-  @Override
-  protected String getBackupRepositoryConfigPath() {
-    return null;
-  }
-
-  @Override
-  public boolean isPersistent() {
+  public boolean reject(Thread t) {
+    String name = t.getName();
+    if (name.startsWith("IPC Parameter Sending Thread ")) { // SOLR-5007
+      return true;
+    } else if (name.startsWith("org.apache.hadoop.hdfs.PeerCache")) { // SOLR-7288
+      return true;
+    } else if (name.startsWith("LeaseRenewer")) { // SOLR-7287
+      return true;
+    } else if (name.startsWith("org.apache.hadoop.fs.FileSystem")) {
+      return true;
+    }
     return false;
   }
-
 }

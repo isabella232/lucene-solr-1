@@ -131,6 +131,22 @@ public abstract class ConfigSolr {
 
   protected abstract String getShardHandlerFactoryConfigPath();
 
+  protected abstract String getBackupRepositoryConfigPath();
+
+  public PluginInfo[] getBackupRepositoryPluginInfos() {
+    if(getBackupRepositoryConfigPath() != null) {
+      NodeList nodes = (NodeList) config.evaluate(getBackupRepositoryConfigPath(), XPathConstants.NODESET);
+      if (nodes == null || nodes.getLength() == 0)
+        return new PluginInfo[0];
+      PluginInfo[] configs = new PluginInfo[nodes.getLength()];
+      for (int i = 0; i < nodes.getLength(); i++) {
+        configs[i] = new PluginInfo(nodes.item(i), "BackupRepositoryFactory", true, true);
+      }
+      return configs;
+    }
+    return new PluginInfo[0];
+  }
+
   public String getZkHost() {
     String sysZkHost = System.getProperty("zkHost");
     if (sysZkHost != null)

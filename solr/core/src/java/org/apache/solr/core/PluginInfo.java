@@ -24,6 +24,8 @@ import org.w3c.dom.NodeList;
 import java.util.*;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
+import static org.apache.solr.common.params.CoreAdminParams.NAME;
+import static org.apache.solr.schema.FieldType.CLASS_NAME;
 
 /**
  * An Object which represents a Plugin of any type 
@@ -52,6 +54,34 @@ public class PluginInfo {
     initArgs = DOMUtil.childNodesToNamedList(node);
     attributes = unmodifiableMap(DOMUtil.toMap(node.getAttributes()));
     children = loadSubPlugins(node);
+  }
+
+  public PluginInfo(String type, Map<String,Object> map) {
+    LinkedHashMap m = new LinkedHashMap<>(map);
+    initArgs = new NamedList();
+    for (Map.Entry<String, Object> entry : map.entrySet()) {
+      if (NAME.equals(entry.getKey()) || CLASS_NAME.equals(entry.getKey())) continue;
+      Object value = entry.getValue();
+      if (value instanceof List) {
+        List list = (List) value;
+        if (!list.isEmpty() && list.get(0) instanceof Map) {//this is a subcomponent
+          for (Object o : list) {
+            if (o instanceof Map) o = new NamedList<>((Map) o);
+            initArgs.add(entry.getKey(), o);
+          }
+        } else {
+          initArgs.add(entry.getKey(), value);
+        }
+      } else {
+        if (value instanceof Map) value = new NamedList((Map) value);
+        initArgs.add(entry.getKey(), value);
+      }
+    }
+    this.type = type;
+    this.name = (String) m.get(NAME);
+    this.className = (String) m.get(CLASS_NAME);
+    attributes = unmodifiableMap(m);
+    this.children =  Collections.<PluginInfo>emptyList();
   }
 
   private List<PluginInfo> loadSubPlugins(Node node) {

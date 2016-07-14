@@ -35,6 +35,7 @@ import org.apache.lucene.store.BaseDirectory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.store.LockFactory;
 import org.apache.lucene.store.NoLockFactory;
 import org.apache.solr.store.blockcache.CustomBufferedIndexInput;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 public class HdfsDirectory extends BaseDirectory {
   public static Logger LOG = LoggerFactory.getLogger(HdfsDirectory.class);
+  public static final int DEFAULT_BUFFER_SIZE = 4096;
   
   private static final String LF_EXT = ".lf";
   protected static final String SEGMENTS_GEN = "segments.gen";
@@ -53,15 +55,19 @@ public class HdfsDirectory extends BaseDirectory {
   private final int bufferSize;
   
   public HdfsDirectory(Path hdfsDirPath, Configuration configuration) throws IOException {
-    this(hdfsDirPath, configuration, 4096);
+    this(hdfsDirPath, configuration, DEFAULT_BUFFER_SIZE);
   }
   
-  public HdfsDirectory(Path hdfsDirPath, Configuration configuration, int bufferSize)
+  public HdfsDirectory(Path hdfsDirPath, Configuration configuration, int bufferSize) throws IOException {
+    this(hdfsDirPath, NoLockFactory.getNoLockFactory(), configuration, bufferSize);
+  }
+
+  public HdfsDirectory(Path hdfsDirPath, LockFactory lockfactory, Configuration configuration, int bufferSize)
  throws IOException {
     this.hdfsDirPath = hdfsDirPath;
     this.configuration = configuration;
     this.bufferSize = bufferSize;
-    setLockFactory(NoLockFactory.getNoLockFactory()); // calls #hashCode which needs this.hdsfDirPath
+    setLockFactory(lockfactory); // calls #hashCode which needs this.hdsfDirPath
     fileSystem = FileSystem.get(hdfsDirPath.toUri(), configuration);
     
     if (fileSystem instanceof DistributedFileSystem) {
@@ -188,7 +194,7 @@ public class HdfsDirectory extends BaseDirectory {
     return configuration;
   }
   
-  static class HdfsIndexInput extends CustomBufferedIndexInput {
+  public static class HdfsIndexInput extends CustomBufferedIndexInput {
     public static Logger LOG = LoggerFactory
         .getLogger(HdfsIndexInput.class);
     

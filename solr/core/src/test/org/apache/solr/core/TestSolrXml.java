@@ -64,7 +64,8 @@ public class TestSolrXml extends SolrTestCaseJ4 {
     FileUtils.copyFile(new File(testSrcRoot, "solr-50-all.xml"), new File(solrHome, "solr.xml"));
 
     ConfigSolr cfg = ConfigSolr.fromSolrHome(loader, solrHome.getAbsolutePath());
-    
+    PluginInfo[] backupRepoConfigs = cfg.getBackupRepositoryPluginInfos();
+
     assertEquals("core admin handler class", "testAdminHandler", cfg.getCoreAdminHandlerClass());
     assertEquals("collection handler class", "testCollectionsHandler", cfg.getCollectionsHandlerClass());
     assertEquals("info handler class", "testInfoHandler", cfg.getInfoHandlerClass());
@@ -91,6 +92,11 @@ public class TestSolrXml extends SolrTestCaseJ4 {
     assertEquals("zk host", "testZkHost", cfg.getZkHost());
     assertEquals("persistent", true, cfg.isPersistent());
     assertEquals("core admin path", ConfigSolr.DEFAULT_CORE_ADMIN_PATH, cfg.getAdminPath());
+    assertEquals(1, backupRepoConfigs.length);
+    assertEquals("local", backupRepoConfigs[0].name);
+    assertEquals("a.b.C", backupRepoConfigs[0].className);
+    assertEquals("true", backupRepoConfigs[0].attributes.get("default"));
+    assertEquals(0, backupRepoConfigs[0].initArgs.size());
   }
 
   // Test  a few property substitutions that happen to be in solr-50-all.xml.
@@ -305,6 +311,13 @@ public class TestSolrXml extends SolrTestCaseJ4 {
     expectedException.expectMessage(String.format(Locale.ROOT, "Main section of solr.xml contains duplicated 'coreLoadThreads' in solr.xml: [%s, %s]", v1, v2));
 
     ConfigSolr configSolr = ConfigSolr.fromString(loader, solrXml);
+  }
+
+  public void testMultiBackupSectionError() throws IOException {
+    String solrXml = "<solr><backup></backup><backup></backup></solr>";
+    expectedException.expect(SolrException.class);
+    expectedException.expectMessage("2 instances of <backup> found in solr.xml");
+    ConfigSolrXml.fromString(loader, solrXml); // return not used, only for validation
   }
 }
 

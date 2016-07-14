@@ -56,6 +56,12 @@ public class ConfigSolrXmlOld extends ConfigSolr {
     return "solr/cores/shardHandlerFactory";
   }
 
+  // Note - probably we don't need to support this for old style configuration (?)
+  @Override
+  protected String getBackupRepositoryConfigPath() {
+    return null;
+  }
+
   public ConfigSolrXmlOld(Config config, String originalXML) {
     super(config);
     try {

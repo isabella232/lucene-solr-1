@@ -123,6 +123,8 @@ public class ConfigSolrXml extends ConfigSolr {
     thereCanBeOnlyOne("solr/logging/watcher","Logging <watcher>");
     fillLoggingSection(readNodeListAsNamedList("solr/logging/*[@name]"), 
                        readNodeListAsNamedList("solr/logging/watcher/*[@name]"));
+
+    thereCanBeOnlyOne("solr/backup","<backup>");
   }
 
   private void fillSolrSection(NamedList<Object> nl) {
@@ -261,6 +263,10 @@ public class ConfigSolrXml extends ConfigSolr {
   @Override
   protected String getShardHandlerFactoryConfigPath() {
     return "solr/shardHandlerFactory";
+  }
+
+  protected String getBackupRepositoryConfigPath() {
+    return "solr/backup/repository";
   }
 
   @Override

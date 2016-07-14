@@ -83,6 +83,11 @@ public class SolrCmdDistributorTest extends BaseDistributedSearchTestCase {
       }
 
       @Override
+      protected String getBackupRepositoryConfigPath() {
+        return null;
+      }
+
+      @Override
       public boolean isPersistent() {
         return false;
       }});

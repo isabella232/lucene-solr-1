@@ -138,7 +138,10 @@ public class HdfsTestUtil {
     System.clearProperty("solr.hdfs.home");
     System.clearProperty("solr.hdfs.blockcache.global");
     if (dfsCluster != null) {
-      timers.remove(dfsCluster);
+      Timer timer = timers.remove(dfsCluster);
+      if (timer != null) {
+        timer.cancel();
+      }
       try {
         dfsCluster.shutdown();
       } catch (Error e) {

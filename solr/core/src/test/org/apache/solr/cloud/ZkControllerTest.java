@@ -409,6 +409,11 @@ public class ZkControllerTest extends SolrTestCaseJ4 {
         }
 
         @Override
+        protected String getBackupRepositoryConfigPath() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
         public boolean isPersistent() {
           throw new UnsupportedOperationException();
         }};

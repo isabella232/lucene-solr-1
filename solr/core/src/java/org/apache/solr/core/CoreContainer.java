@@ -36,6 +36,7 @@ import org.apache.solr.cloud.ZkController;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.util.ExecutorUtil;
+import org.apache.solr.core.backup.repository.BackupRepositoryFactory;
 import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.handler.admin.ConfigSetsHandler;
 import org.apache.solr.handler.admin.CoreAdminHandler;
@@ -101,6 +102,12 @@ public class CoreContainer {
   protected final CoresLocator coresLocator;
   
   private String hostName;
+
+  private BackupRepositoryFactory backupRepoFactory;
+
+  public BackupRepositoryFactory getBackupRepoFactory() {
+    return backupRepoFactory;
+  }
 
   public ExecutorService getCoreZkRegisterExecutorService() {
     return zkSys.getCoreZkRegisterExecutorService();
@@ -227,6 +234,8 @@ public class CoreContainer {
     log.info("Host Name: " + hostName);
 
     zkSys.initZooKeeper(this, solrHome, cfg);
+
+    this.backupRepoFactory = new BackupRepositoryFactory(cfg.getBackupRepositoryPluginInfos());
 
     collectionsHandler = createHandler(cfg.getCollectionsHandlerClass(), CollectionsHandler.class);
     infoHandler        = createHandler(cfg.getInfoHandlerClass(), InfoHandler.class);

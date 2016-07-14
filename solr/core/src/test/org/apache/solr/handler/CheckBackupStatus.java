@@ -34,18 +34,21 @@ public class CheckBackupStatus extends SolrTestCaseJ4 {
   final Pattern p = Pattern.compile("<str name=\"snapshotCompletedAt\">(.*?)</str>");
   final Pattern pException = Pattern.compile("<str name=\"snapShootException\">(.*?)</str>");
   final HttpSolrServer client;
+  final String coreName;
 
-  public CheckBackupStatus(final HttpSolrServer client, String lastBackupTimestamp) {
+  public CheckBackupStatus(final HttpSolrServer client, String coreName, String lastBackupTimestamp) {
     this.client = client;
+    this.coreName = coreName;
     this.lastBackupTimestamp = lastBackupTimestamp;
   }
 
-  public CheckBackupStatus(final HttpSolrServer client) {
-    this(client, null);
+  public CheckBackupStatus(final HttpSolrServer client, String coreName) {
+    this(client, coreName, null);
   }
 
   public void fetchStatus() throws IOException {
-    String masterUrl = client.getBaseURL() + "/replication?command=" + ReplicationHandler.CMD_DETAILS;
+    String masterUrl = client.getBaseURL() + "/"  + coreName + "/replication?command=" + ReplicationHandler.CMD_DETAILS;
+    //String masterUrl = client.getBaseURL() + "/replication?command=" + ReplicationHandler.CMD_DETAILS;
     response = client.getHttpClient().execute(new HttpGet(masterUrl), new BasicResponseHandler());
     if(pException.matcher(response).find()) {
       fail("Failed to create backup");
