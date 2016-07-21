@@ -148,7 +148,9 @@ public abstract class ConfigSolr {
   private static final int DEFAULT_ZK_CLIENT_TIMEOUT = 15000;
   private static final int DEFAULT_LEADER_VOTE_WAIT = 180000;  // 3 minutes
   private static final int DEFAULT_LEADER_CONFLICT_RESOLVE_WAIT = 180000;
-  private static final int DEFAULT_CORE_LOAD_THREADS = 3;
+  
+  public static final int DEFAULT_CORE_LOAD_THREADS = 3;
+  public static final int DEFAULT_CORE_LOAD_THREADS_IN_CLOUD = 8;
   
   // TODO: tune defaults
   private static final int DEFAULT_AUTO_REPLICA_FAILOVER_WAIT_AFTER_EXPIRATION = 30000;
@@ -209,8 +211,8 @@ public abstract class ConfigSolr {
     return get(CfgProp.SOLR_MAXUPDATECONNECTIONSPERHOST, 100);
   }
 
-  public int getCoreLoadThreadCount() {
-    return get(ConfigSolr.CfgProp.SOLR_CORELOADTHREADS, DEFAULT_CORE_LOAD_THREADS);
+  public int getCoreLoadThreadCount(boolean zkAware) {
+    return get(ConfigSolr.CfgProp.SOLR_CORELOADTHREADS, zkAware ? ConfigSolr.DEFAULT_CORE_LOAD_THREADS_IN_CLOUD : ConfigSolr.DEFAULT_CORE_LOAD_THREADS);
   }
 
   public String getSharedLibDirectory() {

@@ -62,7 +62,7 @@ public class ZkContainer {
 
   public void initZooKeeper(final CoreContainer cc, String solrHome, ConfigSolr config) {
 
-    if (config.getCoreLoadThreadCount() <= 1) {
+    if (config.getCoreLoadThreadCount(cc.isZooKeeperAware()) <= 1) {
       throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
           "SolrCloud requires a value of at least 2 in solr.xml for coreLoadThreads");
     }
