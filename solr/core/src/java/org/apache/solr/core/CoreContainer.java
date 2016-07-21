@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -237,14 +238,20 @@ public class CoreContainer {
     containerProperties = cfg.getSolrProperties("solr");
 
     // setup executor to load cores in parallel
-    // do not limit the size of the executor in zk mode since cores may try and wait for each other.
     ExecutorService coreLoadExecutor = Executors.newFixedThreadPool(
-        ( zkSys.getZkController() == null ? cfg.getCoreLoadThreadCount() : Integer.MAX_VALUE ),
+//        ( zkSys.getZkController() == null ? cfg.getCoreLoadThreadCount() : Integer.MAX_VALUE ),
+        cfg.getCoreLoadThreadCount(isZooKeeperAware()),
         new DefaultSolrThreadFactory("coreLoadExecutor") );
 
     try {
 
       List<CoreDescriptor> cds = coresLocator.discover(this);
+      if (isZooKeeperAware()) {
+        //sort the cores if it is in SolrCloud. In standalone node the order does not matter
+        CoreSorter coreComparator = new CoreSorter().init(this);
+        cds = new ArrayList<>(cds);//make a copy
+        Collections.sort(cds, coreComparator.descComp);
+      }
       checkForDuplicateCoreNames(cds);
 
       List<Callable<SolrCore>> creators = new ArrayList<>();

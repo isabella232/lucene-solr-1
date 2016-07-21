@@ -94,7 +94,7 @@ import org.slf4j.LoggerFactory;
  * TODO: exceptions during shutdown on attempts to update cloud state
  * 
  */
-public final class ZkController {
+public class ZkController {
 
   private static Logger log = LoggerFactory.getLogger(ZkController.class);
 
