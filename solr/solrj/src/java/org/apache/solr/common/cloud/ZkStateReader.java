@@ -209,8 +209,11 @@ public class ZkStateReader implements Closeable {
 
   private volatile boolean closed = false;
 
+  private final ZkConfigManager configManager;
+
   public ZkStateReader(SolrZkClient zkClient) {
     this.zkClient = zkClient;
+    this.configManager = new ZkConfigManager(zkClient);
     initZkCmdExecutor(zkClient.getZkClientTimeout());
   }
 
@@ -239,13 +242,18 @@ public class ZkStateReader implements Closeable {
 
           }
         });
+    this.configManager = new ZkConfigManager(zkClient);
   }
   
   private void initZkCmdExecutor(int zkClientTimeout) {
     // we must retry at least as long as the session timeout
     cmdExecutor = new ZkCmdExecutor(zkClientTimeout);
   }
-  
+
+  public ZkConfigManager getConfigManager() {
+    return configManager;
+  }
+
   // load and publish a new CollectionInfo
   public void updateClusterState(boolean immediate) throws KeeperException, InterruptedException {
     updateClusterState(immediate, false);
