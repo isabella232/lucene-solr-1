@@ -84,6 +84,9 @@ import org.apache.solr.core.DirectoryFactory.DirContext;
 import org.apache.solr.core.DirectoryFactory;
 import org.apache.solr.core.IndexDeletionPolicyWrapper;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.core.snapshots.SolrSnapshotManager;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager.SnapshotMetaData;
 import org.apache.solr.handler.ReplicationHandler.FileInfo;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
@@ -499,7 +502,8 @@ public class SnapPuller {
                 if (indexDir != null) {
                   LOG.info("removing old index directory " + indexDir);
                   solrCore.getDirectoryFactory().doneWithDirectory(indexDir);
-                  solrCore.getDirectoryFactory().remove(indexDir);
+                  // Cleanup all index files not associated with any *named* snapshot.
+                  solrCore.deleteNonSnapshotIndexFiles(indexDirPath);
                 }
               }
               

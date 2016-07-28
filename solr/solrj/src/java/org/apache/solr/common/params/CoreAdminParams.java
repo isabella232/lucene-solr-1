@@ -114,6 +114,9 @@ public abstract class CoreAdminParams
   
   public static final String TRANSIENT = "transient";
 
+  // Node to create a replica on for ADDREPLICA at least.
+  public static final String NODE = "node";
+
   /**
    * A parameter to specify the name of the backup repository to be used.
    */
@@ -123,6 +126,11 @@ public abstract class CoreAdminParams
    * A parameter to specify the location where the backup should be stored.
    */
   public static final String BACKUP_LOCATION = "location";
+
+  /**
+   * A parameter to specify the name of the commit to be stored during the backup operation.
+   */
+  public static final String COMMIT_NAME = "commitName";
 
   public enum CoreAdminAction {
     STATUS,  
@@ -147,7 +155,10 @@ public abstract class CoreAdminParams
     OVERSEEROP,
     REQUESTSTATUS,
     BACKUPCORE,
-    RESTORECORE;
+    RESTORECORE,
+    CREATESNAPSHOT,
+    DELETESNAPSHOT,
+    LISTSNAPSHOTS;
 
     public static CoreAdminAction get( String p )
     {

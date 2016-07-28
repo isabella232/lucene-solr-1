@@ -18,6 +18,7 @@ package org.apache.solr.handler;
  */
 
 import java.text.SimpleDateFormat;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Locale;
 import java.net.URI;
@@ -33,6 +34,9 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.core.DirectoryFactory;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.backup.repository.BackupRepository;
+import org.apache.solr.core.snapshots.SolrSnapshotManager;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager.SnapshotMetaData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +68,7 @@ public class RestoreCore implements Callable<Boolean> {
     String restoreIndexName = "restore." + dateFormat.format(new Date());
     String restoreIndexPath = core.getDataDir() + restoreIndexName;
 
+    String indexDirPath = core.getIndexDir();
     Directory restoreIndexDir = null;
     Directory indexDir = null;
     try {
@@ -71,7 +76,7 @@ public class RestoreCore implements Callable<Boolean> {
           DirectoryFactory.DirContext.DEFAULT, core.getSolrConfig().indexConfig.lockType);
 
       //Prefer local copy.
-      indexDir = core.getDirectoryFactory().get(core.getIndexDir(),
+      indexDir = core.getDirectoryFactory().get(indexDirPath,
           DirectoryFactory.DirContext.DEFAULT, core.getSolrConfig().indexConfig.lockType);
 
       //Move all files from backupDir to restoreIndexDir
@@ -130,7 +135,8 @@ public class RestoreCore implements Callable<Boolean> {
       }
       if (success) {
         core.getDirectoryFactory().doneWithDirectory(indexDir);
-        core.getDirectoryFactory().remove(indexDir);
+        // Cleanup all index files not associated with any *named* snapshot.
+        core.deleteNonSnapshotIndexFiles(indexDirPath);
       }
 
       return true;

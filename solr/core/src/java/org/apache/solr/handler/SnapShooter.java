@@ -30,6 +30,7 @@ import java.util.Locale;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.store.Directory;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.DirectoryFactory.DirContext;
 import org.apache.solr.core.IndexDeletionPolicyWrapper;
@@ -37,11 +38,13 @@ import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.backup.repository.BackupRepository;
 import org.apache.solr.core.backup.repository.BackupRepository.PathType;
 import org.apache.solr.core.backup.repository.LocalFileSystemRepository;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.util.RefCounted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 /**
@@ -59,6 +62,7 @@ public class SnapShooter {
   private URI baseSnapDirPath = null;
   private URI snapshotDirPath = null;
   private BackupRepository backupRepo = null;
+  private String commitName; // can be null
 
   @Deprecated
   public SnapShooter(SolrCore core, String location, String snapshotName) {
@@ -75,14 +79,14 @@ public class SnapShooter {
       if (!dir.exists())  dir.mkdirs();
     }
 
-    initialize(new LocalFileSystemRepository(), core, snapDirStr, snapshotName);
+    initialize(new LocalFileSystemRepository(), core, snapDirStr, snapshotName, null);
   }
 
-  public SnapShooter(BackupRepository backupRepo, SolrCore core, String location, String snapshotName) {
-    initialize(backupRepo, core, location, snapshotName);
+  public SnapShooter(BackupRepository backupRepo, SolrCore core, String location, String snapshotName, String commitName) {
+    initialize(backupRepo, core, location, snapshotName, commitName);
   }
 
-  private void initialize(BackupRepository backupRepo, SolrCore core, String location, String snapshotName) {
+  private void initialize(BackupRepository backupRepo, SolrCore core, String location, String snapshotName, String commitName) {
     this.solrCore = Preconditions.checkNotNull(core);
     this.backupRepo = Preconditions.checkNotNull(backupRepo);
     this.baseSnapDirPath = backupRepo.createURI(Preconditions.checkNotNull(location)).normalize();
@@ -94,6 +98,7 @@ public class SnapShooter {
       directoryName = "snapshot." + fmt.format(new Date());
     }
     this.snapshotDirPath = backupRepo.createURI(location, directoryName);
+    this.commitName = commitName;
   }
 
   public BackupRepository getBackupRepository() {
@@ -172,7 +177,6 @@ public class SnapShooter {
   }
 
   public NamedList createSnapshot() throws Exception {
-    IndexDeletionPolicyWrapper deletionPolicy = solrCore.getDeletionPolicy();
     RefCounted<SolrIndexSearcher> searcher = solrCore.getSearcher();
     try {
       // Create a directory to store the backup.
@@ -180,15 +184,26 @@ public class SnapShooter {
         backupRepo.createDirectory(this.snapshotDirPath);
       }
 
-      IndexCommit indexCommit = solrCore.getDeletionPolicy().getLatestCommit();
-      if (indexCommit == null) {
-        indexCommit = searcher.get().getIndexReader().getIndexCommit();
-      }
-      deletionPolicy.saveCommitPoint(indexCommit.getGeneration());
-      try {
-        return createSnapshot(indexCommit);
-      } finally {
-        deletionPolicy.releaseCommitPoint(indexCommit.getGeneration());
+      if (commitName != null) {
+        SolrSnapshotMetaDataManager snapshotMgr = solrCore.getSnapshotMetaDataManager();
+        Optional<IndexCommit> commit = snapshotMgr.getIndexCommitByName(commitName);
+        if(commit.isPresent()) {
+          return createSnapshot(commit.get());
+        }
+        throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to find an index commit with name " + commitName +
+            " for core " + solrCore.getName());
+      } else {
+        IndexDeletionPolicyWrapper deletionPolicy = solrCore.getDeletionPolicy();
+        IndexCommit indexCommit = deletionPolicy.getLatestCommit();
+        if (indexCommit == null) {
+          indexCommit = searcher.get().getIndexReader().getIndexCommit();
+        }
+        deletionPolicy.saveCommitPoint(indexCommit.getGeneration());
+        try {
+          return createSnapshot(indexCommit);
+        } finally {
+          deletionPolicy.releaseCommitPoint(indexCommit.getGeneration());
+        }
       }
     } finally {
       searcher.decref();

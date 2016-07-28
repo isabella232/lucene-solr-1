@@ -43,6 +43,7 @@ import java.util.concurrent.Future;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.IOUtils;
@@ -77,6 +78,9 @@ import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.core.SolrXMLCoresLocator;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.core.backup.repository.BackupRepository;
+import org.apache.solr.core.snapshots.SolrSnapshotManager;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager.SnapshotMetaData;
 import org.apache.solr.handler.RestoreCore;
 import org.apache.solr.handler.SnapShooter;
 import org.apache.solr.request.LocalSolrQueryRequest;
@@ -306,6 +310,18 @@ public class CoreAdminHandler extends RequestHandlerBase {
           this.handleRestoreCoreAction(req, rsp);
           break;
         }
+        case CREATESNAPSHOT: {
+          this.handleCreateSnapshotAction(req, rsp);
+          break;
+        }
+        case DELETESNAPSHOT: {
+          this.handleDeleteSnapshotAction(req, rsp);
+          break;
+        }
+        case LISTSNAPSHOTS: {
+          this.handleListSnapshotsAction(req, rsp);
+          break;
+        }
         default: {
           this.handleCustomAction(req, rsp);
           break;
@@ -315,6 +331,74 @@ public class CoreAdminHandler extends RequestHandlerBase {
       }
     }
     rsp.setHttpCaching(false);
+  }
+
+  protected void handleCreateSnapshotAction(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
+    final SolrParams params = req.getParams();
+
+    String commitName = params.required().get(CoreAdminParams.COMMIT_NAME);
+    String cname = params.required().get(CoreAdminParams.CORE);
+    try (SolrCore core = coreContainer.getCore(cname)) {
+      if (core == null) {
+        throw new SolrException(ErrorCode.BAD_REQUEST, "Unable to locate core " + cname);
+      }
+
+      String indexDirPath = core.getIndexDir();
+      IndexCommit ic = core.getDeletionPolicy().getLatestCommit();
+      if (ic == null) {
+        RefCounted<SolrIndexSearcher> searcher = core.getSearcher();
+        try {
+          ic = searcher.get().getIndexReader().getIndexCommit();
+        } finally {
+          searcher.decref();
+        }
+      }
+      SolrSnapshotMetaDataManager mgr = core.getSnapshotMetaDataManager();
+      mgr.snapshot(commitName, indexDirPath, ic.getGeneration());
+
+      rsp.add("core", core.getName());
+      rsp.add("commitName", commitName);
+      rsp.add("indexDirPath", indexDirPath);
+      rsp.add("generation", ic.getGeneration());
+    }
+  }
+
+  protected void handleDeleteSnapshotAction(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
+    final SolrParams params = req.getParams();
+
+    String commitName = params.required().get(CoreAdminParams.COMMIT_NAME);
+    String cname = params.required().get(CoreAdminParams.CORE);
+    try (SolrCore core = coreContainer.getCore(cname)) {
+      if (core == null) {
+        throw new SolrException(ErrorCode.BAD_REQUEST, "Unable to locate core " + cname);
+      }
+
+      core.deleteNamedSnapshot(commitName);
+    }
+  }
+
+  protected void handleListSnapshotsAction(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
+    final SolrParams params = req.getParams();
+
+    String cname = params.required().get(CoreAdminParams.CORE);
+    try ( SolrCore core = coreContainer.getCore(cname) ) {
+      if (core == null) {
+        throw new SolrException(ErrorCode.BAD_REQUEST, "Unable to locate core " + cname);
+      }
+
+      SolrSnapshotMetaDataManager mgr = core.getSnapshotMetaDataManager();
+      NamedList result = new NamedList();
+      for (String name : mgr.listSnapshots()) {
+        Optional<SnapshotMetaData> metadata = mgr.getSnapshotMetaData(name);
+        if ( metadata.isPresent() ) {
+          NamedList<String> props = new NamedList<>();
+          props.add("generation", String.valueOf(metadata.get().getGenerationNumber()));
+          props.add("indexDirPath", metadata.get().getIndexDirPath());
+          result.add(name, props);
+        }
+      }
+      rsp.add("snapshots", result);
+    }
   }
 
   protected void handleBackupCoreAction(SolrQueryRequest req, SolrQueryResponse rsp) throws IOException {
@@ -344,8 +428,13 @@ public class CoreAdminHandler extends RequestHandlerBase {
         throw new IllegalArgumentException("location is required");
       }
     }
+
+    // An optional parameter to describe the snapshot to be backed-up. If this
+    // parameter is not supplied, the latest index commit is backed-up.
+    String commitName = params.get(CoreAdminParams.COMMIT_NAME);
+
     try (SolrCore core = coreContainer.getCore(cname)) {
-      SnapShooter snapShooter = new SnapShooter(repository, core, location, name);
+      SnapShooter snapShooter = new SnapShooter(repository, core, location, name, commitName);
       // validateCreateSnapshot will create parent dirs instead of throw; that choice is dubious.
       //  But we want to throw. One reason is that
       //  this dir really should, in fact must, already exist here if triggered via a collection backup on a shared

@@ -87,6 +87,7 @@ import org.apache.solr.core.SolrEventListener;
 import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.core.backup.repository.BackupRepository;
 import org.apache.solr.core.backup.repository.LocalFileSystemRepository;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.BinaryQueryResponseWriter;
 import org.apache.solr.response.SolrQueryResponse;
@@ -480,14 +481,26 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
       if (numberToKeep < 1) {
         numberToKeep = Integer.MAX_VALUE;
       }
-      
-      IndexDeletionPolicyWrapper delPolicy = core.getDeletionPolicy();
-      IndexCommit indexCommit = delPolicy.getLatestCommit();
-      
-      if (indexCommit == null) {
-        indexCommit = req.getSearcher().getIndexReader().getIndexCommit();
+
+      IndexCommit indexCommit = null;
+      String commitName = params.get(CoreAdminParams.COMMIT_NAME);
+      if (commitName != null) {
+        SolrSnapshotMetaDataManager snapshotMgr = core.getSnapshotMetaDataManager();
+        Optional<IndexCommit> commit = snapshotMgr.getIndexCommitByName(commitName);
+        if(commit.isPresent()) {
+          indexCommit = commit.get();
+        } else {
+          throw new SolrException(ErrorCode.BAD_REQUEST, "Unable to find an index commit with name " + commitName +
+              " for core " + core.getName());
+        }
+      } else {
+        IndexDeletionPolicyWrapper delPolicy = core.getDeletionPolicy();
+        indexCommit = delPolicy.getLatestCommit();
+        if (indexCommit == null) {
+          indexCommit = req.getSearcher().getIndexReader().getIndexCommit();
+        }
       }
-      
+
       SnapShooter snapShooter = null;
       String location = params.get(CoreAdminParams.BACKUP_LOCATION);
       String repoName = params.get(CoreAdminParams.BACKUP_REPOSITORY);
@@ -501,7 +514,7 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
             throw new IllegalArgumentException("location is required");
           }
         }
-        snapShooter = new SnapShooter(repo, core, location, params.get("name"));
+        snapShooter = new SnapShooter(repo, core, location, params.get("name"), commitName);
       } else {
         snapShooter = new SnapShooter(core, location, params.get("name"));
       }

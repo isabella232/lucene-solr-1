@@ -61,7 +61,7 @@ public class SolrIndexWriter extends IndexWriter {
     SolrIndexWriter w = null;
     final Directory d = directoryFactory.get(path, DirContext.DEFAULT, config.lockType);
     try {
-      w = new SolrIndexWriter(name, path, d, create, schema, 
+      w = new SolrIndexWriter(name, d, create, schema,
                               config, delPolicy, codec);
       w.setDirectoryFactory(directoryFactory);
       return w;
@@ -73,7 +73,16 @@ public class SolrIndexWriter extends IndexWriter {
     }
   }
 
-  private SolrIndexWriter(String name, String path, Directory directory, boolean create, IndexSchema schema, SolrIndexConfig config, IndexDeletionPolicy delPolicy, Codec codec) throws IOException {
+  public SolrIndexWriter(String name, Directory d, IndexWriterConfig conf) throws IOException {
+    super(d, conf);
+    this.name = name;
+    this.infoStream = conf.getInfoStream();
+    this.directory = d;
+    numOpens.incrementAndGet();
+    log.debug("Opened Writer " + name);
+  }
+
+  private SolrIndexWriter(String name, Directory directory, boolean create, IndexSchema schema, SolrIndexConfig config, IndexDeletionPolicy delPolicy, Codec codec) throws IOException {
     super(directory,
           config.toIndexWriterConfig(schema).
           setOpenMode(create ? IndexWriterConfig.OpenMode.CREATE : IndexWriterConfig.OpenMode.APPEND).
@@ -169,7 +178,9 @@ public class SolrIndexWriter extends IndexWriter {
         IOUtils.closeQuietly(infoStream);
       }
       numCloses.incrementAndGet();
-      directoryFactory.release(directory);
+      if (directoryFactory != null) {
+        directoryFactory.release(directory);
+      }
     }
   }
 

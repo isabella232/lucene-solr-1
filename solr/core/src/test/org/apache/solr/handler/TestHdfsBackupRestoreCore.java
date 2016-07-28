@@ -17,11 +17,11 @@
 package org.apache.solr.handler;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -186,7 +186,7 @@ public class TestHdfsBackupRestoreCore extends SolrCloudTestCase {
         // Create a backup.
         if (testViaReplicationHandler) {
           log.info("Running Backup/restore via replication handler");
-          runReplicationHandlerCommand(baseUrl, coreName, ReplicationHandler.CMD_BACKUP, "hdfs", backupName);
+          BackupRestoreUtils.runReplicationHandlerCommand(baseUrl, coreName, ReplicationHandler.CMD_BACKUP, "hdfs", backupName);
           CheckBackupStatus checkBackupStatus = new CheckBackupStatus((HttpSolrServer) masterClient, coreName, null);
           while (!checkBackupStatus.success) {
             checkBackupStatus.fetchStatus();
@@ -194,7 +194,10 @@ public class TestHdfsBackupRestoreCore extends SolrCloudTestCase {
           }
         } else {
           log.info("Running Backup/restore via core admin api");
-          runCoreAdminCommand(replicaBaseUrl, coreName, CoreAdminAction.BACKUPCORE.toString(), "hdfs", backupName);
+          Map<String,String> params = new HashMap<>();
+          params.put("name", backupName);
+          params.put("repository", "hdfs");
+          BackupRestoreUtils.runCoreAdminCommand(replicaBaseUrl, coreName, CoreAdminAction.BACKUPCORE.toString(), params);
         }
 
         int numRestoreTests = nDocs > 0 ? TestUtil.nextInt(random(), 1, 5) : 1;
@@ -224,12 +227,15 @@ public class TestHdfsBackupRestoreCore extends SolrCloudTestCase {
           // Snapshooter prefixes "snapshot." to the backup name.
           if (testViaReplicationHandler) {
             // Snapshooter prefixes "snapshot." to the backup name.
-            runReplicationHandlerCommand(baseUrl, coreName, ReplicationHandler.CMD_RESTORE, "hdfs", backupName);
+            BackupRestoreUtils.runReplicationHandlerCommand(baseUrl, coreName, ReplicationHandler.CMD_RESTORE, "hdfs", backupName);
             while (!TestRestoreCore.fetchRestoreStatus(baseUrl, coreName)) {
               Thread.sleep(1000);
             }
           } else {
-            runCoreAdminCommand(replicaBaseUrl, coreName, CoreAdminAction.RESTORECORE.toString(), "hdfs", "snapshot." + backupName);
+            Map<String,String> params = new HashMap<>();
+            params.put("name", "snapshot." + backupName);
+            params.put("repository", "hdfs");
+            BackupRestoreUtils.runCoreAdminCommand(replicaBaseUrl, coreName, CoreAdminAction.RESTORECORE.toString(), params);
           }
           //See if restore was successful by checking if all the docs are present again
           BackupRestoreUtils.verifyDocs(nDocs, solrClient, coreName);
@@ -243,27 +249,6 @@ public class TestHdfsBackupRestoreCore extends SolrCloudTestCase {
       if (solrClient != null) {
         solrClient.shutdown();
       }
-    }
-  }
-
-  static void runCoreAdminCommand(String baseUrl, String coreName, String action, String repoName, String backupName) throws IOException {
-    String masterUrl = baseUrl + "/admin/cores?action=" + action + "&core="+coreName+"&repository="+repoName+"&name="+backupName;
-    executeHttpRequest(masterUrl);
-  }
-
-  static void runReplicationHandlerCommand(String baseUrl, String coreName, String action, String repoName, String backupName) throws IOException {
-    String masterUrl = baseUrl + "/" + coreName + "/replication?command=" + action + "&repository="+repoName+"&name="+backupName;
-    executeHttpRequest(masterUrl);
-  }
-
-  static void executeHttpRequest(String requestUrl) throws IOException {
-    InputStream stream = null;
-    try {
-      URL url = new URL(requestUrl);
-      stream = url.openStream();
-      stream.close();
-    } finally {
-      IOUtils.closeQuietly(stream);
     }
   }
 }

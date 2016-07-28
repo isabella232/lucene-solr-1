@@ -38,6 +38,9 @@ import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.core.DirectoryFactory.DirContext;
+import org.apache.solr.core.snapshots.SolrSnapshotManager;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager;
+import org.apache.solr.core.snapshots.SolrSnapshotMetaDataManager.SnapshotMetaData;
 import org.apache.solr.handler.SnapPuller;
 import org.apache.solr.handler.UpdateRequestHandler;
 import org.apache.solr.handler.admin.ShowFileRequestHandler;
@@ -101,6 +104,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
+import com.google.common.base.Optional;
 import javax.xml.parsers.ParserConfigurationException;
 
 import java.io.Closeable;
@@ -175,12 +179,14 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
   private final Map<String,SearchComponent> searchComponents;
   private final Map<String,UpdateRequestProcessorChain> updateProcessorChains;
   private final Map<String, SolrInfoMBean> infoRegistry;
+  private final SolrSnapshotMetaDataManager snapshotMgr;
   private IndexDeletionPolicyWrapper solrDelPolicy;
   private DirectoryFactory directoryFactory;
   private IndexReaderFactory indexReaderFactory;
   private final Codec codec;
 
   private final ReentrantLock ruleExpiryLock;
+  private final ReentrantLock snapshotDelLock; // A lock instance to guard against concurrent deletions.
 
   public long getStartTime() { return startTime; }
 
@@ -365,9 +371,98 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
        }
      } else {
        delPolicy = new SolrDeletionPolicy();
-     }     
-     solrDelPolicy = new IndexDeletionPolicyWrapper(delPolicy);
+     }
+
+     solrDelPolicy = new IndexDeletionPolicyWrapper(delPolicy, this.snapshotMgr);
    }
+
+  private SolrSnapshotMetaDataManager initSnapshotMetaDataManager() {
+    try {
+      String dirName = getDataDir() + SolrSnapshotMetaDataManager.SNAPSHOT_METADATA_DIR + "/";
+      Directory snapshotDir = directoryFactory.get(dirName, DirContext.DEFAULT,
+         getSolrConfig().indexConfig.lockType);
+      return new SolrSnapshotMetaDataManager(this, snapshotDir);
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  public SolrSnapshotMetaDataManager getSnapshotMetaDataManager() {
+    return snapshotMgr;
+  }
+
+  /**
+   * This method deletes the snapshot with the specified name. If the directory
+   * storing the snapshot is not the same as the *current* core index directory,
+   * then delete the files corresponding to this snapshot. Otherwise we leave the
+   * index files related to snapshot as is (assuming the underlying Solr IndexDeletionPolicy
+   * will clean them up appropriately).
+   *
+   * @param commitName The name of the snapshot to be deleted.
+   * @throws IOException in case of I/O error.
+   */
+  public void deleteNamedSnapshot(String commitName) throws IOException {
+    Optional<SnapshotMetaData> metadata = snapshotMgr.release(commitName);
+    if (metadata.isPresent()) {
+      long gen = metadata.get().getGenerationNumber();
+      String indexDirPath = metadata.get().getIndexDirPath();
+
+      if (!indexDirPath.equals(getIndexDir())) {
+        Directory d = getDirectoryFactory().get(indexDirPath, DirContext.DEFAULT, "none");
+        // Note this lock is required to prevent multiple snapshot deletions from
+        // opening multiple IndexWriter instances simultaneously.
+        this.snapshotDelLock.lock();
+        try {
+          Collection<SnapshotMetaData> snapshots = snapshotMgr.listSnapshotsInIndexDir(indexDirPath);
+          log.info("Following snapshots exist in the index directory {} : {}", indexDirPath, snapshots);
+          if (snapshots.isEmpty()) {// No snapshots remain in this directory. Can be cleaned up!
+            log.info("Removing index directory {} since all named snapshots are deleted.", indexDirPath);
+            getDirectoryFactory().remove(d);
+          } else {
+            SolrSnapshotManager.deleteSnapshotIndexFiles(this, d, gen);
+          }
+        } finally {
+          getDirectoryFactory().release(d);
+          snapshotDelLock.unlock();
+        }
+      }
+    }
+  }
+
+  /**
+   * This method deletes the index files not associated with any named snapshot only
+   * if the specified indexDirPath is not the *current* index directory.
+   *
+   * @param indexDirPath The path of the directory
+   * @throws IOException In case of I/O error.
+   */
+  public void deleteNonSnapshotIndexFiles(String indexDirPath) throws IOException {
+    // Skip if the specified indexDirPath is the *current* index directory.
+    if (getIndexDir().equals(indexDirPath)) {
+      return;
+    }
+
+    // Note this lock is required to prevent multiple snapshot deletions from
+    // opening multiple IndexWriter instances simultaneously.
+    this.snapshotDelLock.lock();
+    Directory dir = getDirectoryFactory().get(indexDirPath, DirContext.DEFAULT, "none");
+    try {
+      Collection<SnapshotMetaData> snapshots = snapshotMgr.listSnapshotsInIndexDir(indexDirPath);
+      log.info("Following snapshots exist in the index directory {} : {}", indexDirPath, snapshots);
+      // Delete the old index directory only if no snapshot exists in that directory.
+      if (snapshots.isEmpty()) {
+        log.info("Removing index directory {} since all named snapshots are deleted.", indexDirPath);
+        getDirectoryFactory().remove(dir);
+      } else {
+        SolrSnapshotManager.deleteNonSnapshotIndexFiles(this, dir, snapshots);
+      }
+    } finally {
+      snapshotDelLock.unlock();
+      if (dir != null) {
+        getDirectoryFactory().release(dir);
+      }
+    }
+  }
 
   private void initListeners() {
     final Class<SolrEventListener> clazz = SolrEventListener.class;
@@ -670,7 +765,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
    * Creates a new core that is to be loaded lazily. i.e. lazyLoad="true" in solr.xml
    * @since solr 4.1
    */
-  public SolrCore(String name, CoreDescriptor cd) {
+  /*public SolrCore(String name, CoreDescriptor cd) {
     coreDescriptor = cd;
     this.setName(name);
     this.schema = null;
@@ -688,9 +783,10 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
     this.infoRegistry = null;
     this.codec = null;
     this.ruleExpiryLock = null;
+    this.snapshotMgr = null;
 
     solrCoreState = null;
-  }
+  }*/
   /**
    * Creates a new core and register it in the list of cores.
    * If a core with the same name already exists, it will be stopped and replaced by this one.
@@ -710,7 +806,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
     if (updateHandler == null) {
       initDirectoryFactory();
     }
-    
+
     if (dataDir == null) {
       if (cd.usingDefaultDataDir()) dataDir = config.getDataDir();
       if (dataDir == null) {
@@ -778,13 +874,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
     try {
       
       initListeners();
-      
-      if (delPolicy == null) {
-        initDeletionPolicy();
-      } else {
-        this.solrDelPolicy = delPolicy;
-      }
-      
+
       this.codec = initCodec(solrConfig, schema);
       
       if (updateHandler == null) {
@@ -794,7 +884,15 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
         directoryFactory = solrCoreState.getDirectoryFactory();
         this.isReloaded = true;
       }
-      
+
+      this.snapshotMgr = initSnapshotMetaDataManager();
+
+      if (delPolicy == null) {
+        initDeletionPolicy();
+      } else {
+        this.solrDelPolicy = delPolicy;
+      }
+
       initIndex(prev != null);
       
       initWriters();
@@ -945,6 +1043,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
 //    openHandles.put(this, new RuntimeException("unclosed core - name:" + getName() + " refs: " + refCount.get()));
 
     ruleExpiryLock = new ReentrantLock();
+    snapshotDelLock = new ReentrantLock();
   }
 
   public void seedVersionBuckets() {
@@ -1158,7 +1257,18 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
         throw (Error) e;
       }
     }
-    
+
+    // Close the snapshots meta-data directory.
+    Directory snapshotsDir = snapshotMgr.getSnapshotsDir();
+    try {
+      this.directoryFactory.release(snapshotsDir);
+    }  catch (Throwable e) {
+      SolrException.log(log,e);
+      if (e instanceof Error) {
+        throw (Error) e;
+      }
+    }
+
     if (coreStateClosed) {
       
       try {
