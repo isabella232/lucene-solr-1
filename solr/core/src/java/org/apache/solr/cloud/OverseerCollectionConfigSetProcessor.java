@@ -32,7 +32,7 @@ public class OverseerCollectionConfigSetProcessor extends OverseerTaskProcessor 
 
    public OverseerCollectionConfigSetProcessor(ZkStateReader zkStateReader, String myId,
                                      final ShardHandler shardHandler,
-                                     String adminPath, Overseer.Stats stats,
+                                     String adminPath, Overseer.Stats stats, Overseer overseer,
                                      OverseerNodePrioritizer overseerNodePrioritizer) {
     this(
         zkStateReader,
@@ -40,6 +40,7 @@ public class OverseerCollectionConfigSetProcessor extends OverseerTaskProcessor 
         shardHandler.getShardHandlerFactory(),
         adminPath,
         stats,
+        overseer,
         overseerNodePrioritizer,
         Overseer.getCollectionQueue(zkStateReader.getZkClient(), stats),
         Overseer.getRunningMap(zkStateReader.getZkClient()),
@@ -52,6 +53,7 @@ public class OverseerCollectionConfigSetProcessor extends OverseerTaskProcessor 
                                         final ShardHandlerFactory shardHandlerFactory,
                                         String adminPath,
                                         Overseer.Stats stats,
+                                        Overseer overseer,
                                         OverseerNodePrioritizer overseerNodePrioritizer,
                                         DistributedQueue workQueue,
                                         DistributedMap runningMap,
@@ -64,7 +66,7 @@ public class OverseerCollectionConfigSetProcessor extends OverseerTaskProcessor 
         adminPath,
         stats,
         getOverseerMessageHandlerSelector(zkStateReader, myId, shardHandlerFactory,
-            adminPath, stats, overseerNodePrioritizer),
+            adminPath, stats, overseer, overseerNodePrioritizer),
         overseerNodePrioritizer,
         workQueue,
         runningMap,
@@ -78,9 +80,10 @@ public class OverseerCollectionConfigSetProcessor extends OverseerTaskProcessor 
       final ShardHandlerFactory shardHandlerFactory,
       String adminPath,
       Overseer.Stats stats,
+      Overseer overseer,
       OverseerNodePrioritizer overseerNodePrioritizer) {
     final OverseerCollectionMessageHandler collMessageHandler = new OverseerCollectionMessageHandler(
-        zkStateReader, myId, shardHandlerFactory, adminPath, stats, overseerNodePrioritizer);
+        zkStateReader, myId, shardHandlerFactory, adminPath, stats, overseer, overseerNodePrioritizer);
     final OverseerConfigSetMessageHandler configMessageHandler = new OverseerConfigSetMessageHandler(
         zkStateReader);
     return new OverseerMessageHandlerSelector() {

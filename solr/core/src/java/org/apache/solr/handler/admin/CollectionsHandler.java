@@ -46,6 +46,7 @@ import static org.apache.solr.common.params.CommonParams.NAME;
 import static org.apache.solr.common.params.CommonParams.VALUE_LONG;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -82,6 +83,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.core.CoreContainer;
+import org.apache.solr.core.backup.repository.BackupRepository;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
@@ -89,6 +91,7 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
 
 public class CollectionsHandler extends RequestHandlerBase {
@@ -256,15 +259,33 @@ public class CollectionsHandler extends RequestHandlerBase {
       throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' does not exist, no action taken.");
     }
 
-    String location = req.getParams().get("location");
+    String repo = req.getParams().get(CoreAdminParams.BACKUP_REPOSITORY);
+    BackupRepository repository = coreContainer.newBackupRepository(Optional.fromNullable(repo));
+
+    String location = req.getParams().get(CoreAdminParams.BACKUP_LOCATION);
     if (location == null) {
-      location = (String) coreContainer.getZkController().getZkStateReader().getClusterProps().get("location");
+      location = repository.getConfigProperty(CoreAdminParams.BACKUP_LOCATION);
     }
     if (location == null) {
-      throw new SolrException(ErrorCode.BAD_REQUEST, "'location' is not specified as a query parameter or set as a cluster property");
+      location = (String) coreContainer.getZkController().getZkStateReader().getClusterProps().get(CoreAdminParams.BACKUP_LOCATION);
     }
+    if (location == null) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "'location' is not specified as a query parameter or"
+          + " as a default repository property or as a cluster property.");
+    }
+
+    // Check if the specified location is valid for this repository.
+    URI uri = repository.createURI(location);
+    try {
+      if (!repository.exists(uri)) {
+        throw new SolrException(ErrorCode.SERVER_ERROR, "specified location " + uri + " does not exist.");
+      }
+    } catch (IOException ex) {
+      throw new SolrException(ErrorCode.SERVER_ERROR, "Failed to check the existance of " + uri + ". Is it valid?", ex);
+    }
+
     Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP);
-    params.put("location", location);
+    params.put(CoreAdminParams.BACKUP_LOCATION, location);
     params.put(Overseer.QUEUE_OPERATION, BACKUP.toLower());
     handleResponse(BACKUP.toLower(), new ZkNodeProps(params), rsp);
   }
@@ -279,16 +300,33 @@ public class CollectionsHandler extends RequestHandlerBase {
       throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' exists, no action taken.");
     }
 
-    String location = req.getParams().get("location");
+    String repo = req.getParams().get(CoreAdminParams.BACKUP_REPOSITORY);
+    BackupRepository repository = coreContainer.newBackupRepository(Optional.fromNullable(repo));
+
+    String location = req.getParams().get(CoreAdminParams.BACKUP_LOCATION);
     if (location == null) {
-      location = (String) coreContainer.getZkController().getZkStateReader().getClusterProps().get("location");
+      location = repository.getConfigProperty(CoreAdminParams.BACKUP_LOCATION);
     }
     if (location == null) {
-      throw new SolrException(ErrorCode.BAD_REQUEST, "'location' is not specified as a query parameter or set as a cluster property");
+      location = (String) coreContainer.getZkController().getZkStateReader().getClusterProps().get(CoreAdminParams.BACKUP_LOCATION);
+    }
+    if (location == null) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "'location' is not specified as a query parameter or"
+          + " as a default repository property or as a cluster property.");
+    }
+
+    // Check if the specified location is valid for this repository.
+    URI uri = repository.createURI(location);
+    try {
+      if (!repository.exists(uri)) {
+        throw new SolrException(ErrorCode.SERVER_ERROR, "specified location " + uri + " does not exist.");
+      }
+    } catch (IOException ex) {
+      throw new SolrException(ErrorCode.SERVER_ERROR, "Failed to check the existance of " + uri + ". Is it valid?", ex);
     }
 
     Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP);
-    params.put("location", location);
+    params.put(CoreAdminParams.BACKUP_LOCATION, location);
     // from CREATE_OP:
     req.getParams().getAll(params, COLL_CONF, REPLICATION_FACTOR, MAX_SHARDS_PER_NODE, AUTO_ADD_REPLICAS);
     copyPropertiesIfNotNull(req.getParams(), params);

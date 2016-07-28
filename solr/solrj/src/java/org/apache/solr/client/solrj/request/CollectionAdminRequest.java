@@ -194,11 +194,13 @@ public class CollectionAdminRequest extends SolrRequest
   public static class Backup extends CollectionShardAdminRequest {
     protected final String name;
     protected String location;
+    protected String repositoryName;
 
     public Backup(String collection, String name) {
       setAction(CollectionAction.BACKUP);
       setCollectionName(collection);
       this.name = name;
+      this.repositoryName = null;
     }
 
     public String getLocation() {
@@ -209,12 +211,21 @@ public class CollectionAdminRequest extends SolrRequest
       this.location = location;
     }
 
+    public String getRepositoryName() {
+      return repositoryName;
+    }
+
+    public void setRepositoryName(String repositoryName) {
+      this.repositoryName = repositoryName;
+    }
+
     @Override
     public SolrParams getParams() {
       ModifiableSolrParams params = (ModifiableSolrParams) super.getParams();
       params.set(CoreAdminParams.COLLECTION, collection);
       params.set(CoreAdminParams.NAME, name);
-      params.set("location", location); //note: optional
+      params.set(CoreAdminParams.BACKUP_LOCATION, location); //note: optional
+      params.set(CoreAdminParams.BACKUP_REPOSITORY, repositoryName);
       return params;
     }
 
@@ -228,6 +239,7 @@ public class CollectionAdminRequest extends SolrRequest
   public static class Restore extends CollectionShardAdminRequest {
     protected final String backupName;
     protected String location;
+    protected String repositoryName;
 
     // in common with collection creation:
     protected String configName;
@@ -240,6 +252,7 @@ public class CollectionAdminRequest extends SolrRequest
       setAction(CollectionAction.RESTORE);
       setCollectionName(collection);
       this.backupName = backupName;
+      this.repositoryName = null;
     }
 
     public String getLocation() {
@@ -249,6 +262,15 @@ public class CollectionAdminRequest extends SolrRequest
     public void setLocation(String location) {
       this.location = location;
     }
+
+    public String getRepositoryName() {
+      return repositoryName;
+    }
+
+    public void setRepositoryName(String repositoryName) {
+      this.repositoryName = repositoryName;
+    }
+
 
     // Collection creation params in common:
     public Restore setConfigName(String config) { this.configName = config; return this; }
@@ -275,7 +297,8 @@ public class CollectionAdminRequest extends SolrRequest
       ModifiableSolrParams params = (ModifiableSolrParams) super.getParams();
       params.set(CoreAdminParams.COLLECTION, collection);
       params.set(CoreAdminParams.NAME, backupName);
-      params.set("location", location); //note: optional
+      params.set(CoreAdminParams.BACKUP_LOCATION, location); //note: optional
+      params.set(CoreAdminParams.BACKUP_REPOSITORY, repositoryName);
       params.set("collection.configName", configName); //note: optional
       if (maxShardsPerNode != null) {
         params.set( "maxShardsPerNode", maxShardsPerNode);

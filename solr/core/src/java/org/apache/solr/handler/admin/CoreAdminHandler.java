@@ -98,6 +98,7 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
@@ -333,18 +334,12 @@ public class CoreAdminHandler extends RequestHandlerBase {
       throw new IllegalArgumentException(CoreAdminParams.NAME + " is required");
     }
 
-    SolrResourceLoader loader = coreContainer.getResourceLoader();
-    BackupRepository repository;
-    String repoName = params.get(BackupRepository.REPOSITORY_PROPERTY_NAME);
-    if(repoName != null) {
-      repository = coreContainer.getBackupRepoFactory().newInstance(loader, repoName);
-    } else { // Fetch the default.
-      repository = coreContainer.getBackupRepoFactory().newInstance(loader);
-    }
+    String repoName = params.get(CoreAdminParams.BACKUP_REPOSITORY);
+    BackupRepository repository = coreContainer.newBackupRepository(Optional.fromNullable(repoName));
 
-    String location = params.get(ZkStateReader.BACKUP_LOCATION);
+    String location = params.get(CoreAdminParams.BACKUP_LOCATION);
     if (location == null) {
-      location = repository.getConfigProperty(ZkStateReader.BACKUP_LOCATION);
+      location = repository.getConfigProperty(CoreAdminParams.BACKUP_LOCATION);
       if (location == null) {
         throw new IllegalArgumentException("location is required");
       }
@@ -384,18 +379,12 @@ public class CoreAdminHandler extends RequestHandlerBase {
       throw new IllegalArgumentException(CoreAdminParams.NAME + " is required");
     }
 
-    SolrResourceLoader loader = coreContainer.getResourceLoader();
-    BackupRepository repository;
-    String repoName = params.get(BackupRepository.REPOSITORY_PROPERTY_NAME);
-    if(repoName != null) {
-      repository = coreContainer.getBackupRepoFactory().newInstance(loader, repoName);
-    } else { // Fetch the default.
-      repository = coreContainer.getBackupRepoFactory().newInstance(loader);
-    }
+    String repoName = params.get(CoreAdminParams.BACKUP_REPOSITORY);
+    BackupRepository repository = coreContainer.newBackupRepository(Optional.fromNullable(repoName));
 
-    String location = params.get(ZkStateReader.BACKUP_LOCATION);
+    String location = params.get(CoreAdminParams.BACKUP_LOCATION);
     if (location == null) {
-      location = repository.getConfigProperty(ZkStateReader.BACKUP_LOCATION);
+      location = repository.getConfigProperty(CoreAdminParams.BACKUP_LOCATION);
       if (location == null) {
         throw new IllegalArgumentException("location is required");
       }

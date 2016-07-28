@@ -29,11 +29,6 @@ import org.apache.solr.util.plugin.NamedListInitializedPlugin;
  * This interface defines the functionality required to backup/restore Solr indexes to an arbitrary storage system.
  */
 public interface BackupRepository extends NamedListInitializedPlugin, Closeable {
-  /**
-   * A parameter to specify the name of the backup repository to be used.
-   */
-  String REPOSITORY_PROPERTY_NAME = "repository";
-
 
   /**
    * This enumeration defines the type of a given path.

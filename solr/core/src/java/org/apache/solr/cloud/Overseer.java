@@ -1262,7 +1262,7 @@ public class Overseer implements Closeable {
     ThreadGroup ccTg = new ThreadGroup("Overseer collection creation process.");
 
     OverseerNodePrioritizer overseerPrioritizer = new OverseerNodePrioritizer(reader, adminPath, shardHandler.getShardHandlerFactory());
-    overseerCollectionConfigSetProcessor = new OverseerCollectionConfigSetProcessor(reader, id, shardHandler, adminPath, stats, overseerPrioritizer);
+    overseerCollectionConfigSetProcessor = new OverseerCollectionConfigSetProcessor(reader, id, shardHandler, adminPath, stats, this, overseerPrioritizer);
     ccThread = new OverseerThread(ccTg, overseerCollectionConfigSetProcessor, "OverseerCollectionConfigSetProcessor-" + id);
     ccThread.setDaemon(true);
     
@@ -1276,8 +1276,11 @@ public class Overseer implements Closeable {
     ccThread.start();
     arfoThread.start();
   }
-  
-  
+
+  public ZkController getZkController() {
+    return zkController;
+  }
+
   /**
    * For tests.
    * 

@@ -19,6 +19,7 @@ package org.apache.solr.common.cloud;
 
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.util.ByteUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -96,7 +97,6 @@ public class ZkStateReader implements Closeable {
   public static final String LEGACY_CLOUD = "legacyCloud";
 
   public static final String URL_SCHEME = "urlScheme";
-  public static final String BACKUP_LOCATION = "location";
   
   protected volatile ClusterState clusterState;
 
@@ -110,7 +110,7 @@ public class ZkStateReader implements Closeable {
       LEGACY_CLOUD,
       URL_SCHEME,
       ZkStateReader.AUTO_ADD_REPLICAS,
-      BACKUP_LOCATION)));
+      CoreAdminParams.BACKUP_LOCATION)));
 
   
   //

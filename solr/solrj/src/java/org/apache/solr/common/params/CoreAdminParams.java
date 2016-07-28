@@ -114,6 +114,16 @@ public abstract class CoreAdminParams
   
   public static final String TRANSIENT = "transient";
 
+  /**
+   * A parameter to specify the name of the backup repository to be used.
+   */
+  public static final String BACKUP_REPOSITORY = "repository";
+
+  /**
+   * A parameter to specify the location where the backup should be stored.
+   */
+  public static final String BACKUP_LOCATION = "location";
+
   public enum CoreAdminAction {
     STATUS,  
     LOAD,

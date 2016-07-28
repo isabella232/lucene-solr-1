@@ -68,6 +68,7 @@ import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.ExecutorUtil;
@@ -99,6 +100,8 @@ import org.apache.solr.util.SafetyValveConstants;
 import org.apache.solr.util.plugin.SolrCoreAware;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
 
 /**
  * <p> A Handler which provides a REST API for replication and serves replication requests from Slaves. <p/> </p>
@@ -308,7 +311,7 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
       throw new SolrException(ErrorCode.BAD_REQUEST, "Missing mandatory param: name");
     }
 
-    SnapShooter snapShooter = new SnapShooter(core, params.get("location"), params.get("name"));
+    SnapShooter snapShooter = new SnapShooter(core, params.get(CoreAdminParams.BACKUP_LOCATION), params.get("name"));
     snapShooter.validateDeleteSnapshot();
     snapShooter.deleteSnapAsync(this);
   }
@@ -387,16 +390,15 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
           "for the same core");
     }
     String name = params.get(NAME);
-    String location = params.get(LOCATION);
+    String location = params.get(CoreAdminParams.BACKUP_LOCATION);
 
-    String repoName = params.get(BackupRepository.REPOSITORY_PROPERTY_NAME);
+    String repoName = params.get(CoreAdminParams.BACKUP_REPOSITORY);
     CoreContainer cc = core.getCoreDescriptor().getCoreContainer();
-    SolrResourceLoader rl = cc.getResourceLoader();
     BackupRepository repo = null;
     if(repoName != null) {
-      repo = cc.getBackupRepoFactory().newInstance(rl, repoName);
+      repo = cc.newBackupRepository(Optional.fromNullable(repoName));
       if (location == null) {
-        location = repo.getConfigProperty(ZkStateReader.BACKUP_LOCATION);
+        location = repo.getConfigProperty(CoreAdminParams.BACKUP_LOCATION);
         if(location == null) {
           throw new IllegalArgumentException("location is required");
         }
@@ -487,15 +489,14 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
       }
       
       SnapShooter snapShooter = null;
-      String location = params.get(ZkStateReader.BACKUP_LOCATION);
-      String repoName = params.get(BackupRepository.REPOSITORY_PROPERTY_NAME);
+      String location = params.get(CoreAdminParams.BACKUP_LOCATION);
+      String repoName = params.get(CoreAdminParams.BACKUP_REPOSITORY);
       CoreContainer cc = core.getCoreDescriptor().getCoreContainer();
-      SolrResourceLoader rl = cc.getResourceLoader();
       BackupRepository repo = null;
       if(repoName != null) {
-        repo = cc.getBackupRepoFactory().newInstance(rl, repoName);
+        repo = cc.newBackupRepository(Optional.of(repoName));
         if (location == null) {
-          location = repo.getConfigProperty(ZkStateReader.BACKUP_LOCATION);
+          location = repo.getConfigProperty(CoreAdminParams.BACKUP_LOCATION);
           if(location == null) {
             throw new IllegalArgumentException("location is required");
           }
@@ -1476,8 +1477,6 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
       }
     }
   }
-
-  private static final String LOCATION = "location";
 
   private static final String SUCCESS = "success";
 

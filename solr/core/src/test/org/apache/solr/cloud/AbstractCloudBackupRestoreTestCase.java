@@ -45,23 +45,34 @@ import org.slf4j.LoggerFactory;
 import static org.apache.solr.common.params.ShardParams._ROUTE_;
 
 @SolrTestCaseJ4.SuppressSSL
-public class TestCloudBackupRestore extends SolrCloudTestCase {
+public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  private static final int NUM_SHARDS = 2;//granted we sometimes shard split to get more
+  protected static final int NUM_SHARDS = 2;//granted we sometimes shard split to get more
 
   private static long docsSeed; // see indexDocs()
 
   @BeforeClass
   public static void createCluster() throws Exception {
-    useFactory("solr.NRTCachingDirectoryFactory");
-    configureCluster(2)// nodes
-        .addConfig("conf1", TEST_PATH().resolve("configsets").resolve("cloud-minimal").resolve("conf"))
-        .configure();
-
     docsSeed = random().nextLong();
   }
+
+  /**
+   * @return The name of the collection to use.
+   */
+  public abstract String getCollectionName();
+
+  /**
+   * @return The name of the backup repository to use.
+   */
+  public abstract String getBackupRepoName();
+
+  /**
+   * @return The absolute path for the backup location.
+   *         Could return null.
+   */
+  public abstract String getBackupLocation();
 
   @Test
   public void test() throws Exception {
@@ -149,13 +160,14 @@ public class TestCloudBackupRestore extends SolrCloudTestCase {
     Map<String, Integer> origShardToDocCount = getShardToDocCountMap(backupCollection);
     assert origShardToDocCount.isEmpty() == false;
 
-    String location = createTempDir().getAbsolutePath();
+    String location = getBackupLocation();
 
     log.info("Triggering Backup command");
 
     {
       CollectionAdminRequest.Backup backup = CollectionAdminRequest.backupCollection(collectionName, backupName);
       backup.setLocation(location);
+      backup.setRepositoryName(getBackupRepoName());
       assertEquals(0, backup.process(client).getStatus());
     }
 
@@ -167,6 +179,7 @@ public class TestCloudBackupRestore extends SolrCloudTestCase {
     {
       CollectionAdminRequest.Restore restore = CollectionAdminRequest.restoreCollection(restoreCollectionName, backupName);
       restore.setLocation(location);
+      restore.setRepositoryName(getBackupRepoName());
       if (origShardToDocCount.size() > cluster.getJettySolrRunners().size()) {
         // may need to increase maxShardsPerNode (e.g. if it was shard split, then now we need more)
         restore.setMaxShardsPerNode(origShardToDocCount.size());
