@@ -21,27 +21,17 @@ import static org.apache.solr.cloud.Assign.getNodesForNewShard;
 import static org.apache.solr.common.cloud.ZkStateReader.COLLECTION_PROP;
 import static org.apache.solr.common.cloud.ZkStateReader.REPLICA_PROP;
 import static org.apache.solr.common.cloud.ZkStateReader.SHARD_ID_PROP;
-import static org.apache.solr.common.cloud.ZkStateReader.CORE_NAME_PROP;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.ADDREPLICA;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.ADDROLE;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.CLUSTERSTATUS;
-import static org.apache.solr.common.params.CollectionParams.CollectionAction.DELETE;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.OVERSEERSTATUS;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.REMOVEROLE;
-import static org.apache.solr.common.params.CollectionParams.CollectionAction.CREATE;
-import static org.apache.solr.common.params.CollectionParams.CollectionAction.CREATESHARD;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.BACKUP;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.RESTORE;
 import static org.apache.solr.common.params.CommonParams.NAME;
 
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -82,6 +72,7 @@ import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkCoreNodeProps;
 import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
+import org.apache.solr.common.params.CollectionAdminParams;
 import org.apache.solr.common.params.CollectionParams;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CoreAdminParams.CoreAdminAction;
@@ -94,6 +85,9 @@ import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.common.util.Utils;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.backup.BackupManager;
+import org.apache.solr.core.backup.CopyFilesStrategy;
+import org.apache.solr.core.backup.IndexBackupStrategy;
+import org.apache.solr.core.backup.NoIndexBackupStrategy;
 import org.apache.solr.core.backup.repository.BackupRepository;
 import org.apache.solr.handler.component.ShardHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
@@ -2054,18 +2048,35 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     completeAsyncRequest(asyncId, requestMap, results);
   }
 
+  private IndexBackupStrategy newIndexBackupStrategy(ZkNodeProps request) {
+    String strategy = request.getStr(CollectionAdminParams.INDEX_BACKUP_STRATEGY, CollectionAdminParams.COPY_FILES_STRATEGY);
+    switch (strategy) {
+      case CollectionAdminParams.COPY_FILES_STRATEGY: {
+        String repo = request.getStr(CoreAdminParams.BACKUP_REPOSITORY);
+        String asyncId = request.getStr(ASYNC);
+        ShardHandler shardHandler = shardHandlerFactory.getShardHandler();
+        ShardRequestProcessor processor = new ShardRequestProcessor(shardHandler, adminPath, zkStateReader, asyncId);
+        return new CopyFilesStrategy(processor, repo);
+      }
+      case CollectionAdminParams.NO_INDEX_BACKUP_STRATEGY: {
+        return new NoIndexBackupStrategy();
+      }
+      default: {
+        throw new IllegalStateException("Unknown index backup strategy "+strategy);
+      }
+    }
+  }
+
   private void processBackupAction(ZkNodeProps message, NamedList results) throws IOException, KeeperException, InterruptedException {
     String collectionName =  message.getStr(COLLECTION_PROP);
     String backupName =  message.getStr(NAME);
     String location = message.getStr(CoreAdminParams.BACKUP_LOCATION);
     String repo = message.getStr(CoreAdminParams.BACKUP_REPOSITORY);
-    ShardHandler shardHandler = shardHandlerFactory.getShardHandler();
-    String asyncId = message.getStr(ASYNC);
-    Map<String, String> requestMap = new HashMap<>();
 
     CoreContainer cc = this.overseer.getZkController().getCoreContainer();
     BackupRepository repository = cc.newBackupRepository(Optional.fromNullable(repo));
     BackupManager backupMgr = new BackupManager(repository, zkStateReader, collectionName);
+    IndexBackupStrategy strategy = newIndexBackupStrategy(message);
 
     // Backup location
     URI backupPath = repository.createURI(location, backupName);
@@ -2078,27 +2089,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     // Create a directory to store backup details.
     repository.createDirectory(backupPath);
 
-    log.info("Starting backup of collection={} with backupName={} at location={}", collectionName, backupName,
-        backupPath);
-
-    for (Slice slice : zkStateReader.getClusterState().getCollection(collectionName).getActiveSlices()) {
-      Replica replica = slice.getLeader();
-
-      String coreName = replica.getStr(CORE_NAME_PROP);
-
-      ModifiableSolrParams params = new ModifiableSolrParams();
-      params.set(CoreAdminParams.ACTION, CoreAdminAction.BACKUPCORE.toString());
-      params.set(NAME, slice.getName());
-      params.set(CoreAdminParams.BACKUP_LOCATION, backupPath.getPath()); // note: index dir will be here then the "snapshot." + slice name
-      params.set(CoreAdminParams.BACKUP_REPOSITORY, repo);
-      params.set(CORE_NAME_PROP, coreName);
-
-      sendShardRequest(replica.getNodeName(), params, shardHandler, asyncId, requestMap);
-      log.debug("Sent backup request to core={} for backupName={}", coreName, backupName);
-    }
-    log.debug("Sent backup requests to all shard leaders for backupName={}", backupName);
-
-    processResponses(results, shardHandler, true, "Could not backup all replicas", asyncId, requestMap);
+    strategy.createBackup(backupPath, collectionName, backupName);
 
     log.info("Starting to backup ZK data for backupName={}", backupName);
 

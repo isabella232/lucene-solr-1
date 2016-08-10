@@ -75,6 +75,7 @@ import org.apache.solr.common.cloud.ImplicitDocRouter;
 import org.apache.solr.common.cloud.ZkCoreNodeProps;
 import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
+import org.apache.solr.common.params.CollectionAdminParams;
 import org.apache.solr.common.params.CollectionParams.CollectionAction;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -284,7 +285,7 @@ public class CollectionsHandler extends RequestHandlerBase {
       throw new SolrException(ErrorCode.SERVER_ERROR, "Failed to check the existance of " + uri + ". Is it valid?", ex);
     }
 
-    Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP);
+    Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP, CollectionAdminParams.INDEX_BACKUP_STRATEGY);
     params.put(CoreAdminParams.BACKUP_LOCATION, location);
     params.put(Overseer.QUEUE_OPERATION, BACKUP.toLower());
     handleResponse(BACKUP.toLower(), new ZkNodeProps(params), rsp);

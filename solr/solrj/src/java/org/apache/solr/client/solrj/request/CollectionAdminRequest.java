@@ -30,6 +30,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.CollectionAdminResponse;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.cloud.ZkStateReader;
+import org.apache.solr.common.params.CollectionAdminParams;
 import org.apache.solr.common.params.CollectionParams.CollectionAction;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
@@ -195,12 +196,14 @@ public class CollectionAdminRequest extends SolrRequest
     protected final String name;
     protected String location;
     protected String repositoryName;
+    protected String indexBackupStrategy;
 
     public Backup(String collection, String name) {
       setAction(CollectionAction.BACKUP);
       setCollectionName(collection);
       this.name = name;
       this.repositoryName = null;
+      this.indexBackupStrategy = null;
     }
 
     public String getLocation() {
@@ -219,6 +222,14 @@ public class CollectionAdminRequest extends SolrRequest
       this.repositoryName = repositoryName;
     }
 
+    public String getIndexBackupStrategy() {
+      return indexBackupStrategy;
+    }
+
+    public void setIndexBackupStrategy(String indexBackupStrategy) {
+      this.indexBackupStrategy = indexBackupStrategy;
+    }
+
     @Override
     public SolrParams getParams() {
       ModifiableSolrParams params = (ModifiableSolrParams) super.getParams();
@@ -226,6 +237,7 @@ public class CollectionAdminRequest extends SolrRequest
       params.set(CoreAdminParams.NAME, name);
       params.set(CoreAdminParams.BACKUP_LOCATION, location); //note: optional
       params.set(CoreAdminParams.BACKUP_REPOSITORY, repositoryName);
+      params.set(CollectionAdminParams.INDEX_BACKUP_STRATEGY, indexBackupStrategy);
       return params;
     }
 
