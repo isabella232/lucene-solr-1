@@ -188,6 +188,7 @@ public class SnapShooter {
         SolrSnapshotMetaDataManager snapshotMgr = solrCore.getSnapshotMetaDataManager();
         Optional<IndexCommit> commit = snapshotMgr.getIndexCommitByName(commitName);
         if(commit.isPresent()) {
+          LOG.info("The index commit corresponding to snapshot named {} is {}", commitName, commit.get());
           return createSnapshot(commit.get());
         }
         throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to find an index commit with name " + commitName +

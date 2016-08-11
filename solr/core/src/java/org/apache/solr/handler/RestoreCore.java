@@ -82,7 +82,7 @@ public class RestoreCore implements Callable<Boolean> {
       //Move all files from backupDir to restoreIndexDir
       for (String filename : backupRepo.listAll(backupPath)) {
         checkInterrupted();
-        log.info("Copying file {} to restore directory " + filename);
+        log.info("Copying file {} to restore directory ", filename);
         try (IndexInput indexInput = backupRepo.openInput(backupPath, filename, IOContext.READONCE)) {
           Long checksum = null;
           try {

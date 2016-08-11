@@ -25,7 +25,9 @@ import java.util.Map;
 import org.apache.http.HttpEntity;
 import org.apache.http.util.EntityUtils;
 import org.noggit.CharArr;
+import org.noggit.JSONParser;
 import org.noggit.JSONWriter;
+import org.noggit.ObjectBuilder;
 
 public class Utils {
 
@@ -40,6 +42,20 @@ public class Utils {
     byte[] arr = new byte[out.size() * 3];
     int nBytes = ByteUtils.UTF16toUTF8(out, 0, out.size(), arr, 0);
     return Arrays.copyOf(arr, nBytes);
+  }
+
+  public static Object fromJSON(byte[] utf8) {
+    // convert directly from bytes to chars
+    // and parse directly from that instead of going through
+    // intermediate strings or readers
+    CharArr chars = new CharArr();
+    ByteUtils.UTF8toUTF16(utf8, 0, utf8.length, chars);
+    JSONParser parser = new JSONParser(chars.getArray(), chars.getStart(), chars.length());
+    try {
+      return ObjectBuilder.getVal(parser);
+    } catch (IOException e) {
+      throw new RuntimeException(e); // should never happen w/o using real IO
+    }
   }
 
   public static Map<String, Object> makeMap(Object... keyVals) {

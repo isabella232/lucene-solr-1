@@ -23,7 +23,6 @@ import static org.apache.solr.common.params.CommonParams.NAME;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -74,7 +73,6 @@ import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.core.DirectoryFactory;
 import org.apache.solr.core.DirectoryFactory.DirContext;
 import org.apache.solr.core.SolrCore;
-import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.core.SolrXMLCoresLocator;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.core.backup.repository.BackupRepository;
@@ -356,10 +354,11 @@ public class CoreAdminHandler extends RequestHandlerBase {
       SolrSnapshotMetaDataManager mgr = core.getSnapshotMetaDataManager();
       mgr.snapshot(commitName, indexDirPath, ic.getGeneration());
 
-      rsp.add("core", core.getName());
-      rsp.add("commitName", commitName);
-      rsp.add("indexDirPath", indexDirPath);
-      rsp.add("generation", ic.getGeneration());
+      rsp.add(CoreAdminParams.CORE, core.getName());
+      rsp.add(CoreAdminParams.COMMIT_NAME, commitName);
+      rsp.add(SolrSnapshotManager.INDEX_DIR_PATH, indexDirPath);
+      rsp.add(SolrSnapshotManager.GENERATION_NUM, ic.getGeneration());
+      rsp.add(SolrSnapshotManager.FILE_LIST, ic.getFileNames());
     }
   }
 
@@ -374,6 +373,10 @@ public class CoreAdminHandler extends RequestHandlerBase {
       }
 
       core.deleteNamedSnapshot(commitName);
+      // Ideally we shouldn't need this. This is added since the RPC logic in OverseerCollectionMessageHandler
+      // can not provide the coreName as part of the result.
+      rsp.add(CoreAdminParams.CORE, core.getName());
+      rsp.add(CoreAdminParams.COMMIT_NAME, commitName);
     }
   }
 
@@ -392,12 +395,12 @@ public class CoreAdminHandler extends RequestHandlerBase {
         Optional<SnapshotMetaData> metadata = mgr.getSnapshotMetaData(name);
         if ( metadata.isPresent() ) {
           NamedList<String> props = new NamedList<>();
-          props.add("generation", String.valueOf(metadata.get().getGenerationNumber()));
-          props.add("indexDirPath", metadata.get().getIndexDirPath());
+          props.add(SolrSnapshotManager.GENERATION_NUM, String.valueOf(metadata.get().getGenerationNumber()));
+          props.add(SolrSnapshotManager.INDEX_DIR_PATH, metadata.get().getIndexDirPath());
           result.add(name, props);
         }
       }
-      rsp.add("snapshots", result);
+      rsp.add(SolrSnapshotManager.SNAPSHOTS_INFO, result);
     }
   }
 

@@ -21,6 +21,7 @@ import static org.apache.solr.cloud.Assign.getNodesForNewShard;
 import static org.apache.solr.common.cloud.ZkStateReader.COLLECTION_PROP;
 import static org.apache.solr.common.cloud.ZkStateReader.REPLICA_PROP;
 import static org.apache.solr.common.cloud.ZkStateReader.SHARD_ID_PROP;
+import static org.apache.solr.common.cloud.ZkStateReader.CORE_NAME_PROP;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.ADDREPLICA;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.ADDROLE;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.CLUSTERSTATUS;
@@ -28,6 +29,8 @@ import static org.apache.solr.common.params.CollectionParams.CollectionAction.OV
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.REMOVEROLE;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.BACKUP;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.RESTORE;
+import static org.apache.solr.common.params.CollectionParams.CollectionAction.CREATESNAPSHOT;
+import static org.apache.solr.common.params.CollectionParams.CollectionAction.DELETESNAPSHOT;
 import static org.apache.solr.common.params.CommonParams.NAME;
 
 import java.io.IOException;
@@ -47,6 +50,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.lucene.util.Version;
 import org.apache.solr.client.solrj.SolrResponse;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
@@ -89,6 +93,10 @@ import org.apache.solr.core.backup.CopyFilesStrategy;
 import org.apache.solr.core.backup.IndexBackupStrategy;
 import org.apache.solr.core.backup.NoIndexBackupStrategy;
 import org.apache.solr.core.backup.repository.BackupRepository;
+import org.apache.solr.core.snapshots.CollectionSnapshotMetaData;
+import org.apache.solr.core.snapshots.CollectionSnapshotMetaData.CoreSnapshotMetaData;
+import org.apache.solr.core.snapshots.CollectionSnapshotMetaData.SnapshotStatus;
+import org.apache.solr.core.snapshots.SolrSnapshotManager;
 import org.apache.solr.handler.component.ShardHandler;
 import org.apache.solr.handler.component.ShardHandlerFactory;
 import org.apache.solr.handler.component.ShardRequest;
@@ -230,9 +238,13 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
         getClusterStatus(zkStateReader.getClusterState(), message, results);
       } else if (BACKUP.isEqual(operation)) {
         processBackupAction(message, results);
-      }  else if (RESTORE.isEqual(operation)) {
+      } else if (RESTORE.isEqual(operation)) {
         processRestoreAction(message, results);
-      }else {
+      } else if (CREATESNAPSHOT.isEqual(operation)) {
+        processCreateSnapshotAction(message, results);
+      } else if (DELETESNAPSHOT.isEqual(operation)) {
+        processDeleteSnapshotAction(message, results);
+      } else {
         throw new SolrException(ErrorCode.BAD_REQUEST, "Unknown operation:"
             + operation);
       }
@@ -2048,15 +2060,239 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     completeAsyncRequest(asyncId, requestMap, results);
   }
 
-  private IndexBackupStrategy newIndexBackupStrategy(ZkNodeProps request) {
+  private void processCreateSnapshotAction(ZkNodeProps message, NamedList result) throws IOException, KeeperException, InterruptedException {
+    String collectionName =  message.getStr(COLLECTION_PROP);
+    String commitName =  message.getStr(CoreAdminParams.COMMIT_NAME);
+    String asyncId = message.getStr(ASYNC);
+    SolrZkClient zkClient = this.overseer.getZkController().getZkClient();
+
+    if(SolrSnapshotManager.snapshotExists(zkClient, collectionName, commitName)) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Snapshot with name " + commitName
+          + " already exists for collection " + collectionName);
+    }
+
+    log.info("Creating a snapshot for collection={} with commitName={}", collectionName, commitName);
+
+    // Create a node in ZK to store the collection level snapshot meta-data.
+    SolrSnapshotManager.createCollectionLevelSnapshot(zkClient, collectionName, new CollectionSnapshotMetaData(commitName));
+    log.info("Created a ZK path to store snapshot information for collection={} with commitName={}", collectionName, commitName);
+
+    Map<String, String> requestMap = new HashMap<>();
+    NamedList shardRequestResults = new NamedList();
+    Map<String, Slice> shardByCoreName = new HashMap<>();
+    ShardHandler shardHandler = shardHandlerFactory.getShardHandler();
+
+    for (Slice slice : zkStateReader.getClusterState().getCollection(collectionName).getSlices()) {
+      for (Replica replica : slice.getReplicas()) {
+        if (replica.getState().equals(ZkStateReader.DOWN)) {
+          log.info("Replica {} is down. Hence not sending the createsnapshot request", replica.getCoreName());
+          continue; // Since replica is down - no point sending a request.
+        }
+
+        String coreName = replica.getStr(CORE_NAME_PROP);
+
+        ModifiableSolrParams params = new ModifiableSolrParams();
+        params.set(CoreAdminParams.ACTION, CoreAdminAction.CREATESNAPSHOT.toString());
+        params.set(NAME, slice.getName());
+        params.set(CORE_NAME_PROP, coreName);
+        params.set(CoreAdminParams.COMMIT_NAME, commitName);
+
+        sendShardRequest(replica.getNodeName(), params, shardHandler, asyncId, requestMap);
+        log.debug("Sent createsnapshot request to core={} with commitName={}", coreName, commitName);
+
+        shardByCoreName.put(coreName, slice);
+      }
+    }
+
+    // At this point we want to make sure that at-least one replica for every shard
+    // is able to create the snapshot. If that is not the case, then we fail the request.
+    // This is to take care of the situation where e.g. entire shard is unavailable.
+    Set<String> failedShards = new HashSet<>();
+
+    processResponses(shardRequestResults, shardHandler, false, null, asyncId, requestMap);
+    NamedList success = (NamedList) shardRequestResults.get("success");
+    List<CoreSnapshotMetaData> replicas = new ArrayList<>();
+    if (success != null) {
+      for ( int i = 0 ; i < success.size() ; i++) {
+        NamedList resp = (NamedList)success.getVal(i);
+
+        // Check if this core is the leader for the shard. The idea here is that during the backup
+        // operation we preferably use the snapshot of the "leader" replica since it is most likely
+        // to have latest state.
+        String coreName = (String)resp.get(CoreAdminParams.CORE);
+        Slice slice = shardByCoreName.remove(coreName);
+        boolean leader = (slice.getLeader() != null && slice.getLeader().getCoreName().equals(coreName));
+        resp.add(SolrSnapshotManager.SHARD_ID, slice.getName());
+        resp.add(SolrSnapshotManager.LEADER, leader);
+
+        CoreSnapshotMetaData c = new CoreSnapshotMetaData(resp);
+        replicas.add(c);
+        log.info("Snapshot with commitName {} is created successfully for core {}", commitName, c.getCoreName());
+      }
+    }
+
+    if (!shardByCoreName.isEmpty()) { // One or more failures.
+      log.warn("Unable to create a snapshot with name {} for following cores {}", commitName, shardByCoreName.keySet());
+
+      // Count number of failures per shard.
+      Map<String, Integer> failuresByShardId = new HashMap<>();
+      for (Map.Entry<String,Slice> entry : shardByCoreName.entrySet()) {
+        int f = 0;
+        if (failuresByShardId.get(entry.getValue().getName()) != null) {
+          f = failuresByShardId.get(entry.getValue().getName());
+        }
+        failuresByShardId.put(entry.getValue().getName(), f + 1);
+      }
+
+      // Now that we know number of failures per shard, we can figure out
+      // if at-least one replica per shard was able to create a snapshot or not.
+      DocCollection collectionStatus = zkStateReader.getClusterState().getCollection(collectionName);
+      for (Map.Entry<String,Integer> entry : failuresByShardId.entrySet()) {
+        int replicaCount = collectionStatus.getSlice(entry.getKey()).getReplicas().size();
+        if (replicaCount <= entry.getValue()) {
+          failedShards.add(entry.getKey());
+        }
+      }
+    }
+
+    if (failedShards.isEmpty()) { // No failures.
+      CollectionSnapshotMetaData meta = new CollectionSnapshotMetaData(commitName, SnapshotStatus.Successful, replicas);
+      SolrSnapshotManager.updateCollectionLevelSnapshot(zkClient, collectionName, meta);
+      log.info("Saved following snapshot information for collection={} with commitName={} in Zookeeper : {}", collectionName,
+          commitName, meta.toNamedList());
+    } else {
+      log.warn("Failed to create a snapshot for collection {} with commitName = {}. Snapshot could not be captured for following shards {}",
+          collectionName, commitName, failedShards);
+      // Update the ZK meta-data to include only cores with the snapshot. This will enable users to figure out
+      // which cores have the named snapshot.
+      CollectionSnapshotMetaData meta = new CollectionSnapshotMetaData(commitName, SnapshotStatus.Failed, replicas);
+      SolrSnapshotManager.updateCollectionLevelSnapshot(zkClient, collectionName, meta);
+      log.info("Saved following snapshot information for collection={} with commitName={} in Zookeeper : {}", collectionName,
+          commitName, meta.toNamedList());
+      throw new SolrException(ErrorCode.SERVER_ERROR, "Failed to create snapshot on shards " + failedShards);
+    }
+  }
+
+  private void processDeleteSnapshotAction(ZkNodeProps message, NamedList results) throws IOException, KeeperException, InterruptedException {
+    String collectionName =  message.getStr(COLLECTION_PROP);
+    String commitName =  message.getStr(CoreAdminParams.COMMIT_NAME);
+    String asyncId = message.getStr(ASYNC);
+    Map<String, String> requestMap = new HashMap<>();
+    NamedList shardRequestResults = new NamedList();
+    ShardHandler shardHandler = shardHandlerFactory.getShardHandler();
+    SolrZkClient zkClient = this.overseer.getZkController().getZkClient();
+
+    Optional<CollectionSnapshotMetaData> meta = SolrSnapshotManager.getCollectionLevelSnapshot(zkClient, collectionName, commitName);
+    if (!meta.isPresent()) { // Snapshot not found. Nothing to do.
+      return;
+    }
+
+    log.info("Deleting a snapshot for collection={} with commitName={}", collectionName, commitName);
+
+    Set<String> existingCores = new HashSet<>();
+    for (Slice s : zkStateReader.getClusterState().getCollection(collectionName).getSlices()) {
+      for (Replica r : s.getReplicas()) {
+        existingCores.add(r.getCoreName());
+      }
+    }
+
+    Set<String> coresWithSnapshot = new HashSet<>();
+    for (CoreSnapshotMetaData m : meta.get().getReplicaSnapshots()) {
+      if (existingCores.contains(m.getCoreName())) {
+        coresWithSnapshot.add(m.getCoreName());
+      }
+    }
+
+    log.info("Existing cores with snapshot for collection={} are {}", collectionName, existingCores);
+    for (Slice slice : zkStateReader.getClusterState().getCollection(collectionName).getSlices()) {
+      for (Replica replica : slice.getReplicas()) {
+        if (replica.getState().equals(ZkStateReader.DOWN)) {
+          continue; // Since replica is down - no point sending a request.
+        }
+
+        // Note - when a snapshot is found in_progress state - it is the result of overseer
+        // failure while handling the snapshot creation. Since we don't know the exact set of
+        // replicas to contact at this point, we try on all replicas.
+        if (meta.get().getStatus() == SnapshotStatus.InProgress || coresWithSnapshot.contains(replica.getCoreName())) {
+          String coreName = replica.getStr(CORE_NAME_PROP);
+
+          ModifiableSolrParams params = new ModifiableSolrParams();
+          params.set(CoreAdminParams.ACTION, CoreAdminAction.DELETESNAPSHOT.toString());
+          params.set(NAME, slice.getName());
+          params.set(CORE_NAME_PROP, coreName);
+          params.set(CoreAdminParams.COMMIT_NAME, commitName);
+
+          log.info("Sending deletesnapshot request to core={} with commitName={}", coreName, commitName);
+          sendShardRequest(replica.getNodeName(), params, shardHandler, asyncId, requestMap);
+        }
+      }
+    }
+
+    processResponses(shardRequestResults, shardHandler, false, null, asyncId, requestMap);
+    NamedList success = (NamedList) shardRequestResults.get("success");
+    List<CoreSnapshotMetaData> replicas = new ArrayList<>();
+    if (success != null) {
+      for ( int i = 0 ; i < success.size() ; i++) {
+        NamedList resp = (NamedList)success.getVal(i);
+        // Unfortunately async processing logic doesn't provide the "core" name automatically.
+        String coreName = (String)resp.get("core");
+        coresWithSnapshot.remove(coreName);
+      }
+    }
+
+    if (!coresWithSnapshot.isEmpty()) { // One or more failures.
+      log.warn("Failed to delete a snapshot for collection {} with commitName = {}. Snapshot could not be deleted for following cores {}",
+          collectionName, commitName, coresWithSnapshot);
+
+      List<CoreSnapshotMetaData> replicasWithSnapshot = new ArrayList<>();
+      for (CoreSnapshotMetaData m : meta.get().getReplicaSnapshots()) {
+        if (coresWithSnapshot.contains(m.getCoreName())) {
+          replicasWithSnapshot.add(m);
+        }
+      }
+
+      // Update the ZK meta-data to include only cores with the snapshot. This will enable users to figure out
+      // which cores still contain the named snapshot.
+      CollectionSnapshotMetaData newResult = new CollectionSnapshotMetaData(meta.get().getName(), SnapshotStatus.Failed, replicasWithSnapshot);
+      SolrSnapshotManager.updateCollectionLevelSnapshot(zkClient, collectionName, newResult);
+      log.info("Saved snapshot information for collection={} with commitName={} in Zookeeper as follows", collectionName, commitName,
+          Utils.toJSON(newResult));
+      throw new SolrException(ErrorCode.SERVER_ERROR, "Failed to delete snapshot on cores " + coresWithSnapshot);
+
+    } else {
+      // Delete the ZK path so that we eliminate the references of this snapshot from collection level meta-data.
+      SolrSnapshotManager.deleteCollectionLevelSnapshot(zkClient, collectionName, commitName);
+      log.info("Deleted Zookeeper snapshot metdata for collection={} with commitName={}", collectionName, commitName);
+      log.info("Successfully deleted snapshot for collection={} with commitName={}", collectionName, commitName);
+    }
+  }
+
+  private IndexBackupStrategy newIndexBackupStrategy(ZkNodeProps request) throws InterruptedException, KeeperException {
     String strategy = request.getStr(CollectionAdminParams.INDEX_BACKUP_STRATEGY, CollectionAdminParams.COPY_FILES_STRATEGY);
     switch (strategy) {
       case CollectionAdminParams.COPY_FILES_STRATEGY: {
+        String collectionName =  request.getStr(COLLECTION_PROP);
         String repo = request.getStr(CoreAdminParams.BACKUP_REPOSITORY);
         String asyncId = request.getStr(ASYNC);
         ShardHandler shardHandler = shardHandlerFactory.getShardHandler();
         ShardRequestProcessor processor = new ShardRequestProcessor(shardHandler, adminPath, zkStateReader, asyncId);
-        return new CopyFilesStrategy(processor, repo);
+
+        String commitName = request.getStr(CoreAdminParams.COMMIT_NAME);
+        Optional<CollectionSnapshotMetaData> snapshotMeta = Optional.absent();
+        if (commitName != null) {
+          SolrZkClient zkClient = this.overseer.getZkController().getZkClient();
+          snapshotMeta = SolrSnapshotManager.getCollectionLevelSnapshot(zkClient, collectionName, commitName);
+          if (!snapshotMeta.isPresent()) {
+            throw new SolrException(ErrorCode.BAD_REQUEST, "Snapshot with name " + commitName
+                + " does not exist for collection " + collectionName);
+          }
+          if (snapshotMeta.get().getStatus() != SnapshotStatus.Successful) {
+            throw new SolrException(ErrorCode.BAD_REQUEST, "Snapshot with name " + commitName + " for collection " + collectionName
+                + " has not completed successfully. The status is " + snapshotMeta.get().getStatus());
+          }
+        }
+
+        return new CopyFilesStrategy(processor, repo, snapshotMeta);
       }
       case CollectionAdminParams.NO_INDEX_BACKUP_STRATEGY: {
         return new NoIndexBackupStrategy();
@@ -2066,6 +2302,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       }
     }
   }
+
 
   private void processBackupAction(ZkNodeProps message, NamedList results) throws IOException, KeeperException, InterruptedException {
     String collectionName =  message.getStr(COLLECTION_PROP);
@@ -2108,6 +2345,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     properties.put(BackupManager.COLLECTION_NAME_PROP, collectionName);
     properties.put(COLL_CONF, configName);
     properties.put(BackupManager.START_TIME_PROP, (new Date()).toString());
+    properties.put(BackupManager.INDEX_VERSION_PROP, Version.LATEST.toString());
     //TODO: Add MD5 of the configset. If during restore the same name configset exists then we can compare checksums to see if they are the same.
     //if they are not the same then we can throw an error or have an 'overwriteConfig' flag
     //TODO save numDocs for the shardLeader. We can use it to sanity check the restore.

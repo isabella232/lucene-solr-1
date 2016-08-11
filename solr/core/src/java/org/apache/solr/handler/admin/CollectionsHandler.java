@@ -26,19 +26,18 @@ import static org.apache.solr.cloud.OverseerCollectionMessageHandler.DELETEREPLI
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.NUM_SLICES;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.REQUESTID;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.SHARDS_PROP;
-import static org.apache.solr.cloud.OverseerCollectionMessageHandler.COLL_PROP_PREFIX;
-
 import static org.apache.solr.common.cloud.DocCollection.DOC_ROUTER;
 import static org.apache.solr.common.cloud.DocCollection.DOC_ROUTER_OLD;
 import static org.apache.solr.common.cloud.ZkNodeProps.makeMap;
 import static org.apache.solr.common.cloud.ZkStateReader.COLLECTION_PROP;
 import static org.apache.solr.common.cloud.ZkStateReader.SHARD_ID_PROP;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.ADDROLE;
-import static org.apache.solr.common.params.CollectionParams.CollectionAction.CLUSTERPROP;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.OVERSEERSTATUS;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.REMOVEROLE;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.BACKUP;
 import static org.apache.solr.common.params.CollectionParams.CollectionAction.RESTORE;
+import static org.apache.solr.common.params.CollectionParams.CollectionAction.CREATESNAPSHOT;
+import static org.apache.solr.common.params.CollectionParams.CollectionAction.DELETESNAPSHOT;
 import static org.apache.solr.common.cloud.ZkStateReader.MAX_SHARDS_PER_NODE;
 import static org.apache.solr.common.cloud.ZkStateReader.AUTO_ADD_REPLICAS;
 import static org.apache.solr.common.cloud.ZkStateReader.REPLICATION_FACTOR;
@@ -48,6 +47,7 @@ import static org.apache.solr.common.params.CommonParams.VALUE_LONG;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -72,6 +72,7 @@ import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.ImplicitDocRouter;
+import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkCoreNodeProps;
 import org.apache.solr.common.cloud.ZkNodeProps;
 import org.apache.solr.common.cloud.ZkStateReader;
@@ -85,6 +86,8 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.backup.repository.BackupRepository;
+import org.apache.solr.core.snapshots.CollectionSnapshotMetaData;
+import org.apache.solr.core.snapshots.SolrSnapshotManager;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
@@ -297,7 +300,8 @@ public class CollectionsHandler extends RequestHandlerBase {
       throw new SolrException(ErrorCode.SERVER_ERROR, "Failed to check the existance of " + uri + ". Is it valid?", ex);
     }
 
-    Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP, CollectionAdminParams.INDEX_BACKUP_STRATEGY);
+    Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP,
+        CollectionAdminParams.INDEX_BACKUP_STRATEGY, CoreAdminParams.COMMIT_NAME);
     params.put(CoreAdminParams.BACKUP_LOCATION, location);
     params.put(Overseer.QUEUE_OPERATION, BACKUP.toLower());
     handleResponse(BACKUP.toLower(), new ZkNodeProps(params), rsp);
@@ -348,15 +352,50 @@ public class CollectionsHandler extends RequestHandlerBase {
   }
 
   private void handleCreateSnapshot(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
-    //TODO - Add logic
+    req.getParams().required().check(COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+
+    String collectionName = req.getParams().get(COLLECTION_PROP);
+    ClusterState clusterState = coreContainer.getZkController().getClusterState();
+    if (!clusterState.hasCollection(collectionName)) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' does not exist, no action taken.");
+    }
+
+    Map<String, Object> params = req.getParams().getAll(null, COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+    params.put(Overseer.QUEUE_OPERATION, CREATESNAPSHOT.toLower());
+    handleResponse(CREATESNAPSHOT.toLower(), new ZkNodeProps(params), rsp);
   }
 
   private void handleDeleteSnapshot(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
-    //TODO - Add logic
+    req.getParams().required().check(COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+
+    String collectionName = req.getParams().get(COLLECTION_PROP);
+    ClusterState clusterState = coreContainer.getZkController().getClusterState();
+    if (!clusterState.hasCollection(collectionName)) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' does not exist, no action taken.");
+    }
+
+    Map<String, Object> params = req.getParams().getAll(null, COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+    params.put(Overseer.QUEUE_OPERATION, DELETESNAPSHOT.toLower());
+    handleResponse(DELETESNAPSHOT.toLower(), new ZkNodeProps(params), rsp);
   }
 
   private void handleListSnapshots(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
-    //TODO - Add logic
+    req.getParams().required().check(COLLECTION_PROP);
+
+    String collectionName = req.getParams().get(COLLECTION_PROP);
+    ClusterState clusterState = coreContainer.getZkController().getClusterState();
+    if (!clusterState.hasCollection(collectionName)) {
+      throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' does not exist, no action taken.");
+    }
+
+    NamedList<Object> snapshots = new NamedList<Object>();
+    SolrZkClient client = coreContainer.getZkController().getZkClient();
+    Collection<CollectionSnapshotMetaData> m = SolrSnapshotManager.listSnapshots(client, collectionName);
+    for (CollectionSnapshotMetaData meta : m) {
+      snapshots.add(meta.getName(), meta.toNamedList());
+    }
+
+    rsp.add(SolrSnapshotManager.SNAPSHOTS_INFO, snapshots);
   }
 
   private void handleOverseerStatus(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {

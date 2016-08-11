@@ -202,8 +202,8 @@ public class CollectionAdminRequest extends SolrRequest
 
     public CreateSnapshot(String collection, String commitName) {
       setAction(CollectionAction.CREATESNAPSHOT);
-      setCollectionName(checkNotNull(CoreAdminParams.COLLECTION,collection));
-      this.commitName = checkNotNull("commitName", commitName);
+      setCollectionName(checkNotNull(CoreAdminParams.COLLECTION ,collection));
+      this.commitName = checkNotNull(CoreAdminParams.COMMIT_NAME, commitName);
     }
 
     public String getCommitName() {
@@ -213,7 +213,7 @@ public class CollectionAdminRequest extends SolrRequest
     @Override
     public SolrParams getParams() {
       ModifiableSolrParams params = (ModifiableSolrParams) super.getParams();
-      params.set("commitName", commitName);
+      params.set(CoreAdminParams.COMMIT_NAME, commitName);
       return params;
     }
   }
@@ -224,7 +224,7 @@ public class CollectionAdminRequest extends SolrRequest
     public DeleteSnapshot(String collection, String commitName) {
       setAction(CollectionAction.DELETESNAPSHOT);
       setCollectionName(checkNotNull(CoreAdminParams.COLLECTION ,collection));
-      this.commitName = checkNotNull("commitName", commitName);
+      this.commitName = checkNotNull(CoreAdminParams.COMMIT_NAME, commitName);
     }
 
     public String getCommitName() {
@@ -234,7 +234,7 @@ public class CollectionAdminRequest extends SolrRequest
     @Override
     public SolrParams getParams() {
       ModifiableSolrParams params = (ModifiableSolrParams) super.getParams();
-      params.set("commitName", commitName);
+      params.set(CoreAdminParams.COMMIT_NAME, commitName);
       return params;
     }
   }
@@ -258,6 +258,7 @@ public class CollectionAdminRequest extends SolrRequest
     protected String location;
     protected String repositoryName;
     protected String indexBackupStrategy;
+    protected String commitName;
 
     public Backup(String collection, String name) {
       setAction(CollectionAction.BACKUP);
@@ -265,6 +266,7 @@ public class CollectionAdminRequest extends SolrRequest
       this.name = name;
       this.repositoryName = null;
       this.indexBackupStrategy = null;
+      this.commitName = null;
     }
 
     public String getLocation() {
@@ -291,6 +293,14 @@ public class CollectionAdminRequest extends SolrRequest
       this.indexBackupStrategy = indexBackupStrategy;
     }
 
+      public String getCommitName() {
+      return commitName;
+    }
+
+    public void setCommitName(String commitName) {
+      this.commitName = commitName;
+    }
+
     @Override
     public SolrParams getParams() {
       ModifiableSolrParams params = (ModifiableSolrParams) super.getParams();
@@ -299,6 +309,7 @@ public class CollectionAdminRequest extends SolrRequest
       params.set(CoreAdminParams.BACKUP_LOCATION, location); //note: optional
       params.set(CoreAdminParams.BACKUP_REPOSITORY, repositoryName);
       params.set(CollectionAdminParams.INDEX_BACKUP_STRATEGY, indexBackupStrategy);
+      params.set(CoreAdminParams.COMMIT_NAME, commitName);
       return params;
     }
 

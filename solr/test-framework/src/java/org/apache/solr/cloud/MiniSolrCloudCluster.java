@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -358,5 +359,13 @@ public class MiniSolrCloudCluster {
     if (ctx.endsWith("/")) ctx = ctx.substring(0,ctx.length()-1);;
     if (!ctx.startsWith("/")) ctx = "/" + ctx;
     return ctx;
+  }
+
+  /**
+   * @return a randomly-selected Jetty
+   */
+  public JettySolrRunner getRandomJetty(Random random) {
+    int index = random.nextInt(jettys.size());
+    return jettys.get(index);
   }
 }
