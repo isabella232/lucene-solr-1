@@ -186,6 +186,67 @@ public class CollectionAdminRequest extends SolrRequest
     }
   }
 
+  //Note : This method is added since solrj module does not use Google
+  // guava library. Also changes committed for SOLR-8765 result in wrong
+  // error message when "collection" parameter is specified as Null.
+  // This is because the setCollectionName method is deprecated.
+  static <T> T checkNotNull(String param, T value) {
+    if (value == null) {
+      throw new NullPointerException("Please specify a value for parameter " + param);
+    }
+    return value;
+  }
+
+  public static class CreateSnapshot extends CollectionShardAdminRequest {
+    protected final String commitName;
+
+    public CreateSnapshot(String collection, String commitName) {
+      setAction(CollectionAction.CREATESNAPSHOT);
+      setCollectionName(checkNotNull(CoreAdminParams.COLLECTION,collection));
+      this.commitName = checkNotNull("commitName", commitName);
+    }
+
+    public String getCommitName() {
+      return commitName;
+    }
+
+    @Override
+    public SolrParams getParams() {
+      ModifiableSolrParams params = (ModifiableSolrParams) super.getParams();
+      params.set("commitName", commitName);
+      return params;
+    }
+  }
+
+  public static class DeleteSnapshot extends CollectionShardAdminRequest {
+    protected final String commitName;
+
+    public DeleteSnapshot(String collection, String commitName) {
+      setAction(CollectionAction.DELETESNAPSHOT);
+      setCollectionName(checkNotNull(CoreAdminParams.COLLECTION ,collection));
+      this.commitName = checkNotNull("commitName", commitName);
+    }
+
+    public String getCommitName() {
+      return commitName;
+    }
+
+    @Override
+    public SolrParams getParams() {
+      ModifiableSolrParams params = (ModifiableSolrParams) super.getParams();
+      params.set("commitName", commitName);
+      return params;
+    }
+  }
+
+  public static class ListSnapshots extends CollectionShardAdminRequest {
+
+    public ListSnapshots(String collection) {
+      setAction(CollectionAction.LISTSNAPSHOTS);
+      setCollectionName(checkNotNull(CoreAdminParams.COLLECTION,collection));
+    }
+
+  }
 
   public static Backup backupCollection(String collection, String backupName) {
     return new Backup(collection, backupName);

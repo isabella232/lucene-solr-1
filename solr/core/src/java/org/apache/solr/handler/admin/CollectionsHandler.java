@@ -243,6 +243,18 @@ public class CollectionsHandler extends RequestHandlerBase {
         this.handleRestore(req, rsp);
         break;
       }
+      case CREATESNAPSHOT:  {
+        this.handleCreateSnapshot(req, rsp);
+        break;
+      }
+      case DELETESNAPSHOT:  {
+        this.handleDeleteSnapshot(req, rsp);
+        break;
+      }
+      case LISTSNAPSHOTS:  {
+        this.handleListSnapshots(req, rsp);
+        break;
+      }
       default: {
           throw new RuntimeException("Unknown action: " + action);
       }
@@ -333,6 +345,18 @@ public class CollectionsHandler extends RequestHandlerBase {
     copyPropertiesIfNotNull(req.getParams(), params);
     params.put(Overseer.QUEUE_OPERATION, RESTORE.toLower());
     handleResponse(RESTORE.toLower(), new ZkNodeProps(params), rsp);
+  }
+
+  private void handleCreateSnapshot(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
+    //TODO - Add logic
+  }
+
+  private void handleDeleteSnapshot(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
+    //TODO - Add logic
+  }
+
+  private void handleListSnapshots(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {
+    //TODO - Add logic
   }
 
   private void handleOverseerStatus(SolrQueryRequest req, SolrQueryResponse rsp) throws KeeperException, InterruptedException {

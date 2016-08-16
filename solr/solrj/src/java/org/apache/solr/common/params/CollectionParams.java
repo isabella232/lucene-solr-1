@@ -48,8 +48,11 @@ public interface CollectionParams
     LIST,
     CLUSTERSTATUS,
     BACKUP,
-    RESTORE;
-    
+    RESTORE,
+    CREATESNAPSHOT,
+    DELETESNAPSHOT,
+    LISTSNAPSHOTS;
+
     public static CollectionAction get( String p )
     {
       if( p != null ) {
