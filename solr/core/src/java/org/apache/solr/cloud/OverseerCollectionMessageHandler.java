@@ -604,6 +604,11 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       throws KeeperException, InterruptedException {
     String collection = message.getStr("name");
     try {
+      // Remove the snapshots meta-data for this collection in ZK. Deleting actual index files
+      // should be taken care of as part of collection delete operation.
+      SolrZkClient zkClient = this.overseer.getZkController().getZkClient();
+      SolrSnapshotManager.cleanupCollectionLevelSnapshots(zkClient, collection);
+
       if (zkStateReader.getClusterState().getCollectionOrNull(collection) == null) {
         if (zkStateReader.getZkClient().exists(ZkStateReader.COLLECTIONS_ZKNODE + "/" + collection, true)) {
           // if the collection is not in the clusterstate, but is listed in zk, do nothing, it will just
@@ -651,6 +656,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
           zkStateReader.getZkClient().clean(
               ZkStateReader.COLLECTIONS_ZKNODE + "/" + collection);
         }
+        log.info("Successfully deleted collection {}", collection);
       } catch (InterruptedException e) {
         SolrException.log(log, "Cleaning up collection in zk was interrupted:"
             + collection, e);
