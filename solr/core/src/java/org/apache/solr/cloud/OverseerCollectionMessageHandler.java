@@ -2071,6 +2071,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     String commitName =  message.getStr(CoreAdminParams.COMMIT_NAME);
     String asyncId = message.getStr(ASYNC);
     SolrZkClient zkClient = this.overseer.getZkController().getZkClient();
+    long creationTime = System.currentTimeMillis();
 
     if(SolrSnapshotManager.snapshotExists(zkClient, collectionName, commitName)) {
       throw new SolrException(ErrorCode.BAD_REQUEST, "Snapshot with name " + commitName
@@ -2162,7 +2163,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     }
 
     if (failedShards.isEmpty()) { // No failures.
-      CollectionSnapshotMetaData meta = new CollectionSnapshotMetaData(commitName, SnapshotStatus.Successful, replicas);
+      CollectionSnapshotMetaData meta = new CollectionSnapshotMetaData(commitName, SnapshotStatus.Successful, creationTime, replicas);
       SolrSnapshotManager.updateCollectionLevelSnapshot(zkClient, collectionName, meta);
       log.info("Saved following snapshot information for collection={} with commitName={} in Zookeeper : {}", collectionName,
           commitName, meta.toNamedList());
@@ -2171,7 +2172,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
           collectionName, commitName, failedShards);
       // Update the ZK meta-data to include only cores with the snapshot. This will enable users to figure out
       // which cores have the named snapshot.
-      CollectionSnapshotMetaData meta = new CollectionSnapshotMetaData(commitName, SnapshotStatus.Failed, replicas);
+      CollectionSnapshotMetaData meta = new CollectionSnapshotMetaData(commitName, SnapshotStatus.Failed, creationTime, replicas);
       SolrSnapshotManager.updateCollectionLevelSnapshot(zkClient, collectionName, meta);
       log.info("Saved following snapshot information for collection={} with commitName={} in Zookeeper : {}", collectionName,
           commitName, meta.toNamedList());
@@ -2259,7 +2260,8 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
 
       // Update the ZK meta-data to include only cores with the snapshot. This will enable users to figure out
       // which cores still contain the named snapshot.
-      CollectionSnapshotMetaData newResult = new CollectionSnapshotMetaData(meta.get().getName(), SnapshotStatus.Failed, replicasWithSnapshot);
+      CollectionSnapshotMetaData newResult = new CollectionSnapshotMetaData(meta.get().getName(), SnapshotStatus.Failed,
+          meta.get().getCreationTime(), replicasWithSnapshot);
       SolrSnapshotManager.updateCollectionLevelSnapshot(zkClient, collectionName, newResult);
       log.info("Saved snapshot information for collection={} with commitName={} in Zookeeper as follows", collectionName, commitName,
           Utils.toJSON(newResult));
