@@ -1028,7 +1028,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
 
             // leaders can also be in buffering state during "migrate" API call, see SOLR-5308
             if (forwardedFromCollection && ulog.getState() != UpdateLog.State.ACTIVE
-                && (cmd.getFlags() & UpdateCommand.REPLAY) == 0) {
+                && isReplayOrPeersync == false) {
               // we're not in an active state, and this update isn't from a replay, so buffer it.
               log.info("Leader logic applied but update log is buffering: " + cmd.getPrintableId());
               cmd.setFlags(cmd.getFlags() | UpdateCommand.BUFFERING);
@@ -1056,7 +1056,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
             // The leader forwarded us this update.
             cmd.setVersion(versionOnUpdate);
 
-            if (ulog.getState() != UpdateLog.State.ACTIVE && (cmd.getFlags() & UpdateCommand.REPLAY) == 0) {
+            if (ulog.getState() != UpdateLog.State.ACTIVE && isReplayOrPeersync == false) {
               // we're not in an active state, and this update isn't from a replay, so buffer it.
               cmd.setFlags(cmd.getFlags() | UpdateCommand.BUFFERING);
               ulog.add(cmd);
@@ -1625,7 +1625,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
 
             // leaders can also be in buffering state during "migrate" API call, see SOLR-5308
             if (forwardedFromCollection && ulog.getState() != UpdateLog.State.ACTIVE
-                && (cmd.getFlags() & UpdateCommand.REPLAY) == 0) {
+                && !isReplayOrPeersync) {
               // we're not in an active state, and this update isn't from a replay, so buffer it.
               log.info("Leader logic applied but update log is buffering: " + cmd.getId());
               cmd.setFlags(cmd.getFlags() | UpdateCommand.BUFFERING);
@@ -1650,7 +1650,7 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
           } else {
             cmd.setVersion(-versionOnUpdate);
 
-            if (ulog.getState() != UpdateLog.State.ACTIVE && (cmd.getFlags() & UpdateCommand.REPLAY) == 0) {
+            if (ulog.getState() != UpdateLog.State.ACTIVE && isReplayOrPeersync == false) {
               // we're not in an active state, and this update isn't from a replay, so buffer it.
               cmd.setFlags(cmd.getFlags() | UpdateCommand.BUFFERING);
               ulog.delete(cmd);

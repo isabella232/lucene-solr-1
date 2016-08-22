@@ -55,7 +55,7 @@
     </lst>
   </requestHandler>
   
-  <requestHandler name="/replication" class="solr.ReplicationHandler" startup="lazy" /> 
+  <requestHandler name="/replication" class="solr.ReplicationHandler" />
 
   <requestHandler name="/update" class="solr.UpdateRequestHandler"  />
 
