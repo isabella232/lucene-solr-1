@@ -20,6 +20,7 @@ package org.apache.solr.handler.component;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -553,16 +554,16 @@ public class RealTimeGetComponent extends SearchComponent
     UpdateLog ulog = req.getCore().getUpdateHandler().getUpdateLog();
     if (ulog == null) return;
 
-    UpdateLog.RecentUpdates recentUpdates = ulog.getRecentUpdates();
-    try {
-      rb.rsp.add("versions", recentUpdates.getVersions(nVersions));
-    } finally {
-      recentUpdates.close();  // cache this somehow?
-    }
-
+    // get fingerprint first as it will cause a soft commit
+    // and would avoid mismatch if documents are being actively index especially during PeerSync
     if (doFingerprint) {
       IndexFingerprint fingerprint = IndexFingerprint.getFingerprint(req.getCore(), Long.MAX_VALUE);
       rb.rsp.add("fingerprint", fingerprint.toObject());
+    }
+
+    try (UpdateLog.RecentUpdates recentUpdates = ulog.getRecentUpdates()) {
+      List<Long> versions = recentUpdates.getVersions(nVersions);
+      rb.rsp.add("versions", versions);
     }
   }
 
@@ -607,8 +608,19 @@ public class RealTimeGetComponent extends SearchComponent
     UpdateLog ulog = req.getCore().getUpdateHandler().getUpdateLog();
     if (ulog == null) return;
 
-    List<String> versions = StrUtils.splitSmart(versionsStr, ",", true);
+    List<String> versionStrings = StrUtils.splitSmart(versionsStr, ",", true);
+    List<Long> versions = new ArrayList<>(versionStrings.size());
+    for (String string : versionStrings) {
+      versions.add(Long.parseLong(string));
+    }
 
+    // find fingerprint for max version for which updates are requested
+    boolean doFingerprint = params.getBool("fingerprint", false);
+    if (doFingerprint) {
+      long maxVersionForUpdate = Collections.min(versions, PeerSync.absComparator);
+      IndexFingerprint fingerprint = IndexFingerprint.getFingerprint(req.getCore(), Math.abs(maxVersionForUpdate));
+      rb.rsp.add("fingerprint", fingerprint.toObject());
+    }
 
     List<Object> updates = new ArrayList<>(versions.size());
 
@@ -617,8 +629,7 @@ public class RealTimeGetComponent extends SearchComponent
     // TODO: get this from cache instead of rebuilding?
     UpdateLog.RecentUpdates recentUpdates = ulog.getRecentUpdates();
     try {
-      for (String versionStr : versions) {
-        long version = Long.parseLong(versionStr);
+      for (Long version : versions) {
         try {
           Object o = recentUpdates.lookup(version);
           if (o == null) continue;

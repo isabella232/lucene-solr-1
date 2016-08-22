@@ -17,6 +17,7 @@
 
 package org.apache.solr.client.solrj.embedded;
 
+import org.apache.solr.core.CoreContainer;
 import org.apache.solr.servlet.SolrDispatchFilter;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Server;
@@ -561,6 +562,15 @@ public class JettySolrRunner {
 
   public String getSolrHome() {
     return solrHome;
+  }
+  
+  public SolrDispatchFilter getSolrDispatchFilter() { return (SolrDispatchFilter) dispatchFilter.getFilter(); }
+
+  public CoreContainer getCoreContainer() {
+    if (getSolrDispatchFilter() == null || getSolrDispatchFilter().getCores() == null) {
+      return null;
+    }
+    return getSolrDispatchFilter().getCores();
   }
 }
 
