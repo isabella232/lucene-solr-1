@@ -2,126 +2,152 @@
 
 set -e
 
-#Make sure to cleanup the temporary files.
-scratch=$(mktemp -d -t solrsnaps.XXXXXXXXXX)
-function finish {
-  rm -rf "$scratch"
+run_solr_snapshot_tool() {
+  JVM="java"
+  scriptDir=$(dirname "$0")
+  if [ -n "$LOG4J_PROPS" ]; then
+    log4j_config="file:${LOG4J_PROPS}"
+  else
+    log4j_config="file:${scriptDir}/log4j.properties"
+  fi
+  PATH=${JAVA_HOME}/bin:${PATH} ${JVM} ${ZKCLI_JVM_FLAGS} -Dlog4j.configuration=${log4j_config} \
+  -classpath "${scriptDir}/../webapps/solr/WEB-INF/lib/*:${scriptDir}/../lib/ext/*" \
+  org.apache.solr.core.snapshots.SolrSnapshotsTool "$@" 2> /dev/null
 }
-trap finish EXIT
 
 usage() {
-  cat << __EOF
-Usage: $(basename "${BASH_SOURCE}")
-    [ snapshotscli.sh [-z solrZkEnsemble] [-c collection_name] [-s snapshot_name] [-d destination_path] [-t hdfs_tmp_dir] ]
-    -z | solr_zk_ensemble
-    -c | collection_name
-    -s | snapshot_name
-    -d | destination_path
-    -t | hdfs_tmp_dir
-__EOF
+ run_solr_snapshot_tool --help
 }
 
-build_export_copylisting() {
-  PATH=$JAVA_HOME/bin:$PATH $JVM $ZKCLI_JVM_FLAGS -Dlog4j.configuration=$log4j_config \
-  -classpath "$scriptDir/../webapps/solr/WEB-INF/lib/*:$scriptDir/../lib/ext/*" \
-  org.apache.solr.core.snapshots.SolrSnapshotExportTool ${solrZkEnsemble} ${collectionName} ${snapshotName} ${scratch} ${hdfsTempDir} 2> /dev/null
-}
-
-copy_using_distcp() {
-  if hdfs dfs -test -d ${hdfsTempDir}/copylistings; then
-    hdfs dfs -rm -r -f -skipTrash "${hdfsTempDir}/copylistings/*" > /dev/null
-  else
-    hdfs dfs -mkdir -p "${hdfsTempDir}/copylistings" > /dev/null
-  fi
-
-  find "${scratch}" -type f -printf "%f\n" | while read shardId; do
-    oPath="${destPath}/${snapshotName}/snapshot.${shardId}"
-
-    echo "Copying the index files for $shardId to ${oPath}"
-    hdfs dfs -copyFromLocal "${scratch}/${shardId}" "${hdfsTempDir}/copylistings/${shardId}" > /dev/null
-    hadoop distcp -f "${hdfsTempDir}/copylistings/${shardId}" "${oPath}" > /dev/null
+parse_options() {
+  OPTIND=3
+  while getopts ":c:d:s:z:p:" o ; do
+    case "${o}" in
+      d)
+        destPath=${OPTARG}
+        ;;
+      s)
+        sourcePath=${OPTARG}
+        ;;
+      c)
+        collectionName=${OPTARG}
+        ;;
+      z)
+        solrZkEnsemble=${OPTARG}
+        ;;
+      p)
+        pathPrefix=${OPTARG}
+        ;;
+      *)
+        echo "Unknown option ${OPTARG}"
+        usage 1>&2
+        exit 1
+        ;;
+    esac
   done
-
-  echo "Copying the collection meta-data to ${destPath}/${snapshotName}"
-  hadoop distcp "${hdfsTempDir}/${snapshotName}/*" "${destPath}/${snapshotName}/" > /dev/null
 }
 
-scriptDir="`dirname \"$0\"`"
-if [ -n "$LOG4J_PROPS" ]; then
-  log4j_config="file:$LOG4J_PROPS"
-else
-  log4j_config="file:$sdir/log4j.properties"
-fi
+prepare_snapshot_export() {
+  #Make sure to cleanup the temporary files.
+  scratch=$(mktemp -d -t solrsnaps.XXXXXXXXXX)
+  function finish {
+    rm -rf "${scratch}"
+  }
+  trap finish EXIT
 
-JVM="java"
-solrZkEnsemble=
-collectionName=
-snapshotName=
-destPath=
-hdfsTempDir=
-while getopts ":z:c:s:d:t:" o; do
-  case "${o}" in
-    z)
-      solrZkEnsemble=${OPTARG}
-      ;;
-    c)
-      collectionName=${OPTARG}
-      ;;
-    s)
-      snapshotName=${OPTARG}
-      ;;
-    d)
-      destPath=${OPTARG}
-      ;;
-    t)
-      hdfsTempDir=${OPTARG}
-      ;;
-    *)
-      usage 1>&2
-      exit 1
-  esac
-done
+  if hdfs dfs -test -d "${destPath}" ; then
+      run_solr_snapshot_tool --prepare-snapshot-export "$@" -t "${scratch}"
 
-if [ -z "${solrZkEnsemble}" ]; then
-  echo "Please specify Solr Zookeeper ensemble"
-  usage 1>&2
-  exit 1
-fi
-
-if [ -z "${collectionName}" ]; then
-  echo "Please specify the collection name"
-  usage 1>&2
-  exit 1
-fi
-
-if [ -z "${snapshotName}" ]; then
-  echo "Please specify the snapshot name"
-  usage 1>&2
-  exit 1
-fi
-
-if [ -z "${destPath}" ]; then
-  echo "Please specify the destination path (where the snapshot is to be exported)"
-  usage 1>&2
-  exit 1
-fi
-
-if [ -z "${hdfsTempDir}" ]; then
-  echo "Please specify a directory on HDFS where the temporary files should be stored during the export operation"
-  usage 1>&2
-  exit 1
-fi
-
-if hdfs dfs -test -d ${hdfsTempDir} ; then
-  hdfs dfs -rm -r -f -skipTrash "${hdfsTempDir}/*" > /dev/null
-  build_export_copylisting
-  if [ $? -eq 0 ]; then
-    copy_using_distcp
-    echo "Done. GoodBye!"
-    exit 0
+      hdfs dfs -mkdir -p "${copyListingDirPath}" > /dev/null
+      find "${scratch}" -type f -printf "%f\n" | while read shardId; do
+        echo "Copying the copy-listing for $shardId"
+        hdfs dfs -copyFromLocal "${scratch}/${shardId}" "${copyListingDirPath}" > /dev/null
+      done
+  else
+    echo "Directory ${destPath} does not exist."
+    exit 1
   fi
-else
-  echo "Directory ${hdfsTempDir} does not exist."
-  exit 1
-fi
+}
+
+copy_snapshot_files() {
+  copylisting_dir_path="$1"
+
+  if hdfs dfs -test -d "${copylisting_dir_path}" ; then
+    for shardId in $(hdfs dfs -stat "%n" "${copylisting_dir_path}/*"); do
+      oPath="${destPath}/${snapshotName}/snapshot.${shardId}"
+      echo "Copying the index files for ${shardId} to ${oPath}"
+      ${distCpCmd} -f " ${copylisting_dir_path}/${shardId}" "${oPath}" > /dev/null
+    done
+  else
+    echo "Directory ${copylisting_dir_path} does not exist."
+    exit 1
+  fi
+}
+
+collectionName=""
+solrZkEnsemble=""
+pathPrefix=""
+destPath=""
+sourcePath=""
+cmd="$1"
+snapshotName="$2"
+copyListingDirPath=""
+distCpCmd="${SOLR_DISTCP_CMD:-hadoop distcp}"
+
+case "${cmd}" in
+  --create)
+    run_solr_snapshot_tool "$@"
+    ;;
+  --delete)
+    run_solr_snapshot_tool "$@"
+    ;;
+  --list)
+    run_solr_snapshot_tool "$@"
+    ;;
+  --describe)
+    run_solr_snapshot_tool "$@"
+    ;;
+  --prepare-snapshot-export)
+    parse_options "$@"
+
+    : "${destPath:? Please specify destination directory using -d option}"
+
+    copyListingDirPath="${destPath}/copylistings"
+    prepare_snapshot_export "${@:2}"
+    echo "Done. GoodBye!"
+    ;;
+  --export-snapshot)
+    parse_options "$@"
+
+    : "${snapshotName:? Please specify the name of the snapshot}"
+    : "${destPath:? Please specify destination directory using -d option}"
+
+    if [ -n "${collectionName}" ] && [ -n "${sourcePath}" ]; then
+      echo "The -c and -s options can not be specified together"
+      exit 1
+    fi
+
+    if [ -z "${collectionName}" ] && [ -z "${sourcePath}" ]; then
+      echo "At least one of options (-c or -s) must be specified"
+      exit 1
+    fi
+
+    if [ -n "${collectionName}" ]; then
+      copyListingDirPath="${destPath}/${snapshotName}/copylistings"
+      prepare_snapshot_export "${@:2}"
+      copy_snapshot_files "${destPath}/${snapshotName}/copylistings"
+      hdfs dfs -rm -r -f -skipTrash "${destPath}/${snapshotName}/copylistings" > /dev/null
+    else
+      copy_snapshot_files "${sourcePath}/copylistings"
+      echo "Copying the collection meta-data to ${destPath}/${snapshotName}"
+      ${distCpCmd} "${sourcePath}/${snapshotName}/*" "${destPath}/${snapshotName}/" > /dev/null
+    fi
+
+    echo "Done. GoodBye!"
+    ;;
+  *)
+    echo "Unknown command ${cmd}"
+    usage 1>&2
+    exit 1
+esac
 

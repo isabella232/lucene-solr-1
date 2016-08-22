@@ -110,15 +110,17 @@ public class CollectionSnapshotMetaData implements JSONWriter.Writable {
 
   private final String name;
   private final SnapshotStatus status;
+  private final long creationTime;
   private final List<CoreSnapshotMetaData> replicaSnapshots;
 
   public CollectionSnapshotMetaData(String name) {
-    this(name, SnapshotStatus.InProgress, Collections.<CoreSnapshotMetaData>emptyList());
+    this(name, SnapshotStatus.InProgress, System.currentTimeMillis(), Collections.<CoreSnapshotMetaData>emptyList());
   }
 
-  public CollectionSnapshotMetaData(String name, SnapshotStatus status, List<CoreSnapshotMetaData> replicaSnapshots) {
+  public CollectionSnapshotMetaData(String name, SnapshotStatus status, long creationTime, List<CoreSnapshotMetaData> replicaSnapshots) {
     this.name = name;
     this.status = status;
+    this.creationTime = creationTime;
     this.replicaSnapshots = replicaSnapshots;
   }
 
@@ -126,6 +128,7 @@ public class CollectionSnapshotMetaData implements JSONWriter.Writable {
   public CollectionSnapshotMetaData(Map<String, Object> data) {
     this.name = (String)data.get(CoreAdminParams.NAME);
     this.status = SnapshotStatus.valueOf((String)data.get(SolrSnapshotManager.SNAPSHOT_STATUS));
+    this.creationTime = (Long)data.get(SolrSnapshotManager.CREATION_TIME);
     this.replicaSnapshots = new ArrayList<>();
 
     List<Object> r = (List<Object>) data.get(SolrSnapshotManager.SNAPSHOT_REPLICAS);
@@ -145,6 +148,7 @@ public class CollectionSnapshotMetaData implements JSONWriter.Writable {
   public CollectionSnapshotMetaData(NamedList<Object> data) {
     this.name = (String)data.get(CoreAdminParams.NAME);
     String statusStr = (String)data.get(SolrSnapshotManager.SNAPSHOT_STATUS);
+    this.creationTime = (Long)data.get(SolrSnapshotManager.CREATION_TIME);
     this.status = SnapshotStatus.valueOf(statusStr);
     this.replicaSnapshots = new ArrayList<>();
 
@@ -167,6 +171,10 @@ public class CollectionSnapshotMetaData implements JSONWriter.Writable {
 
   public SnapshotStatus getStatus() {
     return status;
+  }
+
+  public long getCreationTime() {
+    return creationTime;
   }
 
   public List<CoreSnapshotMetaData> getReplicaSnapshots() {
@@ -205,6 +213,7 @@ public class CollectionSnapshotMetaData implements JSONWriter.Writable {
     LinkedHashMap<String, Object> result = new LinkedHashMap<>();
     result.put(CoreAdminParams.NAME, this.name);
     result.put(SolrSnapshotManager.SNAPSHOT_STATUS, this.status.toString());
+    result.put(SolrSnapshotManager.CREATION_TIME, this.creationTime);
     result.put(SolrSnapshotManager.SNAPSHOT_REPLICAS, this.replicaSnapshots);
     arg0.write(result);
   }
@@ -213,6 +222,7 @@ public class CollectionSnapshotMetaData implements JSONWriter.Writable {
     NamedList result = new NamedList();
     result.add(CoreAdminParams.NAME, this.name);
     result.add(SolrSnapshotManager.SNAPSHOT_STATUS, this.status.toString());
+    result.add(SolrSnapshotManager.CREATION_TIME, this.creationTime);
 
     NamedList replicas = new NamedList();
     for (CoreSnapshotMetaData x : replicaSnapshots) {
