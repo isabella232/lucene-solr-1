@@ -52,6 +52,7 @@ public class SolrSnapshotManager {
   public static final String INDEX_DIR_PATH = "indexDirPath";
   public static final String GENERATION_NUM = "generation";
   public static final String SNAPSHOT_STATUS = "status";
+  public static final String CREATION_TIME = "creationTime";
   public static final String SNAPSHOT_REPLICAS = "replicas";
   public static final String SNAPSHOTS_INFO = "snapshots";
   public static final String LEADER = "leader";
@@ -132,6 +133,21 @@ public class SolrSnapshotManager {
       throws InterruptedException, KeeperException {
     String zkPath = getSnapshotMetaDataZkPath(collectionName, Optional.<String>absent());
     try {
+      // Delete the meta-data for each snapshot.
+      Collection<String> snapshots = zkClient.getChildren(zkPath, null, true);
+      for (String snapshot : snapshots) {
+        String path = getSnapshotMetaDataZkPath(collectionName, Optional.of(snapshot));
+        try {
+          zkClient.delete(path, -1, true);
+        } catch (KeeperException ex) {
+          // Gracefully handle the case when the zk node doesn't exist
+          if ( ex.code() != KeeperException.Code.NONODE ) {
+            throw ex;
+          }
+        }
+      }
+
+      // Delete the parent node.
       zkClient.delete(zkPath, -1, true);
     } catch (KeeperException ex) {
       // Gracefully handle the case when the zk node doesn't exist (e.g. if no snapshots were created for this collection).
