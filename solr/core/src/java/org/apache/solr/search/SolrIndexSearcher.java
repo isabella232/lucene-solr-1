@@ -30,9 +30,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleField;
@@ -170,8 +174,8 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
   private final boolean reserveDirectory;
   private final boolean createdDirectory;
 
-  private volatile IndexFingerprint fingerprint;
-  private final Object fingerprintLock = new Object();
+  private final ConcurrentMap<Long, IndexFingerprint> maxVersionFingerprintCache = new ConcurrentHashMap<>();
+  private final ConcurrentMap<Long, Object> fingerprintCacheLocks = new ConcurrentHashMap<>();
 
   private static DirectoryReader getReader(SolrCore core, SolrIndexConfig config, DirectoryFactory directoryFactory, String path) throws IOException {
     DirectoryReader reader = null;
@@ -2177,14 +2181,18 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
    * gets a cached version of the IndexFingerprint for this searcher
    **/
   public IndexFingerprint getIndexFingerprint(long maxVersion) throws IOException {
-    // possibly expensive, so prevent more than one thread from calculating it for this searcher
-    synchronized (fingerprintLock) {
+    Object newMonitor = new Object();
+    Object monitor = fingerprintCacheLocks.putIfAbsent(maxVersion, newMonitor);
+    if (monitor == null) monitor = newMonitor;
+    
+    synchronized (monitor) {
+      IndexFingerprint fingerprint = maxVersionFingerprintCache.get(maxVersion);
       if (fingerprint == null) {
         fingerprint = IndexFingerprint.getFingerprint(this, maxVersion);
+        maxVersionFingerprintCache.put(maxVersion, fingerprint);
       }
+      return fingerprint;
     }
-
-    return fingerprint;
   }
 
   /////////////////////////////////////////////////////////////////////
