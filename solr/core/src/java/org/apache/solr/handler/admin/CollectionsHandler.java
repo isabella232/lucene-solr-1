@@ -302,6 +302,9 @@ public class CollectionsHandler extends RequestHandlerBase {
 
     Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP,
         CollectionAdminParams.INDEX_BACKUP_STRATEGY, CoreAdminParams.COMMIT_NAME);
+    if (req.getParams().get(ASYNC) != null) {
+      params.put(ASYNC, req.getParams().get(ASYNC));
+    }
     params.put(CoreAdminParams.BACKUP_LOCATION, location);
     params.put(Overseer.QUEUE_OPERATION, BACKUP.toLower());
     handleResponse(BACKUP.toLower(), new ZkNodeProps(params), rsp);
@@ -343,6 +346,9 @@ public class CollectionsHandler extends RequestHandlerBase {
     }
 
     Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP);
+    if (req.getParams().get(ASYNC) != null) {
+      params.put(ASYNC, req.getParams().get(ASYNC));
+    }
     params.put(CoreAdminParams.BACKUP_LOCATION, location);
     // from CREATE_OP:
     req.getParams().getAll(params, COLL_CONF, REPLICATION_FACTOR, MAX_SHARDS_PER_NODE, AUTO_ADD_REPLICAS);
@@ -361,6 +367,9 @@ public class CollectionsHandler extends RequestHandlerBase {
     }
 
     Map<String, Object> params = req.getParams().getAll(null, COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+    if (req.getParams().get(ASYNC) != null) {
+      params.put(ASYNC, req.getParams().get(ASYNC));
+    }
     params.put(Overseer.QUEUE_OPERATION, CREATESNAPSHOT.toLower());
     handleResponse(CREATESNAPSHOT.toLower(), new ZkNodeProps(params), rsp);
   }
@@ -375,6 +384,9 @@ public class CollectionsHandler extends RequestHandlerBase {
     }
 
     Map<String, Object> params = req.getParams().getAll(null, COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+    if (req.getParams().get(ASYNC) != null) {
+      params.put(ASYNC, req.getParams().get(ASYNC));
+    }
     params.put(Overseer.QUEUE_OPERATION, DELETESNAPSHOT.toLower());
     handleResponse(DELETESNAPSHOT.toLower(), new ZkNodeProps(params), rsp);
   }
