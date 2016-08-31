@@ -65,7 +65,7 @@ import com.google.common.base.Preconditions;
  */
 public class SolrSnapshotsTool implements Closeable {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  private static final DateFormat dateFormat = new SimpleDateFormat("dd-MM-yy:HH:mm:SS", Locale.getDefault());
+  private static final DateFormat dateFormat = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss z", Locale.getDefault());
 
   private static final String CREATE = "create";
   private static final String DELETE = "delete";
