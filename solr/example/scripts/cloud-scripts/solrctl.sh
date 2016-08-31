@@ -57,11 +57,12 @@ Commands:
                 [--describe-snapshot snapshotName -c <collectionName>]
                 [--prepare-snapshot-export snapshotName -c <collectionName> -d <destDir> [-p <fsPathPrefix>]]
                 [--export-snapshot snapshotName [-s <sourceDir>] [-c <collectionName>] -d <destDir>]
-                [--restore name  -b backupName -l backupLocation
+                [--restore name  -b <backupName> -l <backupLocation> -i <requestId>
                                  [-a Restore collection with autoAddReplicas=true]
                                  [-c <collection.configName>]
                                  [-r <replicationFactor>]
                                  [-m <maxShardsPerNode>]]
+                [--request-status requestId]
 
     core        [--create name [-p name=value]...]
                 [--reload name]
@@ -518,7 +519,7 @@ while test $# != 0 ; do
               usage "Error: collection --create-snapshot needs to have a collection name specified with -c parameter"
             fi
 
-            eval 'run_solr_snapshot_tool --create ${SNAPSHOT_NAME} -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE}'
+            eval 'run_solr_snapshot_tool --create ${SNAPSHOT_NAME} -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE}' || die "Error: Unable to create snapshot"
             shift 4
             ;;
         --delete-snapshot)
@@ -544,7 +545,7 @@ while test $# != 0 ; do
               usage "Error: collection --delete-snapshot needs to have a collection name specified with -c parameter"
             fi
 
-            eval 'run_solr_snapshot_tool --delete ${SNAPSHOT_NAME} -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE}'
+            eval 'run_solr_snapshot_tool --delete ${SNAPSHOT_NAME} -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE}' || die "Error: Unable to delete snapshot"
             shift 4
             ;;
         --describe-snapshot)
@@ -570,7 +571,7 @@ while test $# != 0 ; do
               usage "Error: collection --describe-snapshot needs to have a collection name specified with -c parameter"
             fi
 
-            eval 'run_solr_snapshot_tool --describe ${SNAPSHOT_NAME} -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE}'
+            eval 'run_solr_snapshot_tool --describe ${SNAPSHOT_NAME} -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE}' || die "Error: Couldn't fetch snapshot details"
             shift 4
             ;;
         --list-snapshots)
@@ -580,7 +581,7 @@ while test $# != 0 ; do
               usage "Error: collection --list-snapshots needs to have a collection name specified"
             fi
 
-            eval 'run_solr_snapshot_tool --list -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE}'
+            eval 'run_solr_snapshot_tool --list -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE}'  || die "Error: Couldn't list snapshots"
             shift 3
             ;;
         --prepare-snapshot-export)
@@ -625,7 +626,7 @@ while test $# != 0 ; do
               EXPORT_PREPARE_EXTRA_OPTS=" -p ${FS_PATH_PREFIX}"
             fi
 
-            eval 'run_solr_snapshot_tool --prepare-snapshot-export ${SNAPSHOT_NAME}  -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE} -d ${DEST_DIR_PATH} ${EXPORT_PREPARE_EXTRA_OPTS}'
+            eval 'run_solr_snapshot_tool --prepare-snapshot-export ${SNAPSHOT_NAME}  -c ${COLLECTION_NAME} -z ${SOLR_ZK_ENSEMBLE} -d ${DEST_DIR_PATH} ${EXPORT_PREPARE_EXTRA_OPTS}' || die "Error: Unable to prepare for snapshot export"
             ;;
         --export-snapshot)
             SNAPSHOT_NAME="$3"
@@ -677,7 +678,7 @@ while test $# != 0 ; do
               EXPORT_SNAPSHOT_OPTS="${EXPORT_SNAPSHOT_OPTS} -s ${SOURCE_DIR_PATH}"
             fi
 
-            eval 'run_solr_snapshot_tool --export-snapshot ${SNAPSHOT_NAME} -z ${SOLR_ZK_ENSEMBLE} -d ${DEST_DIR_PATH} ${EXPORT_SNAPSHOT_OPTS}'
+            eval 'run_solr_snapshot_tool --export-snapshot ${SNAPSHOT_NAME} -z ${SOLR_ZK_ENSEMBLE} -d ${DEST_DIR_PATH} ${EXPORT_SNAPSHOT_OPTS}' || die "Error: Unable to export snapshot"
             ;;
         --restore)
             COL_RESTORE_NAME=$3
@@ -713,6 +714,11 @@ while test $# != 0 ; do
                   COL_BACKUP_NAME="$2"
                   shift 2
                   ;;
+                 -i)
+                  [ $# -gt 1 ] || usage "Error: collection --restore name $1 requires an argument"
+                  ASYNC_REQUEST_ID="$2"
+                  shift 2
+                  ;;
                  *)
                   break
                   ;;
@@ -725,16 +731,29 @@ while test $# != 0 ; do
             if [ -z "${COL_BACKUP_NAME}" ]; then
               usage "Error: collection --restore needs specify the backup name"
             fi
+            if [ -z "${ASYNC_REQUEST_ID}" ]; then
+              usage "Error: collection --restore needs specify unique request id for async execution"
+            fi
 
-            COL_RESTORE_CALL="${COL_RESTORE_CALL}&collection=${COL_RESTORE_NAME}&name=${COL_BACKUP_NAME}&location=${COL_RESTORE_LOCATION}"
+            COL_RESTORE_CALL="${COL_RESTORE_CALL}&collection=${COL_RESTORE_NAME}&name=${COL_BACKUP_NAME}&location=${COL_RESTORE_LOCATION}&async=${ASYNC_REQUEST_ID}"
             [ -n "$COL_RESTORE_CONFNAME" ] && COL_RESTORE_CALL="${COL_RESTORE_CALL}&collection.configName=${COL_RESTORE_CONFNAME}"
             [ -n "$COL_RESTORE_REPL" ] && COL_RESTORE_CALL="${COL_RESTORE_CALL}&replicationFactor=${COL_RESTORE_REPL}"
             [ -n "$COL_RESTORE_MAXSHARDS" ] && COL_RESTORE_CALL="${COL_RESTORE_CALL}&maxShardsPerNode=${COL_RESTORE_MAXSHARDS}"
             [ -n "$COL_AUTO_ADD_REPLICAS" ] && COL_RESTORE_CALL="${COL_RESTORE_CALL}&autoAddReplicas=true"
 
-            eval $SOLR_ADMIN_API_CMD "'/admin/collections?action=RESTORE${COL_RESTORE_CALL}'"
+            eval $SOLR_ADMIN_API_CMD "'/admin/collections?action=RESTORE${COL_RESTORE_CALL}'" || die "Error: Unable to restore the collection"
 
             shift 4
+            ;;
+        --request-status)
+            ASYNC_REQUEST_ID="$3"
+            shift 3
+
+            if [ -z "${ASYNC_REQUEST_ID}" ] ; then
+              usage "Error: collection --request-status needs to have a request id specified during async invocation"
+            fi
+
+            eval $SOLR_ADMIN_API_CMD "'/admin/collections?action=REQUESTSTATUS&requestid=${ASYNC_REQUEST_ID}'" || die "Error: Unable to fetch the status for the request"
             ;;
         *)  
             shift 1
