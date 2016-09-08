@@ -131,7 +131,7 @@ public class SolrCloudTestCase extends SolrTestCaseJ4 {
      * @throws Exception if an error occurs on startup
      */
     public void configure() throws Exception {
-      cluster = new MiniSolrCloudCluster(nodeCount, solrxml, jettyConfig);
+      cluster = new MiniSolrCloudCluster(nodeCount, baseDir, solrxml, jettyConfig);
       CloudSolrServer client = cluster.getSolrClient();
       for (Config config : configs) {
         client.uploadConfig(config.path, config.name);
@@ -152,6 +152,10 @@ public class SolrCloudTestCase extends SolrTestCaseJ4 {
    */
   protected static Builder configureCluster(int nodeCount) {
     return new Builder(nodeCount, createTempDir().toPath());
+  }
+
+  protected static Builder configureCluster(int nodeCount, Path baseDir) {
+    return new Builder(nodeCount, baseDir);
   }
 
   @AfterClass

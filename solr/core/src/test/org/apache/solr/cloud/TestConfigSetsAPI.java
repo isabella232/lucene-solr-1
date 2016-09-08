@@ -74,7 +74,7 @@ public class TestConfigSetsAPI extends SolrTestCaseJ4 {
 
     String testHome = SolrTestCaseJ4.TEST_HOME();
     final File solrXml = new File(testHome, "solr-no-core.xml");
-    solrCluster = new MiniSolrCloudCluster(1, null, solrXml, null, null, sslConfig);
+    solrCluster = new MiniSolrCloudCluster(1, null, createTempDir().toPath(), solrXml, null, null, sslConfig);
   }
 
   @Override
