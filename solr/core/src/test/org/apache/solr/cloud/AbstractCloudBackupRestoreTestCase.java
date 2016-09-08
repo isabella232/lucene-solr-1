@@ -76,7 +76,7 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
 
   @Test
   public void test() throws Exception {
-    String collectionName = "backuprestore";
+    String collectionName = getCollectionName();
     boolean isImplicit = random().nextBoolean();
     int replFactor = TestUtil.nextInt(random(), 1, 2);
     CollectionAdminRequest.Create create = new CollectionAdminRequest.Create();
