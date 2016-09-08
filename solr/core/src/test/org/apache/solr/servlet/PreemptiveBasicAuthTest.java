@@ -80,7 +80,7 @@ public class PreemptiveBasicAuthTest extends SolrTestCaseJ4 {
     extraFilters.put(VerifyBasicAuthCredentials.class, "*");
 
     String testHome = SolrTestCaseJ4.TEST_HOME();
-    miniCluster = new MiniSolrCloudCluster(1, null, new File(testHome, "solr-no-core.xml"),
+    miniCluster = new MiniSolrCloudCluster(1, null, createTempDir().toPath(), new File(testHome, "solr-no-core.xml"),
       null, extraFilters);
     runner = miniCluster.getJettySolrRunners().get(0);
   }
