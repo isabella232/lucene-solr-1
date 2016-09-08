@@ -43,7 +43,7 @@ public class TestMiniSolrCloudClusterSSL extends SolrTestCaseJ4 {
   @BeforeClass
   public static void startup() throws Exception {
     String testHome = SolrTestCaseJ4.TEST_HOME();
-    miniCluster = new MiniSolrCloudCluster(NUM_SERVERS, null, new File(testHome, "solr-no-core.xml"),
+    miniCluster = new MiniSolrCloudCluster(NUM_SERVERS, null, createTempDir().toPath(), new File(testHome, "solr-no-core.xml"),
       null, null, sslConfig);
   }
 
@@ -66,7 +66,7 @@ public class TestMiniSolrCloudClusterSSL extends SolrTestCaseJ4 {
     assertEquals(NUM_SERVERS - 1, miniCluster.getJettySolrRunners().size());
 
     // create a new server
-    JettySolrRunner startedServer = miniCluster.startJettySolrRunner(null, null, null, sslConfig);
+    JettySolrRunner startedServer = miniCluster.startJettySolrRunner(miniCluster.newNodeName(), null, null, null, sslConfig);
     assertTrue(startedServer.isRunning());
     assertEquals(NUM_SERVERS, miniCluster.getJettySolrRunners().size());
 

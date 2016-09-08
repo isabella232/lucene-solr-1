@@ -44,7 +44,7 @@ import org.apache.hadoop.security.token.delegation.web.DelegationTokenAuthentica
 
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
-
+import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.embedded.SSLConfig;
 import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
@@ -63,11 +63,11 @@ public class HttpParamDelegationTokenMiniSolrCloudCluster extends MiniSolrCloudC
   public HttpParamDelegationTokenMiniSolrCloudCluster(int numServers, String hostContext,
       File solrXml, SortedMap<ServletHolder, String> extraServlets,
       SSLConfig sslConfig) throws Exception {
-    super(numServers, hostContext, solrXml, extraServlets, null, sslConfig);
+    super(numServers, hostContext, LuceneTestCase.createTempDir().toPath(), solrXml, extraServlets, null, sslConfig);
   }
 
   @Override
-  public JettySolrRunner startJettySolrRunner(String hostContext,
+  public JettySolrRunner startJettySolrRunner(String name, String hostContext,
       SortedMap<ServletHolder, String> extraServlets,
       SortedMap<Class, String> extraRequestFilters, SSLConfig sslConfig) throws Exception {
     if (extraRequestFilters != null) {
@@ -84,7 +84,7 @@ public class HttpParamDelegationTokenMiniSolrCloudCluster extends MiniSolrCloudC
       }
     });
     extraFilters.put(HttpParamToRequestFilter.class, "*");
-    return super.startJettySolrRunner(hostContext, extraServlets, extraFilters, sslConfig);
+    return super.startJettySolrRunner(name, hostContext, extraServlets, extraFilters, sslConfig);
   }
 
   private static String getHttpParam(HttpServletRequest request, String param) {
