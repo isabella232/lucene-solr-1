@@ -69,8 +69,12 @@ public class TestSolrCloudSnapshots extends SolrCloudTestCase {
 
   @BeforeClass
   public static void setupClass() throws Exception {
+    Path baseDir = createTempDir().toPath();
+
+    System.setProperty("coreRootDirectory", baseDir.toString());
+
     useFactory("solr.StandardDirectoryFactory");
-    configureCluster(NUM_NODES)// nodes
+    configureCluster(NUM_NODES, baseDir)// nodes
         .addConfig("conf1", TEST_PATH().resolve("configsets").resolve("cloud-minimal").resolve("conf"))
         .configure();
 
@@ -79,6 +83,7 @@ public class TestSolrCloudSnapshots extends SolrCloudTestCase {
 
   @AfterClass
   public static void teardownClass() throws Exception {
+    System.clearProperty("coreRootDirectory");
     System.clearProperty("test.build.data");
     System.clearProperty("test.cache.data");
   }

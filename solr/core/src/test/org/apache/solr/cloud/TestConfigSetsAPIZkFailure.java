@@ -99,7 +99,7 @@ public class TestConfigSetsAPIZkFailure extends SolrTestCaseJ4 {
     zkTestServer.run();
     zkTestServer.setZKDatabase(
         new FailureDuringCopyZKDatabase(zkTestServer.getZKDatabase(), zkTestServer));
-    solrCluster = new MiniSolrCloudCluster(1, null,
+    solrCluster = new MiniSolrCloudCluster(1, null,createTempDir().toPath(),
         solrXml, null, null, sslConfig, zkTestServer);
   }
 
