@@ -22,12 +22,16 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -47,8 +51,6 @@ import org.apache.zookeeper.KeeperException;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.io.Files;
 
 public class MiniSolrCloudCluster {
   
@@ -82,8 +84,9 @@ public class MiniSolrCloudCluster {
   private ZkTestServer zkServer;
   private final boolean externalZkServer;
   private List<JettySolrRunner> jettys;
-  private File testDir;
   private final CloudSolrServer solrClient;
+  private final AtomicInteger nodeIds = new AtomicInteger();
+  private final Path baseDir;
 
   /**
    * "Mini" SolrCloud cluster to be used for testing
@@ -93,10 +96,10 @@ public class MiniSolrCloudCluster {
    * @param extraServlets Extra servlets to be started by Jetty
    * @param extraRequestFilters extra filters to be started by Jetty
    */
-  public MiniSolrCloudCluster(int numServers, String hostContext, File solrXml,
+  public MiniSolrCloudCluster(int numServers, String hostContext, Path baseDir, File solrXml,
       SortedMap<ServletHolder, String> extraServlets,
       SortedMap<Class, String> extraRequestFilters) throws Exception {
-    this(numServers, hostContext, solrXml, extraServlets, extraRequestFilters, null);
+    this(numServers, hostContext, baseDir, solrXml, extraServlets, extraRequestFilters, null);
   }
 
   /**
@@ -108,11 +111,11 @@ public class MiniSolrCloudCluster {
    * @param extraRequestFilters extra filters to be started by Jetty
    * @param sslConfig SSL configuration
    */
-  public MiniSolrCloudCluster(int numServers, String hostContext, File solrXml,
+  public MiniSolrCloudCluster(int numServers, String hostContext, Path baseDir, File solrXml,
       SortedMap<ServletHolder, String> extraServlets,
       SortedMap<Class, String> extraRequestFilters,
       SSLConfig sslConfig) throws Exception {
-    this(numServers, hostContext, solrXml, extraServlets, extraRequestFilters, sslConfig, null);
+    this(numServers, hostContext, baseDir, solrXml, extraServlets, extraRequestFilters, sslConfig, null);
   }
 
   /**
@@ -125,11 +128,13 @@ public class MiniSolrCloudCluster {
    * @param sslConfig SSL configuration
    * @param zkTestServer ZkTestServer to use.  If null, one will be created
    */
-  public MiniSolrCloudCluster(int numServers, String hostContext, File solrXml,
+  public MiniSolrCloudCluster(int numServers, String hostContext, Path baseDir, File solrXml,
       SortedMap<ServletHolder, String> extraServlets,
       SortedMap<Class, String> extraRequestFilters,
       SSLConfig sslConfig,
       ZkTestServer zkTestServer) throws Exception {
+
+    this.baseDir = baseDir;
 
     try (InputStream is = new FileInputStream(solrXml)) {
       init(numServers, hostContext, IOUtils.toByteArray(is), extraServlets, extraRequestFilters, sslConfig, zkTestServer);
@@ -148,12 +153,12 @@ public class MiniSolrCloudCluster {
    *
    * @throws Exception if there was an error starting the cluster
    */
-  public MiniSolrCloudCluster(int numServers, String solrXml, JettyConfig jettyConfig) throws Exception {
-    this(numServers, solrXml, jettyConfig, null);
+  public MiniSolrCloudCluster(int numServers, Path baseDir, String solrXml, JettyConfig jettyConfig) throws Exception {
+    this(numServers, baseDir, solrXml, jettyConfig, null);
   }
 
-  public MiniSolrCloudCluster(int numServers, String solrXml, JettyConfig jettyConfig, ZkTestServer zkTestServer) throws Exception {
-    this(numServers, jettyConfig.context, solrXml, new TreeMap<>(jettyConfig.extraServlets),
+  public MiniSolrCloudCluster(int numServers, Path baseDir, String solrXml, JettyConfig jettyConfig, ZkTestServer zkTestServer) throws Exception {
+    this(numServers, jettyConfig.context, baseDir, solrXml, new TreeMap<>(jettyConfig.extraServlets),
         new TreeMap<Class, String>(jettyConfig.extraFilters), jettyConfig.sslConfig, zkTestServer);
   }
 
@@ -167,11 +172,13 @@ public class MiniSolrCloudCluster {
    * @param sslConfig SSL configuration
    * @param zkTestServer ZkTestServer to use.  If null, one will be created
    */
-  public MiniSolrCloudCluster(int numServers, String hostContext, String solrXml,
+  public MiniSolrCloudCluster(int numServers, String hostContext, Path baseDir, String solrXml,
       SortedMap<ServletHolder, String> extraServlets,
       SortedMap<Class, String> extraRequestFilters,
       SSLConfig sslConfig,
       ZkTestServer zkTestServer) throws Exception {
+    this.baseDir = baseDir;
+
     init(numServers, hostContext, solrXml.getBytes(Charset.defaultCharset()), extraServlets, extraRequestFilters, sslConfig, zkTestServer);
     this.externalZkServer = zkTestServer != null;
     this.solrClient = new CloudSolrServer(getZkServer().getZkAddress());
@@ -182,11 +189,10 @@ public class MiniSolrCloudCluster {
       SortedMap<Class, String> extraRequestFilters,
       SSLConfig sslConfig,
       ZkTestServer zkTestServer) throws Exception {
-    testDir = Files.createTempDir();
+
 
     if (zkTestServer == null) {
-      String zkDir = testDir.getAbsolutePath() + File.separator
-        + "zookeeper/server1/data";
+      String zkDir = baseDir.resolve("zookeeper/server1/data").toString();
       zkTestServer = new ZkTestServer(zkDir);
       zkTestServer.run();
     }
@@ -209,11 +215,21 @@ public class MiniSolrCloudCluster {
     jettys = new LinkedList<JettySolrRunner>();
     for (int i = 0; i < numServers; ++i) {
       if (sslConfig == null) {
-        startJettySolrRunner(hostContext, extraServlets, extraRequestFilters);
+        startJettySolrRunner(newNodeName(), hostContext, extraServlets, extraRequestFilters);
       } else {
-        startJettySolrRunner(hostContext, extraServlets, extraRequestFilters, sslConfig);
+        startJettySolrRunner(newNodeName(), hostContext, extraServlets, extraRequestFilters, sslConfig);
       }
     }
+  }
+
+  public String newNodeName() {
+    return "node" + nodeIds.incrementAndGet();
+  }
+
+  private Path createInstancePath(String name) throws IOException {
+    Path instancePath = baseDir.resolve(name);
+    Files.createDirectories(instancePath);
+    return instancePath;
   }
 
   /**
@@ -237,10 +253,10 @@ public class MiniSolrCloudCluster {
    * @param extraRequestFilters extra filters to be started by Jetty
    * @return new Solr instance
    */
-  public JettySolrRunner startJettySolrRunner(String hostContext,
+  public JettySolrRunner startJettySolrRunner(String name, String hostContext,
       SortedMap<ServletHolder, String> extraServlets,
       SortedMap<Class, String> extraRequestFilters) throws Exception {
-    return startJettySolrRunner(hostContext, extraServlets, extraRequestFilters, null);
+    return startJettySolrRunner(name, hostContext, extraServlets, extraRequestFilters, null);
   }
 
   /**
@@ -251,11 +267,12 @@ public class MiniSolrCloudCluster {
    * @param sslConfig SSL configuration
    * @return new Solr instance
    */
-  public JettySolrRunner startJettySolrRunner(String hostContext,
+  public JettySolrRunner startJettySolrRunner(String name, String hostContext,
       SortedMap<ServletHolder, String> extraServlets,
       SortedMap<Class, String> extraRequestFilters, SSLConfig sslConfig) throws Exception {
+    Path runnerPath = createInstancePath(name);
     String context = getHostContextSuitableForServletContext(hostContext);
-    JettySolrRunner jetty = new JettySolrRunner(testDir.getAbsolutePath(), context,
+    JettySolrRunner jetty = new JettySolrRunner(runnerPath.toString(), context,
       0, null, null, true, extraServlets, sslConfig, extraRequestFilters);
     jetty.start();
     jettys.add(jetty);
