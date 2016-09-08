@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -130,13 +131,16 @@ public class TestHdfsBackupRestoreCore extends SolrCloudTestCase {
       throw new RuntimeException(e);
     }
 
+    Path baseDir = createTempDir().toPath();
+
+    System.setProperty("coreRootDirectory", baseDir.toString());
     System.setProperty("solr.hdfs.default.backup.path", "/backup");
     System.setProperty("solr.hdfs.home", hdfsUri + "/solr");
     useFactory("solr.StandardDirectoryFactory");
 
     useFactory("solr.NRTCachingDirectoryFactory");
 
-    configureCluster(1)// nodes
+    configureCluster(1, baseDir)// nodes
     .addConfig("conf1", TEST_PATH().resolve("configsets").resolve("cloud-minimal").resolve("conf"))
     .withSolrXml(HDFS_REPO_SOLR_XML)
     .configure();
@@ -146,6 +150,7 @@ public class TestHdfsBackupRestoreCore extends SolrCloudTestCase {
 
   @AfterClass
   public static void teardownClass() throws Exception {
+    System.clearProperty("coreRootDirectory");
     System.clearProperty("solr.hdfs.home");
     System.clearProperty("solr.hdfs.default.backup.path");
     System.clearProperty("test.build.data");

@@ -66,7 +66,7 @@ public class TestConfigSetsAPIExclusivity extends SolrTestCaseJ4 {
 
     String testHome = SolrTestCaseJ4.TEST_HOME();
     final File solrXml = new File(testHome, "solr-no-core.xml");
-    solrCluster = new MiniSolrCloudCluster(1, null,
+    solrCluster = new MiniSolrCloudCluster(1, null,createTempDir().toPath(),
         solrXml, null, null, sslConfig);
   }
 

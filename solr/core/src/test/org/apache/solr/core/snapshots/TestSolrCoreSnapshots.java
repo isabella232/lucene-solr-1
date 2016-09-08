@@ -17,6 +17,7 @@
 package org.apache.solr.core.snapshots;
 
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,8 +68,12 @@ public class TestSolrCoreSnapshots extends SolrCloudTestCase {
 
   @BeforeClass
   public static void setupClass() throws Exception {
+    Path baseDir = createTempDir().toPath();
+
+    System.setProperty("coreRootDirectory", baseDir.toString());
+
     useFactory("solr.StandardDirectoryFactory");
-    configureCluster(1)// nodes
+    configureCluster(1, baseDir)// nodes
         .addConfig("conf1", TEST_PATH().resolve("configsets").resolve("cloud-minimal").resolve("conf"))
         .configure();
 
@@ -78,6 +83,7 @@ public class TestSolrCoreSnapshots extends SolrCloudTestCase {
 
   @AfterClass
   public static void teardownClass() throws Exception {
+    System.clearProperty("coreRootDirectory");
     System.clearProperty("test.build.data");
     System.clearProperty("test.cache.data");
   }

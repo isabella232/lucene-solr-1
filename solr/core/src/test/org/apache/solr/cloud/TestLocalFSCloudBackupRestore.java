@@ -17,6 +17,11 @@
 
 package org.apache.solr.cloud;
 
+import java.nio.file.Path;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.solr.cloud.hdfs.HdfsTestUtil;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 /**
@@ -28,10 +33,18 @@ public class TestLocalFSCloudBackupRestore extends AbstractCloudBackupRestoreTes
 
   @BeforeClass
   public static void setupClass() throws Exception {
+    Path baseDir = createTempDir().toPath();
+
+    System.setProperty("coreRootDirectory", baseDir.toString());
     useFactory("solr.NRTCachingDirectoryFactory");
-    configureCluster(NUM_SHARDS)// nodes
+    configureCluster(NUM_SHARDS, baseDir)// nodes
         .addConfig("conf1", TEST_PATH().resolve("configsets").resolve("cloud-minimal").resolve("conf"))
         .configure();
+  }
+
+  @AfterClass
+  public static void teardownClass() throws Exception {
+    System.clearProperty("coreRootDirectory");
   }
 
   @Override

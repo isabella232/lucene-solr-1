@@ -18,6 +18,7 @@ package org.apache.solr.cloud;
  */
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -81,7 +82,8 @@ public class TestMiniSolrCloudCluster extends LuceneTestCase {
   @BeforeClass
   public static void startup() throws Exception {
     String testHome = SolrTestCaseJ4.TEST_HOME();
-    miniCluster = new MiniSolrCloudCluster(NUM_SERVERS, null, new File(testHome, "solr-no-core.xml"),
+    miniCluster = new MiniSolrCloudCluster(NUM_SERVERS, null, createTempDir().toPath(),
+        new File(testHome, "solr-no-core.xml"),
       null, null);
   }
 
@@ -116,7 +118,7 @@ public class TestMiniSolrCloudCluster extends LuceneTestCase {
     assertEquals(NUM_SERVERS - 1, miniCluster.getJettySolrRunners().size());
 
     // create a server
-    JettySolrRunner startedServer = miniCluster.startJettySolrRunner(null, null, null);
+    JettySolrRunner startedServer = miniCluster.startJettySolrRunner(miniCluster.newNodeName(), null, null, null);
     assertTrue(startedServer.isRunning());
     assertEquals(NUM_SERVERS, miniCluster.getJettySolrRunners().size());
 
@@ -193,7 +195,7 @@ public class TestMiniSolrCloudCluster extends LuceneTestCase {
     MiniSolrCloudCluster cluster = null;
 
     try {
-     cluster = new MiniSolrCloudCluster(NUM_SERVERS, null, new File(testHome, "solr-no-core.xml"),
+     cluster = new MiniSolrCloudCluster(NUM_SERVERS, null, createTempDir().toPath(), new File(testHome, "solr-no-core.xml"),
           null, null);
 
       assertNotNull(cluster.getZkServer());
