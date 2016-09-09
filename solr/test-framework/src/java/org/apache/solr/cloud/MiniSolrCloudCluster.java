@@ -34,6 +34,7 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.embedded.JettyConfig;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
@@ -88,6 +89,21 @@ public class MiniSolrCloudCluster {
   private final CloudSolrServer solrClient;
   private final AtomicInteger nodeIds = new AtomicInteger();
   private final Path baseDir;
+
+  /**
+   * "Mini" SolrCloud cluster to be used for testing
+   * @param numServers number of Solr servers to start
+   * @param hostContext context path of Solr servers used by Jetty
+   * @param solrXml solr.xml file to be uploaded to ZooKeeper
+   * @param extraServlets Extra servlets to be started by Jetty
+   * @param extraRequestFilters extra filters to be started by Jetty
+   */
+  public MiniSolrCloudCluster(int numServers, String hostContext, File solrXml,
+      SortedMap<ServletHolder, String> extraServlets,
+      SortedMap<Class, String> extraRequestFilters) throws Exception {
+    this(numServers, hostContext, LuceneTestCase.createTempDir().toPath(), solrXml,
+        extraServlets, extraRequestFilters, null);
+  }
 
   /**
    * "Mini" SolrCloud cluster to be used for testing
