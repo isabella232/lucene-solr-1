@@ -18,6 +18,7 @@ package org.apache.solr.cloud;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
 
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.SolrTestCaseJ4.SuppressSSL;
@@ -63,8 +64,11 @@ public class TestReloadManyReplicas extends SolrCloudTestCase {
   
   @BeforeClass
   private static void createMiniSolrCloudCluster() throws Exception {
+    Path baseDir = createTempDir().toPath();
+    System.setProperty("coreRootDirectory", baseDir.toString());
+
     // we only need 1 node because we're going to be shoving all of the replicas on there to promote deadlock
-    configureCluster(1)
+    configureCluster(1, baseDir)
     .addConfig("conf1", configset("cloud-minimal"))
     .withSolrXml(SOLR_XML)
     .configure();
@@ -88,6 +92,8 @@ public class TestReloadManyReplicas extends SolrCloudTestCase {
 
     DirectUpdateHandler2.commitOnClose = true;
     
+    System.clearProperty("coreRootDirectory");
+
     resetFactory();
   }
 
