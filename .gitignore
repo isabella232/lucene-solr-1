@@ -25,3 +25,7 @@ pom.xml
 /nbproject
 /nb-build
 .pydevproject
+
+# Cloudera Build
+/target/
+cdh.build.properties
