@@ -31,6 +31,8 @@ public class BadHdfsThreadsFilter implements ThreadFilter {
       return true;
     } else if (name.startsWith("org.apache.hadoop.fs.FileSystem$Statistics")) { // SOLR-11261
       return true;
+    } else if (name.endsWith("StatisticsDataReferenceCleaner")) {
+      return true;
     }
     return false;
   }
