@@ -40,6 +40,35 @@
   <property name="license.dir" location="${common.dir}/licenses"/>
   <property name="ivysettings.xml" location="${common.dir}/default-nested-ivy-settings.xml"/>
 
+  <!-- CDH: load ant-contrib tasks to get the "if" task. -->
+  <taskdef resource="net/sf/antcontrib/antcontrib.properties">
+    <classpath>
+      <pathelement location="${common.dir}/../cloudera/ant-contrib-1.0b3.jar"/>
+    </classpath>
+  </taskdef>
+
+  <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
+  <if>
+    <and>
+      <not>
+        <isset property="cdh.maven" />
+      </not>
+      <not>
+        <available file="${common.dir}/../cdh.build.properties" />
+      </not>
+    </and>
+    <then>
+      <exec  executable="mvn" dir="${common.dir}/.." failonerror="true">
+        <arg value="-f" />
+        <arg value="cloudera-pom.xml" />
+        <arg value="process-resources"/>
+      </exec>
+    </then>
+  </if>
+
+  <property file="${common.dir}/../cdh.build.properties" />
+
+
   <tstamp>
     <format property="current.year" pattern="yyyy"/>
     <format property="DSTAMP" pattern="yyyy-MM-dd"/>
@@ -54,6 +83,7 @@
   <!-- include version number from property file (includes "version.*" properties) -->
   <loadproperties srcFile="${common.dir}/version.properties"/>
   
+  <!-- CDH
   <fail message="'version.base' property must be 'x.y.z' (major, minor, bugfix) or 'x.y.z.1/2' (+ prerelease) and numeric only: ${version.base}">
     <condition>
       <not><matches pattern="^\d+\.\d+\.\d+(|\.1|\.2)$" casesensitive="true" string="${version.base}"/></not>
@@ -65,6 +95,7 @@
       <not><matches pattern="^\Q${version.base}\E(|\-.*)$" casesensitive="true" string="${version}"/></not>
     </condition>
   </fail>
+  -->
 
   <property name="year" value="2000-${current.year}"/>
   
@@ -565,9 +596,11 @@
       </artifact:install>
       <artifact:deploy file="@{jar.file}">
         <artifact-attachments/>
+        <!-- CDH
         <remoteRepository id="${m2.repository.id}" url="${m2.repository.url}">
           <credentials/>
         </remoteRepository>
+        -->
         <pom refid="maven.project"/>
       </artifact:deploy>
     </sequential>
@@ -1774,6 +1807,7 @@ ${ant.project.name}.test.dependencies=${test.classpath.list}
     <ant dir="${common.dir}/.." target="-append-all-modules-dependencies-properties" inheritall="false"/>
     <get-maven-dependencies-macro
         dir="${common.dir}/.."
+        build.overrides.file="${common.dir}/../cdh.build.properties"
         centralized.versions.file="${common.dir}/ivy-versions.properties"
         module.dependencies.properties.file="${module.dependencies.properties.file}"
         maven.dependencies.filters.file="${maven.dependencies.filters.file}"/>

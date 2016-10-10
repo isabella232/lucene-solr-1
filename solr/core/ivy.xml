@@ -33,6 +33,7 @@
     <dependency org="commons-codec" name="commons-codec" rev="${/commons-codec/commons-codec}" conf="compile"/>
     <dependency org="commons-io" name="commons-io" rev="${/commons-io/commons-io}" conf="compile"/>
     <dependency org="org.apache.commons" name="commons-exec" rev="${/org.apache.commons/commons-exec}" conf="compile"/>
+    <dependency org="commons-collections" name="commons-collections" rev="${/commons-collections/commons-collections}" conf="compile"/>
     <dependency org="commons-fileupload" name="commons-fileupload" rev="${/commons-fileupload/commons-fileupload}" conf="compile"/>
     <dependency org="commons-cli" name="commons-cli" rev="${/commons-cli/commons-cli}" conf="compile"/>
     <dependency org="commons-lang" name="commons-lang" rev="${/commons-lang/commons-lang}" conf="compile"/>
@@ -76,6 +77,15 @@
     <dependency org="com.google.protobuf" name="protobuf-java" rev="${/com.google.protobuf/protobuf-java}" conf="compile.hadoop"/>
     <dependency org="com.github.ben-manes.caffeine" name="caffeine" rev="${/com.github.ben-manes.caffeine/caffeine}" conf="compile.hadoop"/>
     <dependency org="org.apache.htrace" name="htrace-core" rev="${/org.apache.htrace/htrace-core}" conf="compile.hadoop"/>
+    <dependency org="org.apache.htrace" name="htrace-core4" rev="${/org.apache.htrace/htrace-core4}" conf="compile.hadoop"/>
+    
+    <dependency org="org.apache.curator" name="curator-framework" rev="${/org.apache.curator/curator-framework}" conf="compile.hadoop"/>
+    <dependency org="org.apache.curator" name="curator-client" rev="${/org.apache.curator/curator-client}" conf="compile.hadoop"/> 
+    <dependency org="org.apache.curator" name="curator-recipes" rev="${/org.apache.curator/curator-recipes}" conf="compile.hadoop"/>
+    <dependency org="org.apache.directory.api" name="api-asn1-api" rev="${/org.apache.directory.api/api-asn1-api}" conf="compile.hadoop"/>
+    <dependency org="org.apache.directory.api" name="api-util" rev="${/org.apache.directory.api/api-util}" conf="compile.hadoop"/>
+    <dependency org="org.apache.directory.server" name="apacheds-kerberos-codec" rev="${/org.apache.directory.server/apacheds-kerberos-codec}" conf="compile.hadoop"/>
+    
     
     <!-- Hadoop DfsMiniCluster Dependencies-->
     <dependency org="org.apache.hadoop" name="hadoop-common" rev="${/org.apache.hadoop/hadoop-common}" conf="test.DfsMiniCluster">
