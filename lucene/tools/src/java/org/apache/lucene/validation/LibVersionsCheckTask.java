@@ -69,6 +69,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
 import java.util.regex.Matcher;
@@ -99,6 +100,13 @@ public class LibVersionsCheckTask extends Task {
    * All ivy.xml files to check.
    */
   private Resources ivyXmlResources = new Resources();
+
+  /**
+   * CLOUDERA BUILD
+   * A properties file specifying CDH versions for jar files shared by
+   * multiple components.
+   */
+  private File buildOverridesFile;
 
   /**
    * Centralized Ivy versions properties file: ivy-versions.properties
@@ -150,6 +158,12 @@ public class LibVersionsCheckTask extends Task {
    */
   private Map<String,HashSet<String>> ignoreConflictVersions = new HashMap<>();
 
+  /**
+   * CLOUDERA BUILD
+   * All properties defined in the {@link #buildOverridesFile}
+   */
+  private Properties buildOverrides = new Properties();
+
   private static class Dependency {
     String org;
     String name;
@@ -180,6 +194,10 @@ public class LibVersionsCheckTask extends Task {
     centralizedVersionsFile = file;
   }
 
+  public void setBuildOverridesFile(File buildOverridesFile) {
+    this.buildOverridesFile = buildOverridesFile;
+  }
+  
   public void setTopLevelIvySettingsFile(File file) {
     topLevelIvySettingsFile = file;
   }
@@ -209,6 +227,7 @@ public class LibVersionsCheckTask extends Task {
     long start = System.currentTimeMillis();
 
     setupIvy();
+    initializeBuildOverrides();
 
     int numErrors = 0;
     if ( ! verifySortedCoordinatesPropertiesFile(centralizedVersionsFile)) {
@@ -282,6 +301,22 @@ public class LibVersionsCheckTask extends Task {
     }
   }
 
+  /**
+   * CLOUDERA BUILD
+   */
+  private void initializeBuildOverrides() {
+    if(null == buildOverridesFile) {
+      throw new BuildException("buildOverridesFile parameter not specified.");
+    }
+
+    try (InputStream inputStream = new FileInputStream(buildOverridesFile);
+         Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
+      buildOverrides.load(reader);
+    } catch (IOException e) {
+      throw new BuildException("Exception reading " + buildOverridesFile + ": " + e.toString(), e);
+    }
+  }
+
   private boolean findLatestConflictVersions() {
     boolean success = true;
     StringBuilder latestIvyXml = new StringBuilder();
@@ -352,8 +387,9 @@ public class LibVersionsCheckTask extends Task {
    */
   private boolean collectVersionConflictsToIgnore() {
     log("Checking for orphans in " + ignoreConflictsFile.getName(), verboseLevel);
+
     boolean orphansFound = false;
-    InterpolatedProperties properties = new InterpolatedProperties();
+    InterpolatedProperties properties = new InterpolatedProperties(buildOverrides);
     try (InputStream inputStream = new FileInputStream(ignoreConflictsFile);
          Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
       properties.load(reader);
@@ -379,7 +415,7 @@ public class LibVersionsCheckTask extends Task {
   }
 
   private void collectDirectDependencies() {
-    InterpolatedProperties properties = new InterpolatedProperties();
+    InterpolatedProperties properties = new InterpolatedProperties(buildOverrides);
     try (InputStream inputStream = new FileInputStream(centralizedVersionsFile);
          Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
       properties.load(reader);
