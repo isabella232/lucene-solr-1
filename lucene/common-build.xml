@@ -2109,7 +2109,7 @@ ${ant.project.name}.test.dependencies=${test.classpath.list}
     </sequential>
   </macrodef>
 
-  <property name="failonjavadocwarning" value="true"/>
+  <property name="failonjavadocwarning" value="false"/>
   <macrodef name="invoke-javadoc">
     <element name="sources" optional="yes"/>
     <attribute name="destdir"/>
