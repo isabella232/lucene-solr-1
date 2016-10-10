@@ -21,10 +21,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache</groupId>
-    <artifactId>apache</artifactId>
-    <version>13</version>
-    <relativePath/>
+    <groupId>com.cloudera.cdh</groupId>
+    <artifactId>cdh-root</artifactId>
+    <version>6.x-SNAPSHOT</version>
   </parent>
   <groupId>org.apache.lucene</groupId>
   <artifactId>lucene-solr-grandparent</artifactId>
@@ -41,7 +40,7 @@
     <vc-anonymous-base-url>http://git-wip-us.apache.org/repos/asf/lucene-solr.git</vc-anonymous-base-url>
     <vc-dev-base-url>https://git-wip-us.apache.org/repos/asf/lucene-solr.git</vc-dev-base-url>
     <vc-browse-base-url>https://git1-us-west.apache.org/repos/asf?p=lucene-solr.git;a=tree</vc-browse-base-url>
-    <specification.version>@spec.version@</specification.version>
+    <specification.version>@version@</specification.version>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
     <java.compat.version>8</java.compat.version>
     <!-- HACK: the enforce plugin does not like new versioning: -->
@@ -121,6 +120,22 @@
     </license>
   </licenses>
   <repositories>
+    <repository>
+      <id>cdh.releases.repo</id>
+      <url>https://repository.cloudera.com/content/groups/cdh-releases-rcs</url>
+      <name>CDH Releases Repository</name>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>cdh.snapshots.repo</id>
+      <url>https://repository.cloudera.com/content/repositories/snapshots</url>
+      <name>CDH Snapshots Repository</name>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
     <repository>
       <id>apache.snapshots</id>
       <name>Apache Snapshot Repository</name>
