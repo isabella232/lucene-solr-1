@@ -43,6 +43,16 @@ public class InterpolatedProperties extends Properties {
   private static final Pattern PROPERTY_REFERENCE_PATTERN = Pattern.compile("\\$\\{(?<name>[^}]+)\\}");
 
   /**
+   * CLOUDERA BUILD
+   * Constructor.
+   *
+   * @param overrides The properties specified by the build override file.
+   */
+  public InterpolatedProperties(Properties overrides) {
+    super(overrides);
+  }
+
+  /**
    * Loads the properties file via {@link Properties#load(InputStream)},
    * then performs recursive Ant-like property value interpolation.
    */
