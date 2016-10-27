@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+exec 3>/dev/null
+
 usage() {
   [ $# -eq 0 ] || echo "$@"
   echo "
@@ -26,6 +28,8 @@ Options:
     --jaas jaas.conf
     --help
     --quiet
+    --debug Prints error output of calls
+    --trace Prints executed commands
 
 Commands:
     init        [--force]
@@ -107,11 +111,11 @@ local_coreconfig() {
       echo "$4" > "/var/lib/solr/$3"
       ;;
     list)
-      ls -d /var/lib/solr/*/conf 2>/dev/null | sed -e 's#var/lib/solr#configs#'
+      ls -d /var/lib/solr/*/conf 2>&3 | sed -e 's#var/lib/solr#configs#'
       ;;
     clear)
       if [ "$3" != "/" ] ; then
-        sudo -u solr rm -rf /var/lib/solr/`basename $3`/* 2>/dev/null
+        sudo -u solr rm -rf /var/lib/solr/`basename $3`/* 2>&3
       fi
       ;;
     upconfig)
@@ -119,7 +123,7 @@ local_coreconfig() {
       rm -rf /tmp/solr_conf.$$
       cp -r $4 /tmp/solr_conf.$$
       chmod o+r -R /tmp/solr_conf.$$
-      sudo -u solr bash -c "mkdir /var/lib/solr/$6 2>/dev/null ; cp -r /tmp/solr_conf.$$ /var/lib/solr/$6/conf"
+      sudo -u solr bash -c "mkdir /var/lib/solr/$6 2>&3 ; cp -r /tmp/solr_conf.$$ /var/lib/solr/$6/conf"
       RES=$?
       rm -rf /tmp/solr_conf.$$
       return $RES
@@ -136,7 +140,7 @@ solr_webapi() {
   if [ -z "$SOLR_ADMIN_URI" ] ; then
     local SOLR_PROTOCOL=`get_solr_protocol`
     for node in `get_solr_state | sed -ne 's#/live_nodes/\(.*:[0-9][0-9]*\).*$#\1#p'` localhost:$SOLR_PORT ; do
-      if $SOLR_ADMIN_CURL "$SOLR_PROTOCOL://$node/solr" >/dev/null 2>&1 ; then
+      if $SOLR_ADMIN_CURL "$SOLR_PROTOCOL://$node/solr" >&3 2>&1 ; then
         SOLR_ADMIN_URI="$SOLR_PROTOCOL://$node/solr"
         break
       fi
@@ -157,7 +161,7 @@ solr_webapi() {
 
 get_solr_protocol() {
   if [ -z "$SOLR_STATE" ] ; then
-    SOLR_STATE=`eval $SOLR_ADMIN_ZK_CMD -cmd list 2>/dev/null`
+    SOLR_STATE=`eval $SOLR_ADMIN_ZK_CMD -cmd list`
   fi
 
   if echo "$SOLR_STATE" | grep -i 'urlScheme' | grep -q -i 'https' ; then
@@ -169,7 +173,7 @@ get_solr_protocol() {
 
 get_solr_state() {
   if [ -z "$SOLR_STATE" ] ; then
-    SOLR_STATE=`eval $SOLR_ADMIN_ZK_CMD -cmd list 2>/dev/null`
+    SOLR_STATE=`eval $SOLR_ADMIN_ZK_CMD -cmd list`
   fi
 
   echo "$SOLR_STATE" | grep -v '^/ '
@@ -217,6 +221,14 @@ while test $# != 0 ; do
       SOLR_ADMIN_CHAT=/bin/true
       shift 1
       ;;
+    --debug)
+      exec 3>&1
+      shift 1
+      ;;
+    --trace)
+      set -x
+      shift 1
+      ;;
     --solr)
       [ $# -gt 1 ] || usage "Error: $1 requires an argument"
       SOLR_ADMIN_URI="$2"
@@ -260,7 +272,7 @@ if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
 	If you running remotely, please use --zk zk_ensemble.
 	__EOT__
 else
-  SOLR_ADMIN_ZK_CMD='ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties ${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>/dev/null'
+  SOLR_ADMIN_ZK_CMD='ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties ${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>&3'
 fi
 
 # Now start parsing commands -- there has to be at least one!
@@ -286,7 +298,7 @@ while test $# != 0 ; do
         fi
       fi
 
-      eval $SOLR_ADMIN_ZK_CMD -cmd makepath / > /dev/null 2>&1 || : 
+      eval $SOLR_ADMIN_ZK_CMD -cmd makepath / 1>&3 2>&1 || :
       eval $SOLR_ADMIN_ZK_CMD -cmd clear /    || die "Error: failed to initialize Solr"
 
       eval $SOLR_ADMIN_ZK_CMD -cmd putfile /solr.xml ${SOLR_HOME}/clusterconfig/solr.xml
@@ -321,7 +333,7 @@ while test $# != 0 ; do
             get_solr_state | grep -q '^ */configs/'"$3/" && die "Error: \"$3\" configuration already exists. Aborting. Try --update if you want to override"
 
             $SOLR_ADMIN_CHAT "Uploading configs from ${INSTANCE_DIR} to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
-            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${INSTANCE_DIR} -confname $3 2>/dev/null || die "Error: can't upload configuration"
+            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${INSTANCE_DIR} -confname $3 || die "Error: can't upload configuration"
             shift 4
             ;;
         --update)
@@ -335,10 +347,10 @@ while test $# != 0 ; do
 
             [ -e ${INSTANCE_DIR}/solrconfig.xml -a -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at least solrconfig.xml and schema.xml"
 
-            eval $SOLR_ADMIN_ZK_CMD -cmd clear /configs/$3 2>/dev/null || die "Error: can't delete configuration"
+            eval $SOLR_ADMIN_ZK_CMD -cmd clear /configs/$3 || die "Error: can't delete configuration"
 
             $SOLR_ADMIN_CHAT "Uploading configs from ${INSTANCE_DIR} to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
-            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${INSTANCE_DIR} -confname $3 2>/dev/null || die "Error: can't upload configuration"
+            eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${INSTANCE_DIR} -confname $3 || die "Error: can't upload configuration"
             shift 4
             ;;
         --get)
@@ -347,13 +359,13 @@ while test $# != 0 ; do
             [ -e "$4" ] && die "Error: subdirectory $4 already exists"
 
             $SOLR_ADMIN_CHAT "Downloading configs from $SOLR_ZK_ENSEMBLE to $4. This may take up to a minute."
-            eval $SOLR_ADMIN_ZK_CMD -cmd downconfig -confdir "$4/conf" -confname "$3" 2>/dev/null || die "Error: can't download configuration"
+            eval $SOLR_ADMIN_ZK_CMD -cmd downconfig -confdir "$4/conf" -confname "$3" || die "Error: can't download configuration"
             shift 4
             ;;
         --delete)
             [ $# -gt 2 ] || usage "Error: incorrect specification of arguments for $1"
             
-            eval $SOLR_ADMIN_ZK_CMD -cmd clear /configs/$3 2>/dev/null || die "Error: can't delete configuration"
+            eval $SOLR_ADMIN_ZK_CMD -cmd clear /configs/$3 || die "Error: can't delete configuration"
             shift 3
             ;;
         --generate)
@@ -364,7 +376,7 @@ while test $# != 0 ; do
             if [ $# -gt 3 -a "$4" = "-schemaless" ] ; then
               schemaless="true"
             fi
-            mkdir -p "$3" > /dev/null 2>&1
+            mkdir -p "$3" >&3 2>&1
             [ -d "$3" ] || usage "Error: $3 has to be a directory"
             cp -r ${SOLR_HOME}/coreconfig-template "$3/conf"
             if [ "$schemaless" = "true" ] ; then
@@ -474,7 +486,7 @@ while test $# != 0 ; do
             [ -n "$COL_CREATE_MAXSHARDS" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&maxShardsPerNode=${COL_CREATE_MAXSHARDS}"
             [ -n "$COL_CREATE_NODESET" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&createNodeSet=${COL_CREATE_NODESET}"
             [ -n "$COL_AUTO_ADD_REPLICAS" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&autoAddReplicas=true"
-            
+
             eval $SOLR_ADMIN_API_CMD "'/admin/collections?action=CREATE${COL_CREATE_CALL}'"
 
             shift 4
