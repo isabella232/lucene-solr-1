@@ -132,7 +132,18 @@ public abstract class SolrParams implements Serializable {
       throw new SolrException( SolrException.ErrorCode.BAD_REQUEST, ex.getMessage(), ex );
     }
   }
-  
+
+  /** Returns the long value of the param, or def if not set */
+  public long getLong(String param, long def) {
+    String val = get(param);
+    try {
+      return val==null ? def : Long.parseLong(val);
+    }
+    catch( Exception ex ) {
+      throw new SolrException( SolrException.ErrorCode.BAD_REQUEST, ex.getMessage(), ex );
+    }
+  }
+
   /**
    * @return The int value of the field param, or the value for param 
    * or <code>null</code> if neither is set. 

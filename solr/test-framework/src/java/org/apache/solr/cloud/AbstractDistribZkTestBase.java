@@ -24,7 +24,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.BaseDistributedSearchTestCase;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
+import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.common.cloud.ClusterState;
+import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.SolrZkClient;
@@ -224,6 +226,34 @@ public abstract class AbstractDistribZkTestBase extends BaseDistributedSearchTes
     }
 
     log.info("Collection has disappeared - collection: " + collection);
+  }
+
+  static void waitForNewLeader(CloudSolrServer cloudClient, String shardName, Replica oldLeader, int maxWaitInSecs)
+      throws Exception {
+    log.info("Will wait for a node to become leader for {} secs", maxWaitInSecs);
+    boolean waitForLeader = true;
+    int i = 0;
+    ZkStateReader zkStateReader = cloudClient.getZkStateReader();
+    zkStateReader.updateClusterState(true);
+    
+    while(waitForLeader) {
+      ClusterState clusterState = zkStateReader.getClusterState();
+      DocCollection coll = clusterState.getCollection("collection1");
+      Slice slice = coll.getSlice(shardName);
+      if(slice.getLeader() != oldLeader && slice.getState() == ZkStateReader.ACTIVE) {
+        log.info("New leader got elected in {} secs", i);
+        break;
+      }
+      
+      if(i == maxWaitInSecs) {
+        Diagnostics.logThreadDumps("Could not find new leader in specified timeout");
+        zkStateReader.getZkClient().printLayoutToStdOut();
+        fail("Could not find new leader even after waiting for " + maxWaitInSecs + "secs");
+      }
+      
+      i++;
+      Thread.sleep(1000);
+    }
   }
 
   public static void verifyReplicaStatus(ZkStateReader reader, String collection, String shard, String coreNodeName, String expectedState) throws InterruptedException {

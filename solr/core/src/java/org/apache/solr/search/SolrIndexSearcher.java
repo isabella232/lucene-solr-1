@@ -32,7 +32,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -173,9 +172,6 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
   private String path;
   private final boolean reserveDirectory;
   private final boolean createdDirectory;
-
-  private final ConcurrentMap<Long, IndexFingerprint> maxVersionFingerprintCache = new ConcurrentHashMap<>();
-  private final ConcurrentMap<Long, Object> fingerprintCacheLocks = new ConcurrentHashMap<>();
 
   private static DirectoryReader getReader(SolrCore core, SolrIndexConfig config, DirectoryFactory directoryFactory, String path) throws IOException {
     DirectoryReader reader = null;
@@ -2181,18 +2177,16 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
    * gets a cached version of the IndexFingerprint for this searcher
    **/
   public IndexFingerprint getIndexFingerprint(long maxVersion) throws IOException {
-    Object newMonitor = new Object();
-    Object monitor = fingerprintCacheLocks.putIfAbsent(maxVersion, newMonitor);
-    if (monitor == null) monitor = newMonitor;
-    
-    synchronized (monitor) {
-      IndexFingerprint fingerprint = maxVersionFingerprintCache.get(maxVersion);
-      if (fingerprint == null) {
-        fingerprint = IndexFingerprint.getFingerprint(this, maxVersion);
-        maxVersionFingerprintCache.put(maxVersion, fingerprint);
+    final SolrIndexSearcher searcher = this;
+    IndexFingerprint acc = new IndexFingerprint(maxVersion);
+    for (AtomicReaderContext ctx : this.getTopReaderContext().leaves()) {
+      IndexFingerprint f2 = searcher.getCore().getIndexFingerprint(searcher,
+          ctx, maxVersion);
+      if (f2 != null) {
+        acc = IndexFingerprint.reduce(acc, f2);
       }
-      return fingerprint;
     }
+    return acc;
   }
 
   /////////////////////////////////////////////////////////////////////

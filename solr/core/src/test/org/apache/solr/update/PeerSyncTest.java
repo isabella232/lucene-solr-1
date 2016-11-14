@@ -113,7 +113,8 @@ public class PeerSyncTest extends BaseDistributedSearchTestCase {
     }
 
     assertSync(client1, numVersions, true, shardsArr[0]);
-    client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*", "sort","_version_ desc"), client0, client1);
+    client0.commit(); client1.commit();
+    queryAndCompare(params("q", "*:*", "sort","_version_ desc"), client0, client1);
 
     // test delete and deleteByQuery
     v=1000;

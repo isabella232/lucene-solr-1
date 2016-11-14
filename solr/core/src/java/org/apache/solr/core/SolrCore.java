@@ -17,8 +17,10 @@
 
 package org.apache.solr.core;
 
+import com.google.common.collect.MapMaker;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.codecs.Codec;
+import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexDeletionPolicy;
 import org.apache.lucene.index.IndexWriter;
@@ -82,6 +84,7 @@ import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.search.ValueSourceParser;
 import org.apache.solr.update.DefaultSolrCoreState;
 import org.apache.solr.update.DirectUpdateHandler2;
+import org.apache.solr.update.IndexFingerprint;
 import org.apache.solr.update.SolrCoreState;
 import org.apache.solr.update.SolrCoreState.IndexWriterCloser;
 import org.apache.solr.update.SolrIndexWriter;
@@ -189,6 +192,8 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
   private final ReentrantLock snapshotDelLock; // A lock instance to guard against concurrent deletions.
 
   public long getStartTime() { return startTime; }
+
+  private final Map<Object, IndexFingerprint> perSegmentFingerprintCache = new MapMaker().weakKeys().makeMap();
 
   private RestManager restManager;
   
@@ -1583,6 +1588,40 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
     return getSearcher(forceNew, returnSearcher, waitSearcher, false);
   }
 
+  /**
+   * Computes fingerprint of a segment and caches it only if all the version in segment are included in the fingerprint.
+   * We can't use computeIfAbsent as caching is conditional (as described above)
+   * There is chance that two threads may compute fingerprint on the same segment. It might be OK to do so rather than locking entire map.
+   *
+   * @param searcher   searcher that includes specified LeaderReaderContext
+   * @param ctx        LeafReaderContext of a segment to compute fingerprint of
+   * @param maxVersion maximum version number to consider for fingerprint computation
+   * @return IndexFingerprint of the segment
+   * @throws IOException Can throw IOException
+   */
+  public IndexFingerprint getIndexFingerprint(SolrIndexSearcher searcher, AtomicReaderContext ctx, long maxVersion)
+      throws IOException {
+    IndexFingerprint f = null;
+    f = perSegmentFingerprintCache.get(ctx.reader().getCoreCacheKey());
+    // fingerprint is either not cached or
+    // if we want fingerprint only up to a version less than maxVersionEncountered in the segment, or
+    // documents were deleted from segment for which fingerprint was cached
+    //
+    if (f == null || (f.getMaxInHash() > maxVersion) || (f.getNumDocs() != ctx.reader().numDocs())) {
+      log.debug("IndexFingerprint cache miss for searcher:{} reader:{} readerHash:{} maxVersion:{}", searcher, ctx.reader(), ctx.reader().hashCode(), maxVersion);
+      f = IndexFingerprint.getFingerprint(searcher, ctx, maxVersion);
+      // cache fingerprint for the segment only if all the versions in the segment are included in the fingerprint
+      if (f.getMaxVersionEncountered() == f.getMaxInHash()) {
+        log.info("Caching fingerprint for searcher:{} leafReaderContext:{} mavVersion:{}", searcher, ctx, maxVersion);
+        perSegmentFingerprintCache.put(ctx.reader().getCoreCacheKey(), f);
+      }
+
+    } else {
+      log.debug("IndexFingerprint cache hit for searcher:{} reader:{} readerHash:{} maxVersion:{}", searcher, ctx.reader(), ctx.reader().hashCode(), maxVersion);
+    }
+    log.debug("Cache Size: {}, Segments Size:{}", perSegmentFingerprintCache.size(), searcher.getTopReaderContext().leaves().size());
+    return f;
+  }
 
   /** Opens a new searcher and returns a RefCounted&lt;SolrIndexSearcher&gt; with it's reference incremented.
    *
