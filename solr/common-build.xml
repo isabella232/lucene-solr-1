@@ -31,6 +31,9 @@
   </taskdef>
 
   <!-- Initializes ivy/libraries.properties and build.properties with CDH versions -->
+  <condition property="mvn.settings.line" value="-s ${mvn.settings.override}" else="">
+    <isset property="mvn.settings.override" />
+  </condition>
   <if>
     <and>
       <not>
@@ -42,6 +45,7 @@
     </and>
     <then>
       <exec  executable="mvn" dir="${common-solr.dir}/.." failonerror="true">
+        <arg line="${mvn.settings.line}" />
         <arg value="-f" />
         <arg value="cloudera-pom.xml" />
         <arg value="process-resources"/>
