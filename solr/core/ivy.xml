@@ -152,7 +152,7 @@
     <dependency org="org.apache.kerby" name="kerby-kerb" rev="${/org.apache.kerby/kerby-kerb}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-client" rev="${/org.apache.kerby/kerb-client}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-common" rev="${/org.apache.kerby/kerb-common}" conf="test.MiniKdc"/>
-    <dependency org="org.apache.kerby" name="kerb-core" rev="${/org.apache.kerby/kerb-common}" conf="test.MiniKdc"/>
+    <dependency org="org.apache.kerby" name="kerb-core" rev="${/org.apache.kerby/kerb-core}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-crypto" rev="${/org.apache.kerby/kerb-crypto}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-identity" rev="${/org.apache.kerby/kerb-identity}" conf="test.MiniKdc"/> 
     <dependency org="org.apache.kerby" name="kerb-server" rev="${/org.apache.kerby/kerb-server}" conf="test.MiniKdc"/>
