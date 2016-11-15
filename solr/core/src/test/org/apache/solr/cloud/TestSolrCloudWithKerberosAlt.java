@@ -64,7 +64,7 @@ import com.carrotsearch.randomizedtesting.rules.SystemPropertiesRestoreRule;
 
 @LuceneTestCase.Slow
 @LuceneTestCase.SuppressSysoutChecks(bugUrl = "Solr logs to JUL")
-@Ignore // nocommit
+@Ignore
 public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
