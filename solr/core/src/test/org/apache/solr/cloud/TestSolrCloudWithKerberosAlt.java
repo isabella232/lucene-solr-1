@@ -48,8 +48,8 @@ import org.slf4j.LoggerFactory;
     BadZookeeperThreadsFilter.class // Zookeeper login leaks TGT renewal threads
 })
 
-@Ignore
 @LuceneTestCase.SuppressSysoutChecks(bugUrl = "Solr logs to JUL")
+@Ignore
 public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
