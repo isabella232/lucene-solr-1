@@ -724,6 +724,7 @@ public class LibVersionsCheckTask extends Task {
   private void setupIvy() {
     IvySettings ivySettings = new IvySettings();
     try {
+      ivySettings.setVariable("ivysettings.xml", commonBuildDir.getAbsolutePath() + "/../" + "default-nested-ivy-settings.xml");
       ivySettings.setVariable("common.build.dir", commonBuildDir.getAbsolutePath());
       ivySettings.setVariable("ivy.exclude.types", "source|javadoc");
       ivySettings.setVariable("ivy.resolution-cache.dir", ivyResolutionCacheDir.getAbsolutePath());
