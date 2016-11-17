@@ -303,7 +303,7 @@ while test $# != 0 ; do
               INSTANCE_DIR="$4"
             fi
 
-            [ -e ${INSTANCE_DIR}/solrconfig.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at solrconfig.xml"
+            [ -e ${INSTANCE_DIR}/solrconfig.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with solrconfig.xml"
             [ -e ${INSTANCE_DIR}/managed-schema -o -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with schema.xml or managed-schema"
 
 
@@ -322,7 +322,7 @@ while test $# != 0 ; do
               INSTANCE_DIR="$4"
             fi
 
-            [ -e ${INSTANCE_DIR}/solrconfig.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at solrconfig.xml"
+            [ -e ${INSTANCE_DIR}/solrconfig.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with solrconfig.xml"
             [ -e ${INSTANCE_DIR}/managed-schema -o -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with schema.xml or managed-schema"
             
             eval $SOLR_ADMIN_ZK_CMD -cmd clear /configs/$3 2>/dev/null || die "Error: can't delete configuration"
