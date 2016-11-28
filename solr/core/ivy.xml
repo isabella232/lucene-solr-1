@@ -85,11 +85,7 @@
     <dependency org="org.apache.curator" name="curator-framework" rev="${/org.apache.curator/curator-framework}" conf="compile.hadoop"/>
     <dependency org="org.apache.curator" name="curator-client" rev="${/org.apache.curator/curator-client}" conf="compile.hadoop"/> 
     <dependency org="org.apache.curator" name="curator-recipes" rev="${/org.apache.curator/curator-recipes}" conf="compile.hadoop"/>
-    <dependency org="org.apache.directory.api" name="api-asn1-api" rev="${/org.apache.directory.api/api-asn1-api}" conf="compile.hadoop"/>
-    <dependency org="org.apache.directory.api" name="api-util" rev="${/org.apache.directory.api/api-util}" conf="compile.hadoop"/>
-    <dependency org="org.apache.directory.server" name="apacheds-kerberos-codec" rev="${/org.apache.directory.server/apacheds-kerberos-codec}" conf="compile.hadoop"/>
-    
-    
+
     <!-- Hadoop DfsMiniCluster Dependencies-->
     <dependency org="org.apache.hadoop" name="hadoop-common" rev="${/org.apache.hadoop/hadoop-common}" conf="test.DfsMiniCluster">
       <artifact name="hadoop-common" type="test" ext="jar" maven:classifier="tests" /> 
