@@ -79,7 +79,7 @@ public class MiniSolrCloudCluster {
       "  </shardHandlerFactory>\n" +
       "\n" +
       "  <solrcloud>\n" +
-      "    <str name=\"host\">127.0.0.1</str>\n" +
+      "    <str name=\"host\">${hostName:127.0.0.1}</str>\n" +
       "    <int name=\"hostPort\">${hostPort:8983}</int>\n" +
       "    <str name=\"hostContext\">${hostContext:solr}</str>\n" +
       "    <int name=\"zkClientTimeout\">${solr.zkclienttimeout:30000}</int>\n" +

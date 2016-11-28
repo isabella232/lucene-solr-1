@@ -18,6 +18,8 @@ package org.apache.solr.cloud;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
@@ -32,7 +34,6 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.util.BadZookeeperThreadsFilter;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -49,7 +50,6 @@ import org.slf4j.LoggerFactory;
 })
 
 @LuceneTestCase.SuppressSysoutChecks(bugUrl = "Solr logs to JUL")
-@Ignore
 public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -84,7 +84,15 @@ public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
         .withKdc(new File(kdcDir))
         .withJaasConfiguration(solrClientPrincipal, keytabFile, "SolrClient")
         .build();
-    String solrServerPrincipal = "HTTP/127.0.0.1";
+
+    // Note - use hostname instead of an ip address (preferred for kerberos authentication).
+    String hostname = "localhost";
+    try {
+      hostname = InetAddress.getByName("127.0.0.1").getHostName();
+    } catch (UnknownHostException e) {
+    }
+
+    String solrServerPrincipal = "HTTP/"+hostname;
     kerberosTestServices.start();
     kerberosTestServices.getKdc().createPrincipal(keytabFile, solrServerPrincipal, solrClientPrincipal);
 
@@ -103,7 +111,7 @@ public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
     FileUtils.write(new File(jaasFilePath), jaas, StandardCharsets.UTF_8);
     System.setProperty("java.security.auth.login.config", jaasFilePath);
     System.setProperty("solr.kerberos.jaas.appname", "SolrClient"); // Get this app name from the jaas file
-    System.setProperty("solr.kerberos.cookie.domain", "127.0.0.1");
+    System.setProperty("solr.kerberos.cookie.domain", hostname);
     System.setProperty("solr.kerberos.principal", solrServerPrincipal);
     System.setProperty("solr.kerberos.keytab", keytabFile.getAbsolutePath());
     System.setProperty("authenticationPlugin", "org.apache.solr.security.KerberosPlugin");
@@ -165,13 +173,14 @@ public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
     System.clearProperty("authenticationPlugin");
     System.clearProperty("solr.kerberos.delegation.token.enabled");
     System.clearProperty("solr.kerberos.name.rules");
-    
+
     // more debugging, if needed
     // System.clearProperty("sun.security.jgss.debug");
     // System.clearProperty("sun.security.krb5.debug");
     // System.clearProperty("sun.security.jgss.debug");
     // System.clearProperty("java.security.debug");
 
+    System.clearProperty("hostName");
     kerberosTestServices.stop();
     super.tearDown();
   }
