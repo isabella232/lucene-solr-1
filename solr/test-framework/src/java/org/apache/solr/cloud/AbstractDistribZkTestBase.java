@@ -240,7 +240,7 @@ public abstract class AbstractDistribZkTestBase extends BaseDistributedSearchTes
       ClusterState clusterState = zkStateReader.getClusterState();
       DocCollection coll = clusterState.getCollection("collection1");
       Slice slice = coll.getSlice(shardName);
-      if(slice.getLeader() != oldLeader && slice.getState() == ZkStateReader.ACTIVE) {
+      if(slice.getLeader() != oldLeader && slice.getState().equals(ZkStateReader.ACTIVE)) {
         log.info("New leader got elected in {} secs", i);
         break;
       }
