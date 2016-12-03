@@ -1,0 +1,41 @@
+{
+    "authentication": {
+        "class": "org.apache.solr.security.GenericHadoopAuthPlugin",
+        "sysPropPrefix": "solr.authentication.",
+        "type": "multi-scheme",
+        "enableDelegationToken":"true",
+        "initKerberosZk": "true",
+        "authConfigs": [
+            "multi-scheme-auth-handler.schemes",
+            "multi-scheme-auth-handler.schemes.basic.handler",
+            "multi-scheme-auth-handler.schemes.negotiate.handler",
+            "kerberos.principal",
+            "kerberos.keytab",
+            "kerberos.name.rules",
+            "ldap.providerurl",
+            "ldap.basedn",
+            "ldap.enablestarttls",
+            "delegation-token.token-kind",
+            "delegation-token.update-interval.sec",
+            "delegation-token.max-lifetime.sec",
+            "delegation-token.renewal-interval.sec",
+            "delegation-token.removal-scan-interval.sec",
+            "delegation.http.schemes",
+            "cookie.domain",
+            "signer.secret.provider",
+            "zk-dt-secret-manager.enable",
+            "zk-dt-secret-manager.znodeWorkingPath",
+            "signer.secret.provider.zookeeper.path"
+        ],
+        "defaultConfigs": {
+            "delegation-token.token-kind": "solr-dt",
+            "signer.secret.provider": "zookeeper",
+            "zk-dt-secret-manager.enable": "true",
+            "token.validity": "36000",
+            "zk-dt-secret-manager.znodeWorkingPath": "solr/security/zkdtsm",
+            "signer.secret.provider.zookeeper.path": "/token"
+        },
+        "proxyUserConfigs": {
+        }
+    }
+}
