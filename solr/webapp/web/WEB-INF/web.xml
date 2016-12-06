@@ -44,7 +44,7 @@
        <env-entry-type>java.lang.String</env-entry-type>
     </env-entry>
    -->
-   
+
   <!-- Any path (name) registered in solrconfig.xml will be sent to that filter -->
   <filter>
     <filter-name>SolrRequestFilter</filter-name>
