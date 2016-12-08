@@ -244,7 +244,9 @@ public class JettySolrRunner {
       connector.setReuseAddress(true);
       connector.setSoLingerTime(-1);
       connector.setPort(port);
-      connector.setHost("127.0.0.1");
+      // CLOUDERA-BUILD (Until SOLR-9889 is contributed upstream).
+      String hostName = System.getProperty("hostName", "127.0.0.1");
+      connector.setHost(hostName);
       connector.setIdleTimeout(THREAD_POOL_MAX_IDLE_TIME_MS);
       
       server.setConnectors(new Connector[] {connector});
