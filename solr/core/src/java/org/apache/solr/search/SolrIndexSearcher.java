@@ -173,6 +173,8 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
   private final boolean reserveDirectory;
   private final boolean createdDirectory;
 
+  private final NamedList<Object> readerStats;
+
   private static DirectoryReader getReader(SolrCore core, SolrIndexConfig config, DirectoryFactory directoryFactory, String path) throws IOException {
     DirectoryReader reader = null;
     Directory dir = directoryFactory.get(path, DirContext.DEFAULT, config.lockType);
@@ -308,6 +310,7 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
       fieldNames.add(fieldInfo.name);
     }
 
+    readerStats = snapStatistics(reader);
     // do this at the end since an exception in the constructor means we won't close    
     numOpens.incrementAndGet();
   }
@@ -2228,15 +2231,23 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
     NamedList<Object> lst = new SimpleOrderedMap<>();
     lst.add("searcherName", name);
     lst.add("caching", cachingEnabled);
+
+    lst.addAll(readerStats);
+ 
+    lst.add("openedAt", new Date(openTime));
+    if (registerTime!=0) lst.add("registeredAt", new Date(registerTime));
+    lst.add("warmupTime", warmupTime);
+    return lst;
+  }
+
+  static private NamedList<Object> snapStatistics(DirectoryReader reader) {
+    final NamedList<Object> lst = new SimpleOrderedMap<Object>();
     lst.add("numDocs", reader.numDocs());
     lst.add("maxDoc", reader.maxDoc());
     lst.add("deletedDocs", reader.maxDoc() - reader.numDocs());
     lst.add("reader", reader.toString());
     lst.add("readerDir", reader.directory());
     lst.add("indexVersion", reader.getVersion());
-    lst.add("openedAt", new Date(openTime));
-    if (registerTime!=0) lst.add("registeredAt", new Date(registerTime));
-    lst.add("warmupTime", warmupTime);
     return lst;
   }
 

@@ -2144,7 +2144,6 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
       if (_searcher != null) {
         _searcher.decref();   // dec refcount for this._searcher
         _searcher = null; // isClosed() does check this
-        infoRegistry.remove("currentSearcher");
       }
     }
   }
