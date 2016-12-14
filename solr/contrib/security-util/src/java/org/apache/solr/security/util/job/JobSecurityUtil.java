@@ -30,6 +30,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier;
 
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.impl.DelegationTokenHttpSolrClient;
 import org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.DelegationTokenRequest;
@@ -116,6 +117,45 @@ public class JobSecurityUtil {
       conf.setBooleanIfUnset(USE_SECURE_CREDENTIALS, true);
     } else {
       LOG.info("Skipping initialization of job credentials");
+    }
+  }
+
+  /**
+   * Load job credentials for Solr clients running in this process.  Clients created after
+   * calling this method will automatically authenticate using the provided credentials.
+   *
+   * @param job JobContext to load the credentials from
+   * @param serviceName should be the same as passed to {@link #initCredentials}
+   */
+  public static void loadCredentialsForClients(JobContext job, String serviceName)
+  throws IOException {
+    verifyArgs(job, serviceName);
+    if (job.getConfiguration().getBoolean(USE_SECURE_CREDENTIALS, false)) {
+      LOG.info("Loading job credentials for clients");
+      System.setProperty(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_SYSPROP,
+          getCredentialsString(job, serviceName));
+    }
+  }
+
+  /**
+   * Load job credentials for Solr clients running in this process.  Clients created after
+   * calling this method will automatically authenticate using the provided credentials.
+   *
+   * @param conf Configuration that stores the CREDENTIALS_FILE_LOCATION, probably
+   *        passed to {@link #initCredentials(File, Configuration, String)}
+   * @param serviceName should be the same as passed to {@link #initCredentials}
+   */
+  public static void loadCredentialsForClients(Configuration conf, String serviceName)
+  throws IOException {
+    verifyArgs(conf, serviceName);
+    if (conf.getBoolean(USE_SECURE_CREDENTIALS, false)) {
+      String credentialsFile = conf.get(CREDENTIALS_FILE_LOCATION);
+      if (credentialsFile != null) {
+        LOG.info("Loading job credentials for clients");
+        String credentialsString = getCredentialsString(credentialsFile);
+        System.setProperty(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_SYSPROP,
+            credentialsString);
+      }
     }
   }
 

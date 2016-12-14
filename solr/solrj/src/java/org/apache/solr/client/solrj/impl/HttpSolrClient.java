@@ -931,6 +931,15 @@ s   * @deprecated since 7.0  Use {@link Builder} methods instead.
         throw new IllegalArgumentException("Cannot create HttpSolrClient without a valid baseSolrUrl!");
       }
 
+      // The Hadoop indexing tools for Solr require the delegation token be configured via a Java system property
+      // For compatibility reasons - this takes effect only if the delegation token is not explicitly configured.
+      if (this.invariantParams.get(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_PARAM) == null) {
+        String delegationToken = System.getProperty(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_SYSPROP);
+        if (delegationToken != null) {
+          this.invariantParams.add(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_PARAM, delegationToken);
+        }
+      }
+
       if (this.invariantParams.get(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_PARAM) == null) {
         return new HttpSolrClient(this);
       } else {

@@ -32,6 +32,11 @@ import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 
 public class DelegationTokenHttpSolrClient extends HttpSolrClient {
+  /**
+   * This constant defines the name of the Java system property to store the value of delegation token.
+   */
+  public static final String DELEGATION_TOKEN_SYSPROP = "solr.authentication.solrj.token.delegation";
+
   public final static String DELEGATION_TOKEN_PARAM = "delegation";
 
   /**
