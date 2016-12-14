@@ -27,6 +27,7 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.lucene.util.Constants;
 import org.apache.solr.client.solrj.ResponseParser;
 import org.apache.solr.client.solrj.SolrClient;
+import org.apache.solr.client.solrj.impl.DelegationTokenHttpSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
@@ -75,6 +76,8 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
 
   @AfterClass
   public static void shutdown() throws Exception {
+    System.clearProperty(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_SYSPROP);
+
     if (userAuthServer != null) {
       userAuthServer.close();
       userAuthServer = null;
@@ -163,6 +166,11 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
       fail ("Expected IllegalArgumentException");
     } catch (IllegalArgumentException ex) {}
     try {
+      Job nullJob = null;
+      JobSecurityUtil.loadCredentialsForClients(nullJob, zkHost);
+      fail ("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) {}
+    try {
       JobSecurityUtil.cleanupCredentials(null, job, zkHost);
       fail ("Expected IllegalArgumentException");
     } catch (IllegalArgumentException ex) {}
@@ -175,6 +183,11 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
     File file = new File(".");
     try {
       JobSecurityUtil.initCredentials(file, conf, null);
+      fail ("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException ex) {}
+    try {
+      Configuration nullConf = null;
+      JobSecurityUtil.loadCredentialsForClients(nullConf, zkHost);
       fail ("Expected IllegalArgumentException");
     } catch (IllegalArgumentException ex) {}
     try {
@@ -193,6 +206,8 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
       job.getCredentials().getToken(new Text(zkHost));
     assertNotNull(authToken);
 
+    JobSecurityUtil.loadCredentialsForClients(job, zkHost);
+
     CredentialsCleanup cc = new CredentialsCleanup() {
       @Override
       public void cleanupCredentials(SolrClient server) throws Exception {
@@ -206,6 +221,9 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
   throws Exception {
     String authToken = getCredentialsString(tokenFile.getPath());
     assertNotNull(authToken);
+
+    JobSecurityUtil.loadCredentialsForClients(conf, zkHost);
+
     CredentialsCleanup cc = new CredentialsCleanup() {
       @Override
       public void cleanupCredentials(SolrClient server) throws Exception {
@@ -218,8 +236,11 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
   private void verifyCredentialsPass(String authToken, CredentialsCleanup cc) throws Exception {
     assertNotNull(authToken);
 
+    String token = System.getProperty(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_SYSPROP);
+    assertNotNull(token);
+    assertEquals(token, authToken);
+
     HttpSolrClient server = (new HttpSolrClient.Builder()).withBaseSolrUrl(baseURL)
-                                                          .withDelegationToken(authToken)
                                                           .build();
     try {
       // Ensure a normal HttpSolrClient "just works"
@@ -229,6 +250,7 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
       cc.cleanupCredentials(server);
       doSolrRequest(server, ErrorCode.FORBIDDEN.code);
     } finally {
+      System.clearProperty(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_SYSPROP);
       server.close();
     }
 
@@ -270,6 +292,7 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
     Token<? extends TokenIdentifier> authToken =
       job.getCredentials().getToken(new Text(zkHost));
     assertNull(authToken);
+    JobSecurityUtil.loadCredentialsForClients(job, zkHost);
     CredentialsCleanup cc = new CredentialsCleanup() {
       @Override
       public void cleanupCredentials(SolrClient server) throws Exception {
@@ -282,6 +305,7 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
   private void verifyCredentialsFail(final Configuration conf) throws Exception {
     // Ensure file not present
     assertNull(conf.get(JobSecurityUtil.CREDENTIALS_FILE_LOCATION, null));
+    JobSecurityUtil.loadCredentialsForClients(conf, zkHost);
     CredentialsCleanup cc = new CredentialsCleanup() {
       @Override
       public void cleanupCredentials(SolrClient server) throws Exception {
@@ -292,6 +316,9 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
   }
 
   private void verifyCredentialsFail(CredentialsCleanup cc) throws Exception {
+    String token = System.getProperty(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_SYSPROP);
+    assertNull(token);
+
     HttpSolrClient server = (new HttpSolrClient.Builder()).withBaseSolrUrl(baseURL).build();
 
     try {
