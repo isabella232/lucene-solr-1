@@ -81,6 +81,9 @@ Bug Fixes
   specified, which could lead to data loss if the server were killed immediately after the
   update finished.  (Jeffery Yuan via yonik)
 
+* SOLR-9859: replication.properties cannot be updated after being written and neither replication.properties or 
+  index.properties are durable in the face of a crash. (Pushkar Raste, Chris de Kok, Cao Manh Dat, Mark Miller)
+
 Other Changes
 ----------------------
 

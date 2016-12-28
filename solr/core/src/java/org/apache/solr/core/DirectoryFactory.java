@@ -168,6 +168,20 @@ public abstract class DirectoryFactory implements NamedListInitializedPlugin,
     fromDir.deleteFile(fileName);
   }
   
+  // sub classes perform an atomic rename if possible, otherwise fall back to delete + rename
+  // this is important to support for index roll over durability after crashes
+  public void renameWithOverwrite(Directory dir, String fileName, String toName) throws IOException {
+    try {
+      dir.deleteFile(toName);
+    } catch (FileNotFoundException | NoSuchFileException e) {
+
+    } catch (Exception e) {
+      log.error("Exception deleting file", e);
+    }
+
+    dir.renameFile(fileName, toName);
+  }
+  
   /**
    * Returns the Directory for a given path, using the specified rawLockType.
    * Will return the same Directory instance for the same path.
