@@ -26,7 +26,10 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileContext;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.lucene.store.Directory;
@@ -417,5 +420,12 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   @VisibleForTesting
   void setHost(String hostname) {
     LocalityHolder.reporter.setHost(hostname);
+  }
+
+    // perform an atomic rename if possible
+  public void renameWithOverwrite(Directory dir, String fileName, String toName) throws IOException {
+    String hdfsDirPath = getPath(dir);
+    FileContext fileContext = FileContext.getFileContext(getConf());
+    fileContext.rename(new Path(hdfsDirPath + "/" + fileName), new Path(hdfsDirPath + "/" + toName), Options.Rename.OVERWRITE);
   }
 }

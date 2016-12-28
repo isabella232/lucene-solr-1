@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
 import org.apache.lucene.util.LuceneTestCase.Slow;
@@ -289,7 +290,11 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
     // check details on the slave a couple of times before & after fetching
     for (int i = 0; i < 3; i++) {
       NamedList<Object> details = getDetails(slaveClient);
-      
+      List replicatedAtCount = (List) ((NamedList) details.get("slave")).get("indexReplicatedAtList");
+      if (i > 0) {
+        assertEquals(i, replicatedAtCount.size());
+      }
+
       assertEquals("slave isMaster?", 
                    "false", details.get("isMaster"));
       assertEquals("slave isSlave?", 
