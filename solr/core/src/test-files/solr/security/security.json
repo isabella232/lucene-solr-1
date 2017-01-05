@@ -32,7 +32,7 @@
             "signer.secret.provider": "zookeeper",
             "zk-dt-secret-manager.enable": "true",
             "token.validity": "36000",
-            "zk-dt-secret-manager.znodeWorkingPath": "solr/security/zkdtsm",
+            "zk-dt-secret-manager.znodeWorkingPath": "path1/path2/security/zkdtsm",
             "signer.secret.provider.zookeeper.path": "/token"
         },
         "proxyUserConfigs": {
