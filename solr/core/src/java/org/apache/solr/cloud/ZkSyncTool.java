@@ -141,9 +141,10 @@ public class ZkSyncTool {
 
     // Configure delegation token support
     String solrZkEnsemble = env.get("SOLR_ZK_ENSEMBLE");
-    String[] zkPath = solrZkEnsemble.split("/");
+    String[] zkPath = solrZkEnsemble.split("/", 2);
     if (zkPath != null && zkPath.length > 1) {
-      authConfigDefaults.put("zk-dt-secret-manager.znodeWorkingPath", zkPath[1].concat("/security/zkdtsm"));
+      String path = zkPath[1].concat("/security/zkdtsm").replace("//", "/");
+      authConfigDefaults.put("zk-dt-secret-manager.znodeWorkingPath", path);
     }
 
     authConfig.put("proxyUserConfigs", proxyUserConfigs);

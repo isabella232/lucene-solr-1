@@ -64,10 +64,11 @@ public final class ZkSyncToolTest extends SolrTestCaseJ4 {
     System.setProperty("zkHost", zkServer.getZkAddress());
 
     try (SolrZkClient client = new SolrZkClient(zkServer.getZkHost(), AbstractZkTestCase.TIMEOUT)) {
-      client.makePath("/solr", false, true);
+      client.makePath("/path1", false, true);
+      client.makePath("/path1/path2", false, true);
     }
 
-    zkClient = new SolrZkClient(zkServer.getZkAddress(), AbstractZkTestCase.TIMEOUT);
+    zkClient = new SolrZkClient(zkServer.getZkAddress("/path1/path2"), AbstractZkTestCase.TIMEOUT);
 
     log.info("####SETUP_END " + getTestName());
   }
@@ -85,7 +86,7 @@ public final class ZkSyncToolTest extends SolrTestCaseJ4 {
 
     // Configure security without proxy users.
     Map<String, String> env = new HashMap<>();
-    env.put("SOLR_ZK_ENSEMBLE", zkServer.getZkAddress());
+    env.put("SOLR_ZK_ENSEMBLE", zkServer.getZkAddress("/path1/path2"));
     env.put("SOLR_SEC_CONFIG_FILE", configFilePath.toString());
     env.put("SOLR_AUTHENTICATION_TYPE", "kerberos");
 
