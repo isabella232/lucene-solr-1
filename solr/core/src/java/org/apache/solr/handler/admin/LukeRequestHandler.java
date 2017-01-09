@@ -32,6 +32,7 @@ import org.apache.lucene.index.*;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.similarities.Similarity;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.CharsRef;
@@ -559,7 +560,7 @@ public class LukeRequestHandler extends RequestHandlerBase
 
     indexInfo.add("version", reader.getVersion());  // TODO? Is this different then: IndexReader.getCurrentVersion( dir )?
     indexInfo.add("segmentCount", reader.leaves().size());
-    indexInfo.add("current", reader.isCurrent() );
+    indexInfo.add("current", isCurrent(reader));
     indexInfo.add("hasDeletions", reader.hasDeletions() );
     indexInfo.add("directory", dir );
     indexInfo.add("userData", reader.getIndexCommit().getUserData());
@@ -569,6 +570,15 @@ public class LukeRequestHandler extends RequestHandlerBase
     }
     return indexInfo;
   }
+
+  private static boolean isCurrent(DirectoryReader reader) {
+    try {
+      return reader.isCurrent();
+    }catch(AlreadyClosedException | IOException exception) {
+    }
+    return false;
+  }
+
 
   /** Returns the sum of RAM bytes used by each segment */
   private static long getIndexHeapUsed(DirectoryReader reader) {
