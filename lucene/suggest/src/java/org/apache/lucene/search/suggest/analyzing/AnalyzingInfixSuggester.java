@@ -79,6 +79,7 @@ import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -129,16 +130,23 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
   private final Directory dir;
   final int minPrefixChars;
   private final boolean commitOnBuild;
+  private final boolean closeIndexWriterOnBuild;
 
   /** Used for ongoing NRT additions/updates. */
-  private IndexWriter writer;
+  protected IndexWriter writer;
 
   /** {@link IndexSearcher} used for lookups. */
   protected SearcherManager searcherMgr;
 
+  /** Used to manage concurrent access to searcherMgr */
+  protected final Object searcherMgrLock = new Object();
+
   /** Default minimum number of leading characters before
    *  PrefixQuery is used (4). */
   public static final int DEFAULT_MIN_PREFIX_CHARS = 4;
+
+  /** Default option to close the IndexWriter once the index has been built. */
+  protected final static boolean DEFAULT_CLOSE_INDEXWRITER_ON_BUILD = true;
 
   /** How we sort the postings and search results. */
   private static final Sort SORT = new Sort(new SortField("weight", SortField.Type.LONG, true));
@@ -169,6 +177,27 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
    */
   public AnalyzingInfixSuggester(Version matchVersion, Directory dir, Analyzer indexAnalyzer, Analyzer queryAnalyzer, int minPrefixChars,
                                  boolean commitOnBuild) throws IOException {
+    this(matchVersion, dir, indexAnalyzer, queryAnalyzer, minPrefixChars, commitOnBuild, DEFAULT_CLOSE_INDEXWRITER_ON_BUILD);
+  }
+
+  /** Create a new instance, loading from a previously built
+   *  AnalyzingInfixSuggester directory, if it exists.  This directory must be
+   *  private to the infix suggester (i.e., not an external
+   *  Lucene index).  Note that {@link #close}
+   *  will also close the provided directory.
+   *
+   *  @param minPrefixChars Minimum number of leading characters
+   *     before PrefixQuery is used (default 4).
+   *     Prefixes shorter than this are indexed as character
+   *     ngrams (increasing index size but making lookups
+   *     faster).
+   *
+   *  @param commitOnBuild Call commit after the index has finished building. This would persist the
+   *                       suggester index to disk and future instances of this suggester can use this pre-built dictionary.
+   *  @param closeIndexWriterOnBuild If true, the IndexWriter will be closed after the index has finished building.
+   */
+  public AnalyzingInfixSuggester(Version matchVersion, Directory dir, Analyzer indexAnalyzer, Analyzer queryAnalyzer, int minPrefixChars,
+                                 boolean commitOnBuild, boolean closeIndexWriterOnBuild) throws IOException {
 
     if (minPrefixChars < 0) {
       throw new IllegalArgumentException("minPrefixChars must be >= 0; got: " + minPrefixChars);
@@ -180,6 +209,7 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
     this.dir = dir;
     this.minPrefixChars = minPrefixChars;
     this.commitOnBuild = commitOnBuild;
+    this.closeIndexWriterOnBuild = closeIndexWriterOnBuild;
 
     if (DirectoryReader.indexExists(dir)) {
       // Already built; open it:
@@ -213,50 +243,56 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
   @Override
   public void build(InputIterator iter) throws IOException {
     
-    if (searcherMgr != null) {
-      searcherMgr.close();
-      searcherMgr = null;
-    }
+    synchronized (searcherMgrLock) {
+      if (searcherMgr != null) {
+        searcherMgr.close();
+        searcherMgr = null;
+      }
 
-    if (writer != null) {
-      writer.close();
-      writer = null;
-    }
+      if (writer != null) {
+        writer.close();
+        writer = null;
+      }
 
-    AtomicReader r = null;
-    boolean success = false;
-    try {
-      // First pass: build a temporary normal Lucene index,
-      // just indexing the suggestions as they iterate:
-      writer = new IndexWriter(dir,
-                               getIndexWriterConfig(matchVersion, getGramAnalyzer(), IndexWriterConfig.OpenMode.CREATE));
-      //long t0 = System.nanoTime();
+      AtomicReader r = null;
+      boolean success = false;
+      try {
+        // First pass: build a temporary normal Lucene index,
+        // just indexing the suggestions as they iterate:
+        writer = new IndexWriter(dir,
+                getIndexWriterConfig(matchVersion, getGramAnalyzer(), IndexWriterConfig.OpenMode.CREATE));
+        //long t0 = System.nanoTime();
 
-      // TODO: use threads?
-      BytesRef text;
-      while ((text = iter.next()) != null) {
-        BytesRef payload;
-        if (iter.hasPayloads()) {
-          payload = iter.payload();
-        } else {
-          payload = null;
+        // TODO: use threads?
+        BytesRef text;
+        while ((text = iter.next()) != null) {
+          BytesRef payload;
+          if (iter.hasPayloads()) {
+            payload = iter.payload();
+          } else {
+            payload = null;
+          }
+
+          add(text, iter.contexts(), iter.weight(), payload);
         }
 
-        add(text, iter.contexts(), iter.weight(), payload);
-      }
-
-      //System.out.println("initial indexing time: " + ((System.nanoTime()-t0)/1000000) + " msec");
-      if(commitOnBuild) {
-        commit();
-      }
-      searcherMgr = new SearcherManager(writer, true, null);
-      success = true;
-    } finally {
-      if (success) {
-        IOUtils.close(r);
-      } else {
-        IOUtils.closeWhileHandlingException(writer, r);
-        writer = null;
+        //System.out.println("initial indexing time: " + ((System.nanoTime()-t0)/1000000) + " msec");
+        if (commitOnBuild || closeIndexWriterOnBuild) {
+          commit();
+        }
+        searcherMgr = new SearcherManager(writer, true, null);
+        success = true;
+      } finally {
+        if (success) {
+          IOUtils.close(r);
+          if (closeIndexWriterOnBuild) {
+            IOUtils.closeWhileHandlingException(writer, r);
+            writer = null;
+          }
+        } else {
+          IOUtils.closeWhileHandlingException(writer, r);
+          writer = null;
+        }
       }
     }
   }
@@ -266,9 +302,13 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
    *  @see IndexWriter#commit */
   public void commit() throws IOException {
     if(writer == null) {
-      throw new IllegalStateException("Cannot commit on an closed writer. Add documents first");
+      if (searcherMgr == null || closeIndexWriterOnBuild == false) {
+        throw new IllegalStateException("Cannot commit on an closed writer. Add documents first");
+      }
+      // else no-op: writer was committed and closed after the index was built, so commit is unnecessary
+    } else {
+      writer.commit();
     }
-    writer.commit();
   }
 
   private Analyzer getGramAnalyzer() {
@@ -295,13 +335,19 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
 
   private synchronized void ensureOpen() throws IOException {
     if(writer == null) {
-      if (searcherMgr != null) {
-        searcherMgr.close();
-        searcherMgr = null;
+      if (DirectoryReader.indexExists(dir)) {
+        // Already built; open it:
+        writer = new IndexWriter(dir, getIndexWriterConfig(matchVersion, getGramAnalyzer(), IndexWriterConfig.OpenMode.APPEND));
+      } else {
+        writer = new IndexWriter(dir, getIndexWriterConfig(matchVersion, getGramAnalyzer(), IndexWriterConfig.OpenMode.CREATE));
       }
-      writer = new IndexWriter(dir,
-          getIndexWriterConfig(matchVersion, getGramAnalyzer(), IndexWriterConfig.OpenMode.CREATE));
-      searcherMgr = new SearcherManager(writer, true, null);
+      synchronized (searcherMgrLock) {
+        SearcherManager oldSearcherMgr = searcherMgr;
+        searcherMgr = new SearcherManager(writer, true, null);
+        if (oldSearcherMgr != null) {
+          oldSearcherMgr.close();
+        }
+      }
     }
   }
 
@@ -358,7 +404,11 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
     if (searcherMgr == null) {
       throw new IllegalStateException("suggester was not built");
     }
-    searcherMgr.maybeRefreshBlocking();
+    if (writer != null) {
+      searcherMgr.maybeRefreshBlocking();
+    }
+    // else no-op: writer was committed and closed after the index was built
+    //             and before searchMgr was constructed, so refresh is unnecessary
   }
 
   /**
@@ -497,7 +547,12 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
     // We sorted postings by weight during indexing, so we
     // only retrieve the first num hits now:
     Collector c2 = new EarlyTerminatingSortingCollector(c, SORT, num);
-    IndexSearcher searcher = searcherMgr.acquire();
+    SearcherManager mgr;
+    IndexSearcher searcher;
+    synchronized (searcherMgrLock) {
+      mgr = searcherMgr; // acquire & release on same SearcherManager, via local reference
+      searcher = mgr.acquire();
+    }
     List<LookupResult> results = null;
     try {
       //System.out.println("got searcher=" + searcher);
@@ -509,7 +564,7 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
       // hits = searcher.search(query, null, num, SORT);
       results = createResults(searcher, hits, num, key, doHighlight, matchedTokens, prefixToken);
     } finally {
-      searcherMgr.release(searcher);
+      mgr.release(searcher);
     }
 
     //System.out.println((System.currentTimeMillis() - t0) + " msec for infix suggest");
@@ -689,8 +744,14 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
     }
     if (writer != null) {
       writer.close();
-      dir.close();
       writer = null;
+    }
+    if (dir != null) {
+      try {
+        dir.close();
+      } catch (AlreadyClosedException e) {
+        // CDH-48810/SOLR-7564 backport fix
+      }
     }
   }
 
@@ -699,7 +760,12 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
     long mem = RamUsageEstimator.shallowSizeOf(this);
     try {
       if (searcherMgr != null) {
-        IndexSearcher searcher = searcherMgr.acquire();
+        SearcherManager mgr;
+        IndexSearcher searcher;
+        synchronized (searcherMgrLock) {
+          mgr = searcherMgr; // acquire & release on same SearcherManager, via local reference
+          searcher = mgr.acquire();
+        }
         try {
           for (AtomicReaderContext context : searcher.getIndexReader().leaves()) {
             AtomicReader reader = FilterAtomicReader.unwrap(context.reader());
@@ -708,7 +774,7 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
             }
           }
         } finally {
-          searcherMgr.release(searcher);
+          mgr.release(searcher);
         }
       }
       return mem;
@@ -722,11 +788,16 @@ public class AnalyzingInfixSuggester extends Lookup implements Closeable {
     if(searcherMgr == null) {
       return 0;
     }
-    IndexSearcher searcher = searcherMgr.acquire();
+    SearcherManager mgr;
+    IndexSearcher searcher;
+    synchronized (searcherMgrLock) {
+      mgr = searcherMgr; // acquire & release on same SearcherManager, via local reference
+      searcher = mgr.acquire();
+    }
     try {
       return searcher.getIndexReader().numDocs();
     } finally {
       searcherMgr.release(searcher);
     }
   }
-};
+}

@@ -36,9 +36,12 @@ import org.apache.lucene.analysis.core.StopFilter;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.util.CharArraySet;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.suggest.Input;
 import org.apache.lucene.search.suggest.InputArrayIterator;
 import org.apache.lucene.search.suggest.Lookup.LookupResult;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
@@ -1034,6 +1037,135 @@ public class AnalyzingInfixSuggesterTest extends LuceneTestCase {
     StringBuilder sb = new StringBuilder();
     suggester.addPrefixMatch(sb, surface, "", prefix);
     return sb.toString();
+  }
+
+  @Test(expected = AlreadyClosedException.class)
+  public void testCloseIndexWriterOnBuild() throws Exception {
+    class MyAnalyzingInfixSuggester extends AnalyzingInfixSuggester {
+      public MyAnalyzingInfixSuggester(Directory dir, Analyzer indexAnalyzer, Analyzer queryAnalyzer,
+                                       int minPrefixChars, boolean commitOnBuild, boolean closeIndexWriterOnBuild) throws IOException {
+        super(TEST_VERSION_CURRENT, dir, indexAnalyzer, queryAnalyzer, minPrefixChars, commitOnBuild, closeIndexWriterOnBuild);
+      }
+      public IndexWriter getIndexWriter() {
+        return writer;
+      }
+      public SearcherManager getSearcherManager() {
+        return searcherMgr;
+      }
+    }
+
+    // After build(), when closeIndexWriterOnBuild = true:
+    // * The IndexWriter should be null
+    // * The SearcherManager should be non-null
+    // * SearcherManager's IndexWriter reference should be closed
+    //   (as evidenced by maybeRefreshBlocking() throwing AlreadyClosedException)
+    Analyzer a = new MockAnalyzer(random(), MockTokenizer.WHITESPACE, false);
+    MyAnalyzingInfixSuggester suggester = new MyAnalyzingInfixSuggester(newDirectory(), a, a, 3, false, true);
+    suggester.build(new InputArrayIterator(sharedInputs));
+    assertNull(suggester.getIndexWriter());
+    assertNotNull(suggester.getSearcherManager());
+
+    try {
+      suggester.getSearcherManager().maybeRefreshBlocking();
+    } finally {
+      suggester.close();
+      a.close();
+    }
+  }
+
+  public void testCommitAfterBuild() throws Exception {
+    performOperationWithAllOptionCombinations(new SuggesterOperation() {
+      @Override
+      public void operate(AnalyzingInfixSuggester suggester) throws Exception {
+        suggester.build(new InputArrayIterator(sharedInputs));
+        suggester.commit();
+      }
+    });
+  }
+
+  public void testRefreshAfterBuild() throws Exception {
+    performOperationWithAllOptionCombinations(new SuggesterOperation() {
+      @Override
+      public void operate(AnalyzingInfixSuggester suggester) throws Exception {
+        suggester.build(new InputArrayIterator(sharedInputs));
+        suggester.refresh();
+      }
+    });
+  }
+
+  public void testDisallowCommitBeforeBuild() throws Exception {
+    performOperationWithAllOptionCombinations
+            (new SuggesterOperation() {
+              @Override
+              public void operate(AnalyzingInfixSuggester suggester) throws Exception {
+                try {
+                  suggester.commit();
+                  fail("Expected: IllegalStateException");
+                } catch (IllegalStateException e) {
+                }
+              }
+            });
+  }
+
+  public void testDisallowRefreshBeforeBuild() throws Exception {
+    performOperationWithAllOptionCombinations
+            (new SuggesterOperation() {
+              @Override
+              public void operate(AnalyzingInfixSuggester suggester) throws Exception {
+                try {
+                  suggester.refresh();
+                  fail("Expected: IllegalStateException");
+                } catch (IllegalStateException e) {
+                }
+              }
+            });
+  }
+
+  private Input sharedInputs[] = new Input[] {
+          new Input("lend me your ear", 8, new BytesRef("foobar")),
+          new Input("a penny saved is a penny earned", 10, new BytesRef("foobaz")),
+  };
+
+  private interface SuggesterOperation {
+    void operate(AnalyzingInfixSuggester suggester) throws Exception;
+  }
+
+  /**
+   * Perform the given operation on suggesters constructed with all combinations of options
+   * commitOnBuild and closeIndexWriterOnBuild, including defaults.
+   */
+  private void performOperationWithAllOptionCombinations(SuggesterOperation operation) throws Exception {
+    Analyzer a = new MockAnalyzer(random(), MockTokenizer.WHITESPACE, false);
+
+    AnalyzingInfixSuggester suggester = new AnalyzingInfixSuggester(TEST_VERSION_CURRENT, newDirectory(), a);
+    operation.operate(suggester);
+    suggester.close();
+
+    suggester = new AnalyzingInfixSuggester(TEST_VERSION_CURRENT, newDirectory(), a, a, 3, false);
+    operation.operate(suggester);
+    suggester.close();
+
+    suggester = new AnalyzingInfixSuggester(TEST_VERSION_CURRENT, newDirectory(), a, a, 3, true);
+    operation.operate(suggester);
+    suggester.close();
+
+    suggester = new AnalyzingInfixSuggester(TEST_VERSION_CURRENT, newDirectory(), a, a, 3, true, true);
+    operation.operate(suggester);
+    suggester.close();
+
+    suggester = new AnalyzingInfixSuggester(TEST_VERSION_CURRENT, newDirectory(), a, a, 3, true, false);
+    operation.operate(suggester);
+    suggester.close();
+
+    suggester = new AnalyzingInfixSuggester(TEST_VERSION_CURRENT, newDirectory(), a, a, 3, false, true);
+    operation.operate(suggester);
+    suggester.close();
+
+    suggester = new AnalyzingInfixSuggester(TEST_VERSION_CURRENT, newDirectory(), a, a, 3, false, false);
+    operation.operate(suggester);
+    suggester.close();
+
+    a.close();
   }
 
 
