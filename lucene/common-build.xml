@@ -2474,8 +2474,15 @@ ${ant.project.name}.test.dependencies=${test.classpath.list}
     <attribute name="lucene.javadoc.url" default="${lucene.javadoc.url}"/>
     <sequential>
       <mkdir dir="@{changes.target.dir}"/>
-      <get src="https://issues.apache.org/jira/rest/api/2/project/@{changes.product}"
-        dest="@{changes.target.dir}/jiraVersionList.json" httpusecaches="false"/>
+       <!-- CDH-49077 Replacing standard get resoucr to a curl executable call -->
+       <!-- Fetch from an https site is not posiible using the standard get resource -->
+      
+      <exec executable="curl" failonerror="true" dir="${basedir}">
+        <arg value="https://issues.apache.org/jira/rest/api/2/project/@{changes.product}"/>
+        <arg value="-k" />
+        <arg value="-o" />
+        <arg value = "@{changes.target.dir}/jiraVersionList.json"/>
+      </exec>
       <exec executable="${perl.exe}" input="@{changes.src.file}" output="@{changes.target.dir}/Changes.html"
             failonerror="true" logError="true">
         <arg value="-CSD"/>
