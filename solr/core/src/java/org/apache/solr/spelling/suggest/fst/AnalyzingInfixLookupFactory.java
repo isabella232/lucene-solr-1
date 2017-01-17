@@ -98,7 +98,7 @@ public class AnalyzingInfixLookupFactory extends LookupFactory {
     try {
       return new AnalyzingInfixSuggester(core.getSolrConfig().luceneMatchVersion, 
                                          FSDirectory.open(new File(indexPath)), indexAnalyzer,
-                                         queryAnalyzer, minPrefixChars) {
+                                         queryAnalyzer, minPrefixChars, true) {
         @Override
         public List<LookupResult> lookup(CharSequence key, Set<BytesRef> contexts, int num, boolean allTermsRequired, boolean doHighlight) throws IOException {
           List<LookupResult> res = super.lookup(key, contexts, num, allTermsRequired, doHighlight);
