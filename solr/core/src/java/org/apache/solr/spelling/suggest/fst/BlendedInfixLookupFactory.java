@@ -104,7 +104,7 @@ public class BlendedInfixLookupFactory extends AnalyzingInfixLookupFactory {
       return new BlendedInfixSuggester(core.getSolrConfig().luceneMatchVersion, 
                                        FSDirectory.open(new File(indexPath)),
                                        indexAnalyzer, queryAnalyzer, minPrefixChars,
-                                       blenderType, numFactor) {
+                                       blenderType, numFactor, true) {
         @Override
         public List<LookupResult> lookup(CharSequence key, Set<BytesRef> contexts, int num, boolean allTermsRequired, boolean doHighlight) throws IOException {
           List<LookupResult> res = super.lookup(key, contexts, num, allTermsRequired, doHighlight);
