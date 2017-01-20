@@ -417,7 +417,7 @@
 
     <build-changes changes.src.file="${svn.export.dir}/solr/CHANGES.txt"
                    changes.target.dir="${svn.export.dir}/solr/docs/changes"
-                   changes.product="SOLR"/>
+                   changes.product="solr"/>
 
     <tar destfile="${source.package.file}" compression="gzip" longfile="gnu">
       <tarfileset dir="${svn.export.dir}/lucene"
@@ -556,7 +556,7 @@
   </target>
 
   <target name="changes-to-html" depends="define-lucene-javadoc-url">
-    <build-changes changes.product="SOLR"/>
+    <build-changes changes.product="solr"/>
   </target>
  
   <target name="sign-artifacts">
