@@ -461,12 +461,13 @@
 
     <build-changes changes.src.file="${svn.export.dir}/CHANGES.txt"
                    changes.target.dir="${svn.export.dir}/docs/changes"
-                   changes.product="LUCENE"/>
+                   changes.product="lucene"/>
     <tar tarfile="${source.package.file}" compression="gzip" longfile="gnu">
       <tarfileset prefix="lucene-${version}" dir="${svn.export.dir}"/>
     </tar>
     <make-checksums file="${source.package.file}"/>
   </target>
+
 
   <!-- ================================================================== -->
   <!-- Packages the sources from local working copy with tar-gzip     -->
@@ -572,7 +573,7 @@
   </target>
 
   <target name="changes-to-html">
-    <build-changes changes.product="LUCENE"/>
+    <build-changes changes.product="lucene"/>
   </target>
 
   <target name="pitest-modules" depends="compile-test">
