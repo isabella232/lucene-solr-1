@@ -20,4 +20,15 @@
     <int name="connTimeout">${connTimeout:0}</int>
   </shardHandlerFactory>
 
+  <backup>
+    <repository name="hdfs" class="org.apache.solr.core.backup.repository.HdfsBackupRepository" default="true">
+      <str name="solr.hdfs.home">${solr.hdfs.home:}</str>
+      <str name="solr.hdfs.confdir">${solr.hdfs.confdir:}</str>
+      <str name="solr.hdfs.security.kerberos.enabled">${solr.hdfs.security.kerberos.enabled:false}</str>
+      <str name="solr.hdfs.security.kerberos.keytabfile">${solr.hdfs.security.kerberos.keytabfile:}</str>
+      <str name="solr.hdfs.security.kerberos.principal">${solr.hdfs.security.kerberos.principal:}</str>
+      <str name="solr.hdfs.permissions.umask-mode">${solr.hdfs.permissions.umask-mode:000}</str>
+    </repository>
+  </backup>
+
 </solr>

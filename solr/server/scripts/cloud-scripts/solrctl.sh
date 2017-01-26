@@ -180,7 +180,7 @@ get_solr_state() {
 }
 
 run_solr_snapshot_tool() {
-  ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties ${SOLR_HOME}/bin/snapshotscli.sh "$@"
+  SOLR_USE_DISTCP="true" ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties ${SOLR_HOME}/bin/snapshotscli.sh "$@"
 }
 
 SOLR_CONF_DIR=${SOLR_CONF_DIR:-/etc/solr/conf}
@@ -691,7 +691,7 @@ while test $# != 0 ; do
               EXPORT_SNAPSHOT_OPTS="${EXPORT_SNAPSHOT_OPTS} -s ${SOURCE_DIR_PATH}"
             fi
 
-            eval 'run_solr_snapshot_tool --export-snapshot ${SNAPSHOT_NAME} -z ${SOLR_ZK_ENSEMBLE} -d ${DEST_DIR_PATH} ${EXPORT_SNAPSHOT_OPTS}' || die "Error: Unable to export snapshot"
+            eval 'run_solr_snapshot_tool --export ${SNAPSHOT_NAME} -z ${SOLR_ZK_ENSEMBLE} -d ${DEST_DIR_PATH} ${EXPORT_SNAPSHOT_OPTS}' || die "Error: Unable to export snapshot"
             ;;
         --restore)
             COL_RESTORE_NAME=$3
