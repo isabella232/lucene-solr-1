@@ -1,0 +1,238 @@
+#!/bin/bash
+
+BIGTOP_DEFAULTS_DIR=${BIGTOP_DEFAULTS_DIR-/etc/default}
+[ -n "${BIGTOP_DEFAULTS_DIR}" -a -r ${BIGTOP_DEFAULTS_DIR}/solr ] && . ${BIGTOP_DEFAULTS_DIR}/solr
+
+# Autodetect JAVA_HOME if not defined
+if [ -e /usr/lib/bigtop-utils/bigtop-detect-javahome ]; then
+  . /usr/lib/bigtop-utils/bigtop-detect-javahome
+fi
+
+# resolve links - $0 may be a softlink
+PRG="${BASH_SOURCE[0]}"
+
+while [ -h "${PRG}" ]; do
+  ls=`ls -ld "${PRG}"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG=`dirname "${PRG}"`/"$link"
+  fi
+done
+
+BASEDIR=`dirname ${PRG}`
+BASEDIR=`cd ${BASEDIR}/..;pwd`
+
+SOLR_PORT=${SOLR_PORT:-8983}
+SOLR_ADMIN_PORT=${SOLR_ADMIN_PORT:-8984}
+SOLR_MAX_CONNECTOR_THREAD=${SOLR_MAX_CONNECTOR_THREAD:-10000}
+SOLR_LOG=${SOLR_LOG:-/var/log/solr}
+SOLR_TOMCAT_BACKLOG=${SOLR_TOMCAT_BACKLOG:-4096}
+SOLR_TOMCAT_CONNECTION_TIMEOUT=${SOLR_TOMCAT_CONNECTION_TIMEOUT:-180000}
+SOLR_TOMCAT_KEEP_ALIVE_TIMEOUT=${SOLR_TOMCAT_KEEP_ALIVE_TIMEOUT:-600000}
+SOLR_TOMCAT_MAX_KEEP_ALIVE_REQUESTS=${SOLR_TOMCAT_MAX_KEEP_ALIVE_REQUESTS:--1}
+SOLR_TOMCAT_CONNECTION_LINGER=${SOLR_TOMCAT_CONNECTION_LINGER:-300}
+SOLR_TOMCAT_BUFFER_SIZE=${SOLR_TOMCAT_BUFFER_SIZE:-131072}
+SOLR_HOME=${SOLR_HOME:-/var/lib/solr}
+SOLR_LOG4J_CONFIG=${SOLR_LOG4J_CONFIG:-/etc/solr/conf/log4j.properties}
+
+export SOLR_DATA=${SOLR_DATA:-/var/lib/solr}
+export SOLR_CUSTOM_CONFIG_DIR=${SOLR_DATA}/server
+
+# nocommit
+export CATALINA_TMPDIR=${SOLR_DATA}
+export CATALINA_PID=${SOLR_RUN:-/var/run/solr}/solr.pid
+export CATALINA_OUT=${SOLR_LOG:-/var/log/solr}/solr.out
+
+export SOLR_LOGS_DIR=${SOLR_LOG}
+
+export SOLR_TIMEZONE=`date +%Z`
+
+export SOLR_JETTY_SSL_INI=${SOLR_CUSTOM_CONFIG_DIR}/start.d/ssl.ini
+
+export SOLR_LOG_PRESTART_ROTATION=false
+
+
+die() {
+  echo "$@" >&2
+  exit 1
+}
+
+mkdir -p ${SOLR_CUSTOM_CONFIG_DIR}/start.d
+ssl_set_prop() {
+  echo "$@" >> "${SOLR_JETTY_SSL_INI}"
+}
+
+# Preflight checks (required only during startup) :
+# 1. We are only supporting SolrCloud mode
+if ([ "$1" = "start" -o "$1" = "run" ]) && [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
+  die "Error: SOLR_ZK_ENSEMBLE is not set in /etc/default/solr"
+fi
+
+
+JAVA_OPTS="${JAVA_OPTS} -Dsolr.solrxml.location=zookeeper"
+
+if [ -n "$SOLR_HDFS_HOME" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.home=${SOLR_HDFS_HOME}"
+fi
+
+if [ -n "$SOLR_HDFS_CONFIG" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.confdir=${SOLR_HDFS_CONFIG}"
+fi
+
+if [ "$SOLR_KERBEROS_ENABLED" == "true" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.security.kerberos.enabled=${SOLR_KERBEROS_ENABLED}"
+fi
+
+if [ -n "$SOLR_KERBEROS_KEYTAB" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.security.kerberos.keytabfile=${SOLR_KERBEROS_KEYTAB}"
+fi
+
+if [ -n "$SOLR_KERBEROS_PRINCIPAL" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.security.kerberos.principal=${SOLR_KERBEROS_PRINCIPAL}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_TYPE" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.type=${SOLR_AUTHENTICATION_TYPE}"
+fi
+
+if [ -n "$SOLR_ZKACL_PROVIDER" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -DzkACLProvider=${SOLR_ZKACL_PROVIDER}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_KERBEROS_KEYTAB" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.kerberos.keytab=${SOLR_AUTHENTICATION_KERBEROS_KEYTAB}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_KERBEROS_PRINCIPAL" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.kerberos.principal=${SOLR_AUTHENTICATION_KERBEROS_PRINCIPAL}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_KERBEROS_NAME_RULES" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.kerberos.name.rules=${SOLR_AUTHENTICATION_KERBEROS_NAME_RULES}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_SIMPLE_ALLOW_ANON" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.simple.anonymous.allowed=${SOLR_AUTHENTICATION_SIMPLE_ALLOW_ANON}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_JAAS_CONF" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Djava.security.auth.login.config=${SOLR_AUTHENTICATION_JAAS_CONF}"
+fi
+
+if [ -n "$SOLR_SECURITY_ALLOWED_PROXYUSERS" ] ; then
+  old_IFS=${IFS}
+  IFS=","
+  for user in $SOLR_SECURITY_ALLOWED_PROXYUSERS
+    do
+      hostsVar="SOLR_SECURITY_PROXYUSER_"$user"_HOSTS"
+      eval hostsVal=\$$hostsVar
+      if [ -n "$hostsVal" ] ; then
+        JAVA_OPTS="${JAVA_OPTS} -Dsolr.security.proxyuser.${user}.hosts=${hostsVal}"
+      fi
+      groupsVar="SOLR_SECURITY_PROXYUSER_"$user"_GROUPS"
+      eval groupsVal=\$$groupsVar
+      if [ -n "$groupsVal" ] ; then
+        JAVA_OPTS="${JAVA_OPTS} -Dsolr.security.proxyuser.${user}.groups=${groupsVal}"
+      fi
+    done
+  IFS=${old_IFS}
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_LDAP_PROVIDER_URL" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.ldap.providerurl=${SOLR_AUTHENTICATION_LDAP_PROVIDER_URL}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_LDAP_BASE_DN" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.ldap.basedn=${SOLR_AUTHENTICATION_LDAP_BASE_DN}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_LDAP_BIND_DOMAIN" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.ldap.binddomain=${SOLR_AUTHENTICATION_LDAP_BIND_DOMAIN}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_LDAP_ENABLE_START_TLS" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.ldap.enablestarttls=${SOLR_AUTHENTICATION_LDAP_ENABLE_START_TLS}"
+fi
+
+if [ -n "$SOLR_AUTHENTICATION_HTTP_SCHEMES" ] ; then
+  JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.multi-scheme-auth-handler.schemes=${SOLR_AUTHENTICATION_HTTP_SCHEMES}"
+
+  if [ -n "$SOLR_AUTHENTICATION_HTTP_DELEGATION_MGMT_SCHEMES" ] ; then
+    JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.multi-scheme-auth-handler.delegation.schemes=${SOLR_AUTHENTICATION_HTTP_DELEGATION_MGMT_SCHEMES}"
+  fi
+
+  if [ -n "$SOLR_AUTHENTICATION_HTTP_BASIC_HANDLER" ] ; then
+    JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.multi-scheme-auth-handler.schemes.basic.handler=${SOLR_AUTHENTICATION_HTTP_BASIC_HANDLER}"
+  fi
+
+  if [ -n "$SOLR_AUTHENTICATION_HTTP_NEGOTIATE_HANDLER" ] ; then
+    JAVA_OPTS="${JAVA_OPTS} -Dsolr.authentication.multi-scheme-auth-handler.schemes.negotiate.handler=${SOLR_AUTHENTICATION_HTTP_NEGOTIATE_HANDLER}"
+  fi
+fi
+
+if [ -z "$SOLR_HOSTNAME" ]; then
+  SOLR_HOSTNAME=$(hostname -f)
+fi
+
+# FIXME: we need to set this because of the jetty-centric default solr.xml
+JAVA_OPTS="${JAVA_OPTS} -Dhost=$SOLR_HOSTNAME -Dcookie.domain=$SOLR_HOSTNAME"
+
+export JAVA_OPTS="${JAVA_OPTS} -Dsolr.host=$SOLR_HOSTNAME
+                                        -DuseCachedStatsBetweenGetMBeanInfoCalls=true
+                                        -DdisableSolrFieldCacheMBeanEntryListJmx=true
+                                        -Dlog4j.configuration=file://$SOLR_LOG4J_CONFIG
+                                        -Dsolr.log=$SOLR_LOG
+                                        -Dsolr.admin.port=$SOLR_ADMIN_PORT
+                                        -Dsolr.tomcat.backlog=$SOLR_TOMCAT_BACKLOG
+                                        -Dsolr.tomcat.connectionTimeout=$SOLR_TOMCAT_CONNECTION_TIMEOUT
+                                        -Dsolr.tomcat.keepAliveTimeout=$SOLR_TOMCAT_KEEP_ALIVE_TIMEOUT
+                                        -Dsolr.tomcat.maxKeepAliveRequests=$SOLR_TOMCAT_MAX_KEEP_ALIVE_REQUESTS
+                                        -Dsolr.max.connector.thread=$SOLR_MAX_CONNECTOR_THREAD
+                                        -Dsolr.tomcat.connectionLinger=$SOLR_TOMCAT_CONNECTION_LINGER
+                                        -Dsolr.tomcat.bufferSize=$SOLR_TOMCAT_BUFFER_SIZE
+                                        -Dsolr.solr.home=$SOLR_HOME"
+
+rm -f "${SOLR_JETTY_SSL_INI}"
+touch "${SOLR_JETTY_SSL_INI}"
+chmod 0600 "${SOLR_JETTY_SSL_INI}"
+
+if [ -n "${SOLR_KEYSTORE_PATH}" ]; then
+  export SOLR_SSL_KEY_STORE=${SOLR_KEYSTORE_PATH}
+fi
+if [ -n "${SOLR_KEYSTORE_PASSWORD}" ]; then
+  ssl_set_prop "solr.jetty.keystore.password=${SOLR_KEYSTORE_PASSWORD}"
+fi
+
+if [ -n "${SOLR_TRUSTSTORE_PATH}" ]; then
+  export SOLR_SSL_TRUST_STORE=${SOLR_TRUSTSTORE_PATH}
+fi
+if [ -n "${SOLR_TRUSTSTORE_PASSWORD}" ]; then
+  ssl_set_prop "solr.jetty.truststore.password=${SOLR_TRUSTSTORE_PASSWORD}"
+fi
+
+if [ -n "$SOLR_AUTHORIZATION_SENTRY_SITE" ] ; then
+  export JAVA_OPTS="${JAVA_OPTS} -Dsolr.authorization.sentry.site=${SOLR_AUTHORIZATION_SENTRY_SITE}"
+fi
+
+if [ -n "$SOLR_AUTHORIZATION_SUPERUSER" ] ; then
+  export JAVA_OPTS="${JAVA_OPTS} -Dsolr.authorization.superuser=${SOLR_AUTHORIZATION_SUPERUSER}"
+fi
+
+if [ -n "$ZK_SASL_CLIENT_USERNAME" ] ; then
+  export JAVA_OPTS="${JAVA_OPTS} -Dzookeeper.sasl.client.username=${ZK_SASL_CLIENT_USERNAME}"
+fi
+
+
+if [ -x /usr/lib/bigtop-utils/bigtop-monitor-service ]; then
+if ([ "$1" = "start" -o "$1" = "run" ]) && [ -n "$SOLRD_WATCHDOG_TIMEOUT" ] ; then
+  /usr/lib/bigtop-utils/bigtop-monitor-service $SOLRD_WATCHDOG_TIMEOUT $$
+fi
+fi
+
+if [ "$1" = "stop" ] ; then
+  exec $(dirname "$BASH_SOURCE")/solr stop -d $(dirname "$BASH_SOURCE")/../server -k csearch -p $SOLR_PORT
+else
+  exec $(dirname "$BASH_SOURCE")/solr -f -d $(dirname "$BASH_SOURCE")/../server -k csearch -z $SOLR_ZK_ENSEMBLE -p $SOLR_PORT -a "$JAVA_OPTS" -j "--include-jetty-dir=${SOLR_CUSTOM_CONFIG_DIR}"
+fi
