@@ -76,6 +76,11 @@
   </filter-mapping>
 
   <servlet>
+    <servlet-name>JMX</servlet-name>
+    <servlet-class>org.apache.solr.servlet.JMXJsonServlet</servlet-class>
+  </servlet>
+
+  <servlet>
     <servlet-name>LoadAdminUI</servlet-name>
     <servlet-class>org.apache.solr.servlet.LoadAdminUiServlet</servlet-class>
   </servlet>
@@ -137,6 +142,12 @@
   <servlet-mapping>
     <servlet-name>RedirectLogging</servlet-name>
     <url-pattern>/logging</url-pattern>
+  </servlet-mapping>
+
+  <!-- Servlet Mapping -->
+  <servlet-mapping>
+    <servlet-name>JMX</servlet-name>
+    <url-pattern>/jmx</url-pattern>
   </servlet-mapping>
 
   <servlet-mapping>
