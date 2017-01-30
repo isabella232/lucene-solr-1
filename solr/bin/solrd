@@ -209,7 +209,6 @@ if [ -n "${SOLR_KEYSTORE_PATH}" ]; then
 fi
 if [ -n "${SOLR_KEYSTORE_PASSWORD}" ]; then
   export SOLR_SSL_KEY_STORE_PASSWORD=${SOLR_KEYSTORE_PASSWORD}
-#  ssl_set_prop "solr.jetty.keystore.password=${SOLR_KEYSTORE_PASSWORD}" # @TODO: CDH-46739
 fi
 
 if [ -n "${SOLR_TRUSTSTORE_PATH}" ]; then
@@ -217,7 +216,6 @@ if [ -n "${SOLR_TRUSTSTORE_PATH}" ]; then
 fi
 if [ -n "${SOLR_TRUSTSTORE_PASSWORD}" ]; then
   export SOLR_SSL_TRUST_STORE_PASSWORD=${SOLR_TRUSTSTORE_PASSWORD}
-#  ssl_set_prop "solr.jetty.truststore.password=${SOLR_TRUSTSTORE_PASSWORD}" # @TODO: CDH-46739
 fi
 
 if [ -n "$SOLR_AUTHORIZATION_SENTRY_SITE" ] ; then
@@ -242,5 +240,5 @@ fi
 if [ "$1" = "stop" ] ; then
   exec $(dirname "$BASH_SOURCE")/solr stop -d $(dirname "$BASH_SOURCE")/../server -k csearch -p $SOLR_PORT
 else
-  exec $(dirname "$BASH_SOURCE")/solr -f -d $(dirname "$BASH_SOURCE")/../server -k csearch -z $SOLR_ZK_ENSEMBLE -p $SOLR_PORT -a "$JAVA_OPTS" # -j "--include-jetty-dir=${SOLR_CUSTOM_CONFIG_DIR}"  # @TODO: CDH-46739
+  exec $(dirname "$BASH_SOURCE")/solr -f -d $(dirname "$BASH_SOURCE")/../server -k csearch -z $SOLR_ZK_ENSEMBLE -p $SOLR_PORT -a "$JAVA_OPTS"
 fi
