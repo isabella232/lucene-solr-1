@@ -21,9 +21,12 @@
 package org.apache.solr.servlet;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.lang.invoke.MethodHandles;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -40,11 +43,11 @@ import javax.management.ReflectionException;
 import javax.management.openmbean.CompositeData;
 import javax.management.openmbean.CompositeType;
 import javax.management.openmbean.TabularData;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.solr.common.params.SolrParams;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
 import org.slf4j.Logger;
@@ -118,7 +121,7 @@ import org.slf4j.LoggerFactory;
  *  The bean's name and modelerType will be returned for all beans.
  */
 public class JMXJsonServlet extends HttpServlet {
-  private static final Logger LOG = LoggerFactory.getLogger(JMXJsonServlet.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private static final long serialVersionUID = 1L;
 
@@ -150,8 +153,9 @@ public class JMXJsonServlet extends HttpServlet {
   public void doGet(HttpServletRequest request, HttpServletResponse response) {
     try {
       response.setContentType("application/json; charset=utf8");
+      PrintWriter writer = new PrintWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8));
 
-      PrintWriter writer = response.getWriter();
+      SolrParams params = SolrRequestParsers.parseQueryString(request.getQueryString());
 
       JsonFactory jsonFactory = new JsonFactory();
       JsonGenerator jg = jsonFactory.createJsonGenerator(writer);
@@ -167,7 +171,7 @@ public class JMXJsonServlet extends HttpServlet {
       }
       
       // query per mbean attribute
-      String getmethod = request.getParameter("get");
+      String getmethod = params.get("get");
       if (getmethod != null) {
         String[] splitStrings = getmethod.split("\\:\\:");
         if (splitStrings.length != 2) {
@@ -184,7 +188,7 @@ public class JMXJsonServlet extends HttpServlet {
       }
 
       // query per mbean
-      String qry = request.getParameter("qry");
+      String qry = params.get("qry");
       if (qry == null) {
         qry = "*:*";
       }
