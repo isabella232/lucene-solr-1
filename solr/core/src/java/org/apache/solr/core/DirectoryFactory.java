@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FilterDirectory;
 import org.apache.lucene.store.FlushInfo;
 import org.apache.lucene.store.IOContext;
 import org.apache.solr.common.SolrException;
@@ -308,5 +309,15 @@ public abstract class DirectoryFactory implements NamedListInitializedPlugin,
 
   public void initCoreContainer(CoreContainer cc) {
     this.coreContainer = cc;
+  }
+  
+  // special hack to work with FilterDirectory
+  protected Directory getBaseDir(Directory dir) {
+    Directory baseDir = dir;
+    while (baseDir instanceof FilterDirectory) {
+      baseDir = ((FilterDirectory)baseDir).getDelegate();
+    } 
+    
+    return baseDir;
   }
 }
