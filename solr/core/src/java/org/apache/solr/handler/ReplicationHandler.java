@@ -28,12 +28,15 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -1162,15 +1165,17 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
 
     protected Long indexGen;
     protected IndexDeletionPolicyWrapper delPolicy;
+    protected String fileName;
+    protected String cfileName;
 
     public DirectoryFileStream(SolrParams solrParams) {
       params = solrParams;
       delPolicy = core.getDeletionPolicy();
+      fileName = validateFilenameOrError(params.get(FILE));
+      cfileName = validateFilenameOrError(params.get(CONF_FILE_SHORT));
     }
 
     public void write(OutputStream out) throws IOException {
-      String fileName = params.get(FILE);
-      String cfileName = params.get(CONF_FILE_SHORT);
       String sOffset = params.get(OFFSET);
       String sLen = params.get(LEN);
       String compress = params.get(COMPRESSION);
@@ -1248,6 +1253,24 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
       }
     }
 
+    // Throw exception on directory traversal attempts
+    protected String validateFilenameOrError(String filename) {
+      if (filename != null) {
+        Path filePath = Paths.get(filename);
+        Iterator<Path> paths = filePath.iterator();
+        while (paths.hasNext()) {
+          Path subpath = paths.next();
+          if ("..".equals(subpath.toString())) {
+            throw new SolrException(ErrorCode.FORBIDDEN, "File name cannot contain ..");
+          }
+        }
+        if (filePath.isAbsolute()) {
+          throw new SolrException(ErrorCode.FORBIDDEN, "File name must be relative");
+        }
+        return filename;
+      } else return null;
+    }
+
 
     /**
      * Used to write a marker for EOF
@@ -1266,8 +1289,6 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
 
     @Override
     public void write(OutputStream out) throws IOException {
-      String fileName = params.get(FILE);
-      String cfileName = params.get(CONF_FILE_SHORT);
       String sOffset = params.get(OFFSET);
       String sLen = params.get(LEN);
       String compress = params.get(COMPRESSION);

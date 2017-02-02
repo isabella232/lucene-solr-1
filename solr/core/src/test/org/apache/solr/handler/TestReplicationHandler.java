@@ -28,10 +28,12 @@ import java.io.Writer;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.lucene.util.LuceneTestCase.Slow;
@@ -484,16 +486,11 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
   //jetty servers.
   private void invokeReplicationCommand(int pJettyPort, String pCommand) throws IOException
   {
-    String masterUrl = buildUrl(pJettyPort) + "/replication?command=" + pCommand;
-    try {
-      URL u = new URL(masterUrl);
-      InputStream stream = u.openStream();
-      stream.close();
-    } catch (IOException e) {
-      //e.printStackTrace();
-    }    
+    URL u = new URL(buildUrl(pJettyPort) + "/replication?command=" + pCommand);
+    try (InputStream stream = u.openStream()) {
+    }
   }
-  
+
   @Test
   public void doTestIndexAndConfigReplication() throws Exception {
     clearIndexWithReplication();
@@ -1295,7 +1292,23 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
     checkForSingleIndex(masterJetty);
     checkForSingleIndex(slaveJetty);
   }
-  
+
+  @Test
+  public void doTestIllegalFilePaths() throws Exception {
+    String absFile = Paths.get("foo").toAbsolutePath().toString();
+    // Loop through the file=, cf= and prove that it throws exception for path traversal attempts
+    List<String> illegalFilenames = Arrays.asList(absFile, "../dir/traversal", "illegal\rfile\nname\t");
+    List<String> params = Arrays.asList(ReplicationHandler.FILE, ReplicationHandler.CONF_FILE_SHORT);
+    for (String param : params) {
+      for (String filename : illegalFilenames) {
+        try {
+          invokeReplicationCommand(masterJetty.getLocalPort(), "filecontent&" + param + "=" + filename);
+          fail("Should have thrown exception on illegal path for param " + param + " and file name " + filename);
+        } catch (Exception e) {}
+      }
+    }
+  }
+
   /**
    * character copy of file using UTF-8. If port is non-null, will be substituted any time "TEST_PORT" is found.
    */
