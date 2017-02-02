@@ -78,6 +78,8 @@ Commands:
                 [--set-property name value]
                 [--remove-property name]
                 [--get-clusterstate file]
+                [--get-securityconf file]
+                [--put-securityconf file]
 
     sentry      [--create-role role]
                 [--drop-role role]
@@ -846,6 +848,20 @@ while test $# != 0 ; do
           [ ! -e "$3" ] || die "$3 already exists"
           > "$3" || die "unable to create file $3"
           eval $SOLR_ADMIN_ZK_CMD -cmd getfile /clusterstate.json $3  || die "Error: can't get clusterstate.json from ZK or clusterstate.json is empty"
+          shift 3
+          ;;
+        --get-securityconf)
+          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
+          [ ! -e "$3" ] || die "$3 already exists"
+          > "$3" || die "unable to create file $3"
+          eval $SOLR_ADMIN_ZK_CMD -cmd getfile /security.json $3  || die "Error: can't get security.json from ZK or security.json is empty"
+          shift 3
+          ;;
+        --put-securityconf)
+          [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
+          [ -f "$3" ] || die "$3 is not a file"
+          eval $SOLR_ADMIN_ZK_CMD -cmd clear /security.json || die "Error: failed to clear security.json in ZK before put"
+          eval $SOLR_ADMIN_ZK_CMD -cmd putfile /security.json "$3" || die "Error: can't put security.json to ZK"
           shift 3
           ;;
         *)
