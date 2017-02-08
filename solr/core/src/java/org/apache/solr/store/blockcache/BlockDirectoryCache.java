@@ -23,6 +23,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.solr.store.blockcache.BlockCache.OnRelease;
+
+
 /**
  * @lucene.experimental
  */
@@ -42,11 +45,19 @@ public class BlockDirectoryCache implements Cache {
     this.blockCache = blockCache;
     this.path = path;
     this.metrics = metrics;
+    
     if (releaseBlocks) {
       keysToRelease = Collections.newSetFromMap(new ConcurrentHashMap<BlockCacheKey,Boolean>(1024, 0.75f, 512));
+      blockCache.setOnRelease(new OnRelease() {
+        
+        @Override
+        public void release(BlockCacheKey key) {
+          keysToRelease.remove(key);
+        }
+      });
     }
   }
-  
+
   /**
    * Expert: mostly for tests
    * 
