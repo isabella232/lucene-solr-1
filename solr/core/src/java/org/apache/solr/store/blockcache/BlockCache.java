@@ -18,7 +18,11 @@ package org.apache.solr.store.blockcache;
  */
 
 import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
@@ -39,6 +43,11 @@ public class BlockCache {
   private final int numberOfBlocksPerBank;
   private final int maxEntries;
   private final Metrics metrics;
+  private final List<OnRelease> onReleases = new CopyOnWriteArrayList<>();
+  
+  public static interface OnRelease {
+    public void release(BlockCacheKey blockCacheKey);
+  }
   
   public BlockCache(Metrics metrics, boolean directAllocation, long totalMemory) {
     this(metrics, directAllocation, totalMemory, _128M);
@@ -72,7 +81,7 @@ public class BlockCache {
     EvictionListener<BlockCacheKey,BlockCacheLocation> listener = new EvictionListener<BlockCacheKey,BlockCacheLocation>() {
       @Override
       public void onEviction(BlockCacheKey key, BlockCacheLocation location) {
-        releaseLocation(location);
+        releaseLocation(key, location);
       }
     };
     cache = new ConcurrentLinkedHashMap.Builder<BlockCacheKey,BlockCacheLocation>()
@@ -81,10 +90,10 @@ public class BlockCache {
   }
   
   public void release(BlockCacheKey key) {
-    releaseLocation(cache.remove(key));
+    releaseLocation(key, cache.remove(key));
   }
   
-  private void releaseLocation(BlockCacheLocation location) {
+  private void releaseLocation(BlockCacheKey blockCacheKey, BlockCacheLocation location) {
     if (location == null) {
       return;
     }
@@ -93,6 +102,9 @@ public class BlockCache {
     location.setRemoved(true);
     locks[bankId].clear(block);
     lockCounters[bankId].decrementAndGet();
+    for (OnRelease onRelease : onReleases) {
+      onRelease.release(blockCacheKey);
+    }
     metrics.blockCacheEviction.incrementAndGet();
     metrics.blockCacheSize.decrementAndGet();
   }
@@ -122,7 +134,7 @@ public class BlockCache {
     bank.position(bankOffset + blockOffset);
     bank.put(data, offset, length);
     if (newLocation) {
-      releaseLocation(cache.put(blockCacheKey.clone(), location));
+      releaseLocation(blockCacheKey, cache.put(blockCacheKey.clone(), location));
       metrics.blockCacheSize.incrementAndGet();
     }
     return true;
@@ -202,5 +214,9 @@ public class BlockCache {
   
   public int getSize() {
     return cache.size();
+  }
+
+  void setOnRelease(OnRelease onRelease) {
+    this.onReleases.add(onRelease);
   }
 }

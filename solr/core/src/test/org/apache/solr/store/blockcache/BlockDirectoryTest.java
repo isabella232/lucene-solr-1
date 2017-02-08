@@ -107,7 +107,18 @@ public class BlockDirectoryTest extends SolrTestCaseJ4 {
     file = createTempDir();
     FSDirectory dir = FSDirectory.open(new File(file, "base"));
     mapperCache = new MapperCache();
-    directory = new BlockDirectory("test", dir, mapperCache, null, true, true);
+
+    if (random().nextBoolean()) {
+      Metrics metrics = new Metrics();
+      int blockSize = 8192;
+      int slabSize = blockSize * 16384;
+      long totalMemory = 1 * slabSize;
+      BlockCache blockCache = new BlockCache(metrics, true, totalMemory, slabSize, blockSize);
+      BlockDirectoryCache cache = new BlockDirectoryCache(blockCache, "/collection1", metrics, true);
+      directory = new BlockDirectory("test", dir, cache, null, true, false);
+    } else {
+      directory = new BlockDirectory("test", dir, mapperCache, null, true, true);
+    }
     random = random();
   }
   
@@ -253,7 +264,11 @@ public class BlockDirectoryTest extends SolrTestCaseJ4 {
 
     BlockDirectory d = directory;
     assertTrue(d.useReadCache("", IOContext.DEFAULT));
-    assertTrue(d.useWriteCache("", IOContext.DEFAULT));
+    if (d.getCache() instanceof MapperCache) {
+      assertTrue(d.useWriteCache("", IOContext.DEFAULT));
+    } else {
+      assertFalse(d.useWriteCache("", IOContext.DEFAULT));
+    }
     assertFalse(d.useWriteCache("", mergeContext));
 
     d = new BlockDirectory("test", directory, mapperCache, null, true, false);
@@ -263,7 +278,11 @@ public class BlockDirectoryTest extends SolrTestCaseJ4 {
 
     d = new BlockDirectory("test", directory, mapperCache, null, false, true);
     assertFalse(d.useReadCache("", IOContext.DEFAULT));
-    assertTrue(d.useWriteCache("", IOContext.DEFAULT));
+    if (d.getCache() instanceof MapperCache) {
+      assertTrue(d.useWriteCache("", IOContext.DEFAULT));
+    } else {
+      assertFalse(d.useWriteCache("", IOContext.DEFAULT));
+    }
     assertFalse(d.useWriteCache("", mergeContext));
   }
 }
