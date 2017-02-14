@@ -244,7 +244,7 @@ while test $# != 0 ; do
     --jaas)
       [ $# -gt 1 ] || usage "Error: $1 requires an argument"
       [ -e "$2" ] || usage "Error: $2 must be a file"
-      ZKCLI_JVM_FLAGS="-Djava.security.auth.login.config=$2 -DzkACLProvider=org.apache.solr.common.cloud.DefaultZkACLProvider -Dsolr.httpclient.builder.factory=org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer ${ZKCLI_JVM_FLAGS}"
+      ZKCLI_JVM_FLAGS="-Djava.security.auth.login.config=$2 -DzkACLProvider=org.apache.solr.common.cloud.SaslZkACLProvider -Dsolr.httpclient.builder.factory=org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer ${ZKCLI_JVM_FLAGS}"
       shift 2
       ;;
     *)
