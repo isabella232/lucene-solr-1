@@ -222,10 +222,12 @@ while test $# != 0 ; do
       shift 1
       ;;
     --debug)
+      export SOLR_DEBUG="true"
       exec 3>&1
       shift 1
       ;;
     --trace)
+      export SOLR_TRACE="true"
       set -x
       shift 1
       ;;

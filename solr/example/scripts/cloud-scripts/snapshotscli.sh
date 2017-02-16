@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 
 set -e
+exec 3>/dev/null
+
+if [ -n "$SOLR_TRACE" ]; then
+  set -x
+fi
+
+if [ -n "$SOLR_DEBUG" ]; then
+  exec 3>&1
+fi
 
 run_solr_snapshot_tool() {
   JVM="java"
@@ -12,7 +21,7 @@ run_solr_snapshot_tool() {
   fi
   PATH=${JAVA_HOME}/bin:${PATH} ${JVM} ${ZKCLI_JVM_FLAGS} -Dlog4j.configuration=${log4j_config} \
   -classpath "${scriptDir}/../webapps/solr/WEB-INF/lib/*:${scriptDir}/../lib/ext/*" \
-  org.apache.solr.core.snapshots.SolrSnapshotsTool "$@" 2> /dev/null
+  org.apache.solr.core.snapshots.SolrSnapshotsTool "$@" 2>&3
 }
 
 usage() {
@@ -58,10 +67,10 @@ prepare_snapshot_export() {
   if hdfs dfs -test -d "${destPath}" ; then
       run_solr_snapshot_tool --prepare-snapshot-export "$@" -t "${scratch}"
 
-      hdfs dfs -mkdir -p "${copyListingDirPath}" > /dev/null
+      hdfs dfs -mkdir -p "${copyListingDirPath}" >&3
       find "${scratch}" -type f -printf "%f\n" | while read shardId; do
         echo "Copying the copy-listing for $shardId"
-        hdfs dfs -copyFromLocal "${scratch}/${shardId}" "${copyListingDirPath}" > /dev/null
+        hdfs dfs -copyFromLocal "${scratch}/${shardId}" "${copyListingDirPath}" >&3
       done
   else
     echo "Directory ${destPath} does not exist."
@@ -76,7 +85,7 @@ copy_snapshot_files() {
     for shardId in $(hdfs dfs -stat "%n" "${copylisting_dir_path}/*"); do
       oPath="${destPath}/${snapshotName}/snapshot.${shardId}"
       echo "Copying the index files for ${shardId} to ${oPath}"
-      ${distCpCmd} -f " ${copylisting_dir_path}/${shardId}" "${oPath}" > /dev/null
+      ${distCpCmd} -f " ${copylisting_dir_path}/${shardId}" "${oPath}" >&3
     done
   else
     echo "Directory ${copylisting_dir_path} does not exist."
@@ -136,11 +145,11 @@ case "${cmd}" in
       copyListingDirPath="${destPath}/${snapshotName}/copylistings"
       prepare_snapshot_export "${@:2}"
       copy_snapshot_files "${destPath}/${snapshotName}/copylistings"
-      hdfs dfs -rm -r -f -skipTrash "${destPath}/${snapshotName}/copylistings" > /dev/null
+      hdfs dfs -rm -r -f -skipTrash "${destPath}/${snapshotName}/copylistings" >&3
     else
       copy_snapshot_files "${sourcePath}/copylistings"
       echo "Copying the collection meta-data to ${destPath}/${snapshotName}"
-      ${distCpCmd} "${sourcePath}/${snapshotName}/*" "${destPath}/${snapshotName}/" > /dev/null
+      ${distCpCmd} "${sourcePath}/${snapshotName}/*" "${destPath}/${snapshotName}/" >&3
     fi
 
     echo "Done. GoodBye!"
