@@ -19,12 +19,15 @@ package org.apache.solr.update;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import org.apache.solr.BaseDistributedSearchTestCase;
 import org.apache.solr.SolrTestCaseJ4.SuppressSSL;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.StrUtils;
@@ -34,181 +37,232 @@ import static org.apache.solr.update.processor.DistributedUpdateProcessor.Distri
 
 @SuppressSSL(bugUrl = "https://issues.apache.org/jira/browse/SOLR-5776")
 public class PeerSyncTest extends BaseDistributedSearchTestCase {
-  private static int numVersions = 100;  // number of versions to use when syncing
-  private final String FROM_LEADER = DistribPhase.FROMLEADER.toString();
+    private static int numVersions = 100;  // number of versions to use when syncing
+    private final String FROM_LEADER = DistribPhase.FROMLEADER.toString();
 
-  private ModifiableSolrParams seenLeader = 
-    params(DISTRIB_UPDATE_PARAM, FROM_LEADER);
-  
-  public PeerSyncTest() {
-    fixShardCount = true;
-    shardCount = 3;
-    stress = 0;
+    private ModifiableSolrParams seenLeader =
+            params(DISTRIB_UPDATE_PARAM, FROM_LEADER);
 
-    // TODO: a better way to do this?
-    configString = "solrconfig-tlog.xml";
-    schemaString = "schema.xml";
-  }
-  
-  
-  @Override
-  public void doTest() throws Exception {
-    handle.clear();
-    handle.put("timestamp", SKIPVAL);
-    handle.put("score", SKIPVAL);
-    handle.put("maxScore", SKIPVAL);
+    public PeerSyncTest() {
+        fixShardCount = true;
+        shardCount = 3;
+        stress = 0;
 
-    SolrServer client0 = clients.get(0);
-    SolrServer client1 = clients.get(1);
-    SolrServer client2 = clients.get(2);
-
-    long v = 0;
-    add(client0, seenLeader, sdoc("id","1","_version_",++v));
-
-    // this fails because client0 has no context (i.e. no updates of it's own to judge if applying the updates
-    // from client1 will bring it into sync with client1)
-    assertSync(client1, numVersions, false, shardsArr[0]);
-
-    // bring client1 back into sync with client0 by adding the doc
-    add(client1, seenLeader, sdoc("id","1","_version_",v));
-
-    // both have the same version list, so sync should now return true
-    assertSync(client1, numVersions, true, shardsArr[0]);
-    // TODO: test that updates weren't necessary
-
-    client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*"), client0, client1);
-
-    add(client0, seenLeader, addRandFields(sdoc("id","2","_version_",++v)));
-
-    // now client1 has the context to sync
-    assertSync(client1, numVersions, true, shardsArr[0]);
-
-    client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*"), client0, client1);
-
-    add(client0, seenLeader, addRandFields(sdoc("id","3","_version_",++v)));
-    add(client0, seenLeader, addRandFields(sdoc("id","4","_version_",++v)));
-    add(client0, seenLeader, addRandFields(sdoc("id","5","_version_",++v)));
-    add(client0, seenLeader, addRandFields(sdoc("id","6","_version_",++v)));
-    add(client0, seenLeader, addRandFields(sdoc("id","7","_version_",++v)));
-    add(client0, seenLeader, addRandFields(sdoc("id","8","_version_",++v)));
-    add(client0, seenLeader, addRandFields(sdoc("id","9","_version_",++v)));
-    add(client0, seenLeader, addRandFields(sdoc("id","10","_version_",++v)));
-
-    assertSync(client1, numVersions, true, shardsArr[0]);
-
-    client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*"), client0, client1);
-
-    int toAdd = (int)(numVersions *.95);
-    for (int i=0; i<toAdd; i++) {
-      add(client0, seenLeader, sdoc("id",Integer.toString(i+11),"_version_",v+i+1));
+        // TODO: a better way to do this?
+        configString = "solrconfig-tlog.xml";
+        schemaString = "schema.xml";
     }
 
-    // sync should fail since there's not enough overlap to give us confidence
-    assertSync(client1, numVersions, false, shardsArr[0]);
 
-    // add some of the docs that were missing... just enough to give enough overlap
-    int toAdd2 = (int)(numVersions * .25);
-    for (int i=0; i<toAdd2; i++) {
-      add(client1, seenLeader, sdoc("id",Integer.toString(i+11),"_version_",v+i+1));
+    @Override
+    public void doTest() throws Exception {
+        Set<Integer> docsAdded = new LinkedHashSet<>();
+        handle.clear();
+        handle.put("timestamp", SKIPVAL);
+        handle.put("score", SKIPVAL);
+        handle.put("maxScore", SKIPVAL);
+
+        SolrServer client0 = clients.get(0);
+        SolrServer client1 = clients.get(1);
+        SolrServer client2 = clients.get(2);
+
+        long v = 0;
+        add(client0, seenLeader, sdoc("id","1","_version_",++v));
+
+        // this fails because client0 has no context (i.e. no updates of it's own to judge if applying the updates
+        // from client1 will bring it into sync with client1)
+        assertSync(client1, numVersions, false, shardsArr[0]);
+
+        // bring client1 back into sync with client0 by adding the doc
+        add(client1, seenLeader, sdoc("id","1","_version_",v));
+
+        // both have the same version list, so sync should now return true
+        assertSync(client1, numVersions, true, shardsArr[0]);
+        // TODO: test that updates weren't necessary
+
+        client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*"), client0, client1);
+
+        add(client0, seenLeader, addRandFields(sdoc("id","2","_version_",++v)));
+
+        // now client1 has the context to sync
+        assertSync(client1, numVersions, true, shardsArr[0]);
+
+        client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*"), client0, client1);
+
+        add(client0, seenLeader, addRandFields(sdoc("id","3","_version_",++v)));
+        add(client0, seenLeader, addRandFields(sdoc("id","4","_version_",++v)));
+        add(client0, seenLeader, addRandFields(sdoc("id","5","_version_",++v)));
+        add(client0, seenLeader, addRandFields(sdoc("id","6","_version_",++v)));
+        add(client0, seenLeader, addRandFields(sdoc("id","7","_version_",++v)));
+        add(client0, seenLeader, addRandFields(sdoc("id","8","_version_",++v)));
+        add(client0, seenLeader, addRandFields(sdoc("id","9","_version_",++v)));
+        add(client0, seenLeader, addRandFields(sdoc("id","10","_version_",++v)));
+        for (int i=0; i<10; i++) docsAdded.add(i+1);
+        assertSync(client1, numVersions, true, shardsArr[0]);
+
+        validateDocs(docsAdded, client0, client1);
+
+        int toAdd = (int)(numVersions *.95);
+        for (int i=0; i<toAdd; i++) {
+            add(client0, seenLeader, sdoc("id",Integer.toString(i+11),"_version_",v+i+1));
+            docsAdded.add(i+11);
+        }
+
+        // sync should fail since there's not enough overlap to give us confidence
+        assertSync(client1, numVersions, false, shardsArr[0]);
+
+        // add some of the docs that were missing... just enough to give enough overlap
+        int toAdd2 = (int)(numVersions * .25);
+        for (int i=0; i<toAdd2; i++) {
+            add(client1, seenLeader, sdoc("id",Integer.toString(i+11),"_version_",v+i+1));
+        }
+
+        assertSync(client1, numVersions, true, shardsArr[0]);
+        client0.commit(); client1.commit();
+        validateDocs(docsAdded, client0, client1);
+
+        // test delete and deleteByQuery
+        v=1000;
+        add(client0, seenLeader, sdoc("id","1000","_version_",++v));
+        add(client0, seenLeader, sdoc("id","1001","_version_",++v));
+        delQ(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "id:1001 OR id:1002");
+        add(client0, seenLeader, sdoc("id","1002","_version_",++v));
+        del(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "1000");
+        docsAdded.add(1002); // 1002 added
+
+        assertSync(client1, numVersions, true, shardsArr[0]);
+        validateDocs(docsAdded, client0, client1);
+
+        // test that delete by query is returned even if not requested, and that it doesn't delete newer stuff than it should
+        v=2000;
+        SolrServer client = client0;
+        add(client, seenLeader, sdoc("id","2000","_version_",++v));
+        add(client, seenLeader, sdoc("id","2001","_version_",++v));
+        delQ(client, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "id:2001 OR id:2002");
+        add(client, seenLeader, sdoc("id","2002","_version_",++v));
+        del(client, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "2000");
+        docsAdded.add(2002); // 2002 added
+
+        v=2000;
+        client = client1;
+        add(client, seenLeader, sdoc("id","2000","_version_",++v));
+        ++v;  // pretend we missed the add of 2001.  peersync should retrieve it, but should also retrieve any deleteByQuery objects after it
+        // add(client, seenLeader, sdoc("id","2001","_version_",++v));
+        delQ(client, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "id:2001 OR id:2002");
+        add(client, seenLeader, sdoc("id","2002","_version_",++v));
+        del(client, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "2000");
+
+        assertSync(client1, numVersions, true, shardsArr[0]);
+
+        validateDocs(docsAdded, client0, client1);
+
+
+        //
+        // Test that handling reorders work when applying docs retrieved from peer
+        //
+
+        // this should cause us to retrieve the delete (but not the following add)
+        // the reorder in application shouldn't affect anything
+        add(client0, seenLeader, sdoc("id","3000","_version_",3001));
+        add(client1, seenLeader, sdoc("id","3000","_version_",3001));
+        del(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_","3000"),  "3000");
+        docsAdded.add(3000);
+
+        // this should cause us to retrieve an add tha was previously deleted
+        add(client0, seenLeader, sdoc("id","3001","_version_",3003));
+        del(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_","3001"),  "3004");
+        del(client1, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_","3001"),  "3004");
+
+        // this should cause us to retrieve an older add that was overwritten
+        add(client0, seenLeader, sdoc("id","3002","_version_",3004));
+        add(client0, seenLeader, sdoc("id","3002","_version_",3005));
+        add(client1, seenLeader, sdoc("id","3002","_version_",3005));
+        docsAdded.add(3001); // 3001 added
+        docsAdded.add(3002); // 3002 added
+
+        assertSync(client1, numVersions, true, shardsArr[0]);
+        validateDocs(docsAdded, client0, client1);
+
+        // now lets check fingerprinting causes appropriate fails
+        v = 4000;
+        add(client0, seenLeader, sdoc("id",Integer.toString((int)v),"_version_",v));
+        docsAdded.add(4000);
+        toAdd = numVersions+10;
+        for (int i=0; i<toAdd; i++) {
+            add(client0, seenLeader, sdoc("id",Integer.toString((int)v+i+1),"_version_",v+i+1));
+            add(client1, seenLeader, sdoc("id",Integer.toString((int)v+i+1),"_version_",v+i+1));
+            docsAdded.add((int)v+i+1);
+        }
+
+        // client0 now has an additional add beyond our window and the fingerprint should cause this to fail
+        assertSync(client1, numVersions, false, shardsArr[0]);
+
+        // if we turn of fingerprinting, it should succeed
+        System.setProperty("solr.disableFingerprint", "true");
+        try {
+            assertSync(client1, numVersions, true, shardsArr[0]);
+        } finally {
+            System.clearProperty("solr.disableFingerprint");
+        }
+
+        // lets add the missing document and verify that order doesn't matter
+        add(client1, seenLeader, sdoc("id",Integer.toString((int)v),"_version_",v));
+        assertSync(client1, numVersions, true, shardsArr[0]);
+
+        // lets do some overwrites to ensure that repeated updates and maxDoc don't matter
+        for (int i=0; i<10; i++) {
+            add(client0, seenLeader, sdoc("id", Integer.toString((int) v + i + 1), "_version_", v + i + 1));
+        }
+        assertSync(client1, numVersions, true, shardsArr[0]);
+
+        validateDocs(docsAdded, client0, client1);
+
+        // Reordered DBQ with Child-nodes (SOLR-10114)
+        docsAdded.clear();
+
+        // Reordered full delete should not delete child-docs
+        add(client0, seenLeader, sdocWithChildren(7001, "7001", 2)); // add with later version
+        docsAdded.add(7001);
+        docsAdded.add(7001001);
+        docsAdded.add(7001002);
+        delQ(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_","7000"),  "id:*"); // reordered delete
+        assertSync(client1, numVersions, true, shardsArr[0]);
+        validateDocs(docsAdded, client0, client1);
+
+        // Reordered DBQ should not affect update
+        add(client0, seenLeader, sdocWithChildren(8000, "8000", 5)); // add with later version
+        delQ(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_","8002"),  "id:8500"); // not found, arrives earlier
+        add(client0, seenLeader, sdocWithChildren(8000, "8001", 2)); // update with two childs
+        docsAdded.add(8000);
+        docsAdded.add(8000001);
+        docsAdded.add(8000002);
+        assertSync(client1, numVersions, true, shardsArr[0]);
+        validateDocs(docsAdded, client0, client1);
+
     }
 
-    assertSync(client1, numVersions, true, shardsArr[0]);
-    client0.commit(); client1.commit();
-    queryAndCompare(params("q", "*:*", "sort","_version_ desc"), client0, client1);
-
-    // test delete and deleteByQuery
-    v=1000;
-    add(client0, seenLeader, sdoc("id","1000","_version_",++v));
-    add(client0, seenLeader, sdoc("id","1001","_version_",++v));
-    delQ(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "id:1001 OR id:1002");
-    add(client0, seenLeader, sdoc("id","1002","_version_",++v));
-    del(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "1000");
-
-    assertSync(client1, numVersions, true, shardsArr[0]);
-    client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*", "sort","_version_ desc"), client0, client1);
-
-    // test that delete by query is returned even if not requested, and that it doesn't delete newer stuff than it should
-    v=2000;
-    SolrServer client = client0;
-    add(client, seenLeader, sdoc("id","2000","_version_",++v));
-    add(client, seenLeader, sdoc("id","2001","_version_",++v));
-    delQ(client, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "id:2001 OR id:2002");
-    add(client, seenLeader, sdoc("id","2002","_version_",++v));
-    del(client, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "2000");
-
-    v=2000;
-    client = client1;
-    add(client, seenLeader, sdoc("id","2000","_version_",++v));
-    ++v;  // pretend we missed the add of 2001.  peersync should retrieve it, but should also retrieve any deleteByQuery objects after it
-    // add(client, seenLeader, sdoc("id","2001","_version_",++v));
-    delQ(client, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "id:2001 OR id:2002");
-    add(client, seenLeader, sdoc("id","2002","_version_",++v));
-    del(client, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_",Long.toString(-++v)), "2000");
-
-    assertSync(client1, numVersions, true, shardsArr[0]);
-    client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*", "sort","_version_ desc"), client0, client1);
-
-
-    //
-    // Test that handling reorders work when applying docs retrieved from peer
-    //
-
-    // this should cause us to retrieve the delete (but not the following add)
-    // the reorder in application shouldn't affect anything
-    add(client0, seenLeader, sdoc("id","3000","_version_",3001));
-    add(client1, seenLeader, sdoc("id","3000","_version_",3001));
-    del(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_","3000"),  "3000");
-
-    // this should cause us to retrieve an add tha was previously deleted
-    add(client0, seenLeader, sdoc("id","3001","_version_",3003));
-    del(client0, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_","3001"),  "3004");
-    del(client1, params(DISTRIB_UPDATE_PARAM,FROM_LEADER,"_version_","3001"),  "3004");
-
-    // this should cause us to retrieve an older add that was overwritten
-    add(client0, seenLeader, sdoc("id","3002","_version_",3004));
-    add(client0, seenLeader, sdoc("id","3002","_version_",3005));
-    add(client1, seenLeader, sdoc("id","3002","_version_",3005));
-
-    assertSync(client1, numVersions, true, shardsArr[0]);
-    client0.commit(); client1.commit(); queryAndCompare(params("q", "*:*", "sort","_version_ desc"), client0, client1);
-
-    // now lets check fingerprinting causes appropriate fails
-    v = 4000;
-    add(client0, seenLeader, sdoc("id",Integer.toString((int)v),"_version_",v));
-    toAdd = numVersions+10;
-    for (int i=0; i<toAdd; i++) {
-      add(client0, seenLeader, sdoc("id",Integer.toString((int)v+i+1),"_version_",v+i+1));
-      add(client1, seenLeader, sdoc("id",Integer.toString((int)v+i+1),"_version_",v+i+1));
+    private void validateDocs(Set<Integer> docsAdded, SolrServer client0, SolrServer client1) throws SolrServerException, IOException {
+        client0.commit();
+        client1.commit();
+        QueryResponse qacResponse;
+        queryAndCompare(params("q", "*:*", "sort","_version_ desc"), client0, client1);
+        qacResponse = queryAndCompare(params("q", "*:*", "rows", "10000", "sort","_version_ desc"), client0, client1);
+        validateQACResponse(docsAdded, qacResponse);
     }
 
-    // client0 now has an additional add beyond our window and the fingerprint should cause this to fail
-    assertSync(client1, numVersions, false, shardsArr[0]);
-
-    // if we turn of fingerprinting, it should succeed
-    System.setProperty("solr.disableFingerprint", "true");
-    try {
-      assertSync(client1, numVersions, true, shardsArr[0]);
-    } finally {
-      System.clearProperty("solr.disableFingerprint");
+    void assertSync(SolrServer server, int numVersions, boolean expectedResult, String... syncWith) throws IOException, SolrServerException {
+        QueryRequest qr = new QueryRequest(params("qt","/get", "getVersions",Integer.toString(numVersions), "sync", StrUtils.join(Arrays.asList(syncWith), ',')));
+        NamedList rsp = server.request(qr);
+        assertEquals(expectedResult, (Boolean) rsp.get("sync"));
     }
 
-    // lets add the missing document and verify that order doesn't matter
-    add(client1, seenLeader, sdoc("id",Integer.toString((int)v),"_version_",v));
-    assertSync(client1, numVersions, true, shardsArr[0]);
-
-    // lets do some overwrites to ensure that repeated updates and maxDoc don't matter
-    for (int i=0; i<10; i++) {
-      add(client0, seenLeader, sdoc("id", Integer.toString((int) v + i + 1), "_version_", v + i + 1));
+    void validateQACResponse(Set<Integer> docsAdded, QueryResponse qacResponse) {
+        Set<Integer> qacDocs = new LinkedHashSet<>();
+        for (int i=0; i<qacResponse.getResults().size(); i++) {
+            qacDocs.add(Integer.parseInt(qacResponse.getResults().get(i).getFieldValue("id").toString()));
+        }
+        assertEquals(docsAdded, qacDocs);
+        assertEquals(docsAdded.size(), qacResponse.getResults().getNumFound());
     }
-    assertSync(client1, numVersions, true, shardsArr[0]);
-
-  }
-
-
-  void assertSync(SolrServer server, int numVersions, boolean expectedResult, String... syncWith) throws IOException, SolrServerException {
-    QueryRequest qr = new QueryRequest(params("qt","/get", "getVersions",Integer.toString(numVersions), "sync", StrUtils.join(Arrays.asList(syncWith), ',')));
-    NamedList rsp = server.request(qr);
-    assertEquals(expectedResult, (Boolean) rsp.get("sync"));
-  }
 
 }
