@@ -857,6 +857,12 @@ public class UpdateLog implements PluginInfoInitialized {
     versionInfo.blockUpdates();
     try {
       state = State.REPLAYING;
+
+      // The deleteByQueries and oldDeletes lists
+      // would've been populated by items from the logs themselves (which we
+      // will replay now). So lets clear them out here before the replay.
+      deleteByQueries.clear();
+      oldDeletes.clear();
     } finally {
       versionInfo.unblockUpdates();
     }
