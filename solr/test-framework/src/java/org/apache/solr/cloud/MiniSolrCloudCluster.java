@@ -42,6 +42,7 @@ import org.apache.solr.client.solrj.embedded.SSLConfig;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.cloud.AbstractFullDistribZkTestBase.CloudSolrServerClient;
+import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.SolrZkClient;
 import org.apache.solr.common.cloud.ZkConfigManager;
 import org.apache.solr.common.params.CollectionParams.CollectionAction;
@@ -389,6 +390,17 @@ public class MiniSolrCloudCluster {
     if (ctx.endsWith("/")) ctx = ctx.substring(0,ctx.length()-1);;
     if (!ctx.startsWith("/")) ctx = "/" + ctx;
     return ctx;
+  }
+
+  /**
+   * Return the jetty that a particular replica resides on
+   */
+  public JettySolrRunner getReplicaJetty(Replica replica) {
+    for (JettySolrRunner jetty : jettys) {
+      if (replica.getCoreUrl().startsWith(jetty.getBaseUrl().toString()))
+        return jetty;
+    }
+    throw new IllegalArgumentException("Cannot find Jetty for a replica with core url " + replica.getCoreUrl());
   }
 
   /**
