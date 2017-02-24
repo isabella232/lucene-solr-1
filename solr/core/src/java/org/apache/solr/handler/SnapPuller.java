@@ -490,7 +490,7 @@ public class SnapPuller {
             reloadCore = true;
             downloadConfFiles(confFilesToDownload, latestGeneration);
             if (isFullCopyNeeded) {
-              successfulInstall = modifyIndexProps(solrCore, tmpIdxDirName);
+              successfulInstall = solrCore.modifyIndexProps(tmpIdxDirName);
               deleteTmpIdxDir = false;
             } else {
               successfulInstall = moveIndexFiles(tmpIndexDir, indexDir);
@@ -515,7 +515,7 @@ public class SnapPuller {
           } else {
             terminateAndWaitFsyncService();
             if (isFullCopyNeeded) {
-              successfulInstall = modifyIndexProps(solrCore, tmpIdxDirName);
+              successfulInstall = solrCore.modifyIndexProps(tmpIdxDirName);
               deleteTmpIdxDir = false;
             } else {
               successfulInstall = moveIndexFiles(tmpIndexDir, indexDir);
@@ -1106,60 +1106,6 @@ public class SnapPuller {
 
   private String getDateAsStr(Date d) {
     return new SimpleDateFormat(SnapShooter.DATE_FMT, Locale.ROOT).format(d);
-  }
-
-  /**
-   * If the index is stale by any chance, load index from a different dir in the data dir.
-   */
-  protected static boolean modifyIndexProps(SolrCore core, String tmpIdxDirName) {
-    LOG.info("New index installed. Updating index properties... index="+tmpIdxDirName);
-    Properties p = new Properties();
-    Directory dir = null;
-    try {
-      dir = core.getDirectoryFactory().get(core.getDataDir(), DirContext.META_DATA, core.getSolrConfig().indexConfig.lockType);
-      if (slowFileExists(dir, SnapPuller.INDEX_PROPERTIES)){
-        final IndexInput input = dir.openInput(SnapPuller.INDEX_PROPERTIES, DirectoryFactory.IOCONTEXT_NO_CACHE);
-  
-        final InputStream is = new PropertiesInputStream(input);
-        try {
-          p.load(new InputStreamReader(is, StandardCharsets.UTF_8));
-        } catch (Exception e) {
-          LOG.error("Unable to load " + SnapPuller.INDEX_PROPERTIES, e);
-        } finally {
-          IOUtils.closeQuietly(is);
-        }
-      }
-
-      String tmpFileName = SnapPuller.INDEX_PROPERTIES + "." + System.nanoTime();
-      final IndexOutput out = dir.createOutput(tmpFileName, DirectoryFactory.IOCONTEXT_NO_CACHE);
-      p.put("index", tmpIdxDirName);
-      Writer os = null;
-      try {
-        os = new OutputStreamWriter(new PropertiesOutputStream(out), StandardCharsets.UTF_8);
-        p.store(os, tmpFileName);
-        dir.sync(Collections.singleton(tmpFileName));
-      } catch (Exception e) {
-        throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
-            "Unable to write " + SnapPuller.INDEX_PROPERTIES, e);
-      } finally {
-        IOUtils.closeQuietly(os);
-      }
-      
-      core.getDirectoryFactory().renameWithOverwrite(dir, tmpFileName, SnapPuller.INDEX_PROPERTIES);
-      return true;
-
-    } catch (IOException e1) {
-      throw new RuntimeException(e1);
-    } finally {
-      if (dir != null) {
-        try {
-          core.getDirectoryFactory().release(dir);
-        } catch (IOException e) {
-          SolrException.log(LOG, "", e);
-        }
-      }
-    }
-    
   }
 
   private final Map<String, FileInfo> confFileInfoCache = new HashMap<>();
