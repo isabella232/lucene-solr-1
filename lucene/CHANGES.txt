@@ -57,7 +57,11 @@ Documentation
 
 * LUCENE-6057: Improve Sort(SortField) docs (Martin Braun via Mike McCandless)
 
+Improvements
 
+* LUCENE-7710: BlockPackedReader throws CorruptIndexException and includes
+  IndexInput description instead of plain IOException (Mike Drob via
+  Mike McCandless)
 ======================= Lucene 4.10.2 ======================
 
 Bug fixes
