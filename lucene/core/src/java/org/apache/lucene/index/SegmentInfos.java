@@ -17,6 +17,7 @@ package org.apache.lucene.index;
  * limitations under the License.
  */
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -395,6 +396,8 @@ public final class SegmentInfos implements Cloneable, Iterable<SegmentCommitInfo
       }
 
       success = true;
+    } catch (EOFException e) {
+      throw new CorruptIndexException("Unexpected end of file while reading index (resource: " + input + ")", e);
     } finally {
       if (!success) {
         // Clear any segment infos we had loaded so we
