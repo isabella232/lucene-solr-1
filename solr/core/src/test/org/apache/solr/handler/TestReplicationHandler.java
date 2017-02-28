@@ -138,6 +138,7 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
     masterClient.shutdown();
     slaveClient.shutdown();
     masterClient = slaveClient = null;
+    System.clearProperty("solr.indexfetcher.sotimeout");
   }
 
   private static JettySolrRunner createJetty(SolrInstance instance) throws Exception {
@@ -153,7 +154,7 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
       // setup the server...
       HttpSolrServer s = new HttpSolrServer(buildUrl(port));
       s.setConnectionTimeout(15000);
-      s.setSoTimeout(60000);
+      s.setSoTimeout(90000);
       s.setDefaultMaxConnectionsPerHost(100);
       s.setMaxTotalConnections(100);
       return s;
@@ -290,22 +291,34 @@ public class TestReplicationHandler extends SolrTestCaseJ4 {
     // check details on the slave a couple of times before & after fetching
     for (int i = 0; i < 3; i++) {
       NamedList<Object> details = getDetails(slaveClient);
-      List replicatedAtCount = (List) ((NamedList) details.get("slave")).get("indexReplicatedAtList");
+      assertNotNull(i + ": " + details);
+      assertNotNull(i + ": " + details.toString(), details.get("slave"));
+
       if (i > 0) {
-        assertEquals(i, replicatedAtCount.size());
+        rQuery(i, "*:*", slaveClient);
+        List replicatedAtCount = (List) ((NamedList) details.get("slave")).get("indexReplicatedAtList");
+        int tries = 0;
+        while ((replicatedAtCount == null || replicatedAtCount.size() < i) && tries++ < 5) {
+          Thread.currentThread().sleep(1000);
+          details = getDetails(slaveClient);
+          replicatedAtCount = (List) ((NamedList) details.get("slave")).get("indexReplicatedAtList");
+        }
+        
+        assertNotNull("Expected to see that the slave has replicated" + i + ": " + details.toString(), replicatedAtCount);
+        
+        // we can have more replications than we added docs because a replication can legally fail and try 
+        // again (sometimes we cannot merge into a live index and have to try again)
+        assertTrue("i:" + i + " replicationCount:" + replicatedAtCount.size(), replicatedAtCount.size() >= i); 
       }
 
-      assertEquals("slave isMaster?", 
-                   "false", details.get("isMaster"));
-      assertEquals("slave isSlave?", 
-                   "true", details.get("isSlave"));
-      assertNotNull("slave has slave section", 
-                    details.get("slave"));
+      assertEquals(i + ": " + "slave isMaster?", "false", details.get("isMaster"));
+      assertEquals(i + ": " + "slave isSlave?", "true", details.get("isSlave"));
+      assertNotNull(i + ": " + "slave has slave section", details.get("slave"));
       // SOLR-2677: assert not false negatives
       Object timesFailed = ((NamedList)details.get("slave")).get(SnapPuller.TIMES_FAILED);
       // SOLR-7134: we can have a fail because some mock index files have no checksum, will
       // always be downloaded, and may not be able to be moved into the existing index
-      assertTrue("slave has fetch error count: " + (String)timesFailed, timesFailed == null || ((String) timesFailed).equals("1"));
+      assertTrue(i + ": " + "slave has fetch error count: " + (String)timesFailed, timesFailed == null || ((String) timesFailed).equals("1"));
 
       if (3 != i) {
         // index & fetch
