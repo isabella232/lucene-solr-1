@@ -303,11 +303,11 @@ while test $# != 0 ; do
       eval $SOLR_ADMIN_ZK_CMD -cmd makepath / 1>&3 2>&1 || :
       eval $SOLR_ADMIN_ZK_CMD -cmd clear /    || die "Error: failed to initialize Solr"
 
-      eval $SOLR_ADMIN_ZK_CMD -cmd putfile /solr.xml ${SOLR_HOME}/clusterconfig/solr.xml
-      eval $SOLR_ADMIN_ZK_CMD -cmd makepath /configs
+      eval $SOLR_ADMIN_ZK_CMD -cmd putfile /solr.xml ${SOLR_HOME}/clusterconfig/solr.xml || die "Error: failed to initialize Solr"
+      eval $SOLR_ADMIN_ZK_CMD -cmd makepath /configs || die "Error: failed to initialize Solr"
       for DIRNAME in managedTemplate schemalessTemplate managedTemplateSecure schemalessTemplateSecure
       do
-        eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${SOLR_HOME}/$DIRNAME -confname $DIRNAME
+        eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${SOLR_HOME}/$DIRNAME -confname $DIRNAME || die "Error: failed to initialize Solr"
       done
 
       shift 1
