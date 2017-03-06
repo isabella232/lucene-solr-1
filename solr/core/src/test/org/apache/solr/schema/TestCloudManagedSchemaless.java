@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.solr.update.DirectUpdateHandler2;
 
+import org.apache.solr.SolrTestCaseJ4.SuppressSSL;
+
 import org.junit.BeforeClass;
 import org.junit.Before;
 
@@ -47,6 +49,7 @@ import java.util.TreeMap;
 /**
  * Tests a schemaless collection configuration with SolrCloud
  */
+@SuppressSSL
 public class TestCloudManagedSchemaless extends AbstractFullDistribZkTestBase {
   private static final Logger log = LoggerFactory.getLogger(TestCloudManagedSchemaConcurrent.class);
   private static final String SUCCESS_XPATH = "/response/lst[@name='responseHeader']/int[@name='status'][.='0']";
