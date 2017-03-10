@@ -106,7 +106,6 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
 
     create.process(cluster.getSolrClient());
     indexDocs(collectionName);
-    cluster.getSolrClient().commit();
 
     if (!isImplicit && random().nextBoolean()) {
       // shard split the first shard
@@ -132,14 +131,14 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
   }
 
   private void indexDocs(String collectionName) throws Exception {
+    CloudSolrServer client = cluster.getSolrClient();
+    client.setDefaultCollection(collectionName);
     Random random = new Random(docsSeed);// use a constant seed for the whole test run so that we can easily re-index.
     int numDocs = random.nextInt(100);
     if (numDocs == 0) {
       log.info("Indexing ZERO test docs");
       return;
     }
-    CloudSolrServer client = cluster.getSolrClient();
-    client.setDefaultCollection(collectionName);
     List<SolrInputDocument> docs = new ArrayList<>(numDocs);
     for (int i=0; i<numDocs; i++) {
       SolrInputDocument doc = new SolrInputDocument();
