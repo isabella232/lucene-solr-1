@@ -6,7 +6,7 @@
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,6 @@ import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Date;
@@ -46,28 +45,25 @@ import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.schema.IndexSchema;
+import org.apache.solr.util.RedactionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 /**
  * This handler returns system info
- * 
+ *
  * @since solr 1.2
  */
 public class SystemInfoHandler extends RequestHandlerBase 
 {
   private static Logger log = LoggerFactory.getLogger(SystemInfoHandler.class);
-  
-  // CLOUDERA.  Mask ssl passwords
-  public static List<String> cmdLineArgsToRedact = Arrays.asList(
-      "javax.net.ssl.trustStorePassword",
-      "solr.keystore.password");
-  public static String REDACT_STRING = "--REDACTED--";
+
+  public static String REDACT_STRING = RedactionUtils.getRedactString();
 
   // on some platforms, resolving canonical hostname can cause the thread
   // to block for several seconds if nameservices aren't available
-  // so resolve this once per handler instance 
+  // so resolve this once per handler instance
   //(ie: not static, so core reload will refresh)
   private String hostname = null;
 
@@ -83,7 +79,7 @@ public class SystemInfoHandler extends RequestHandlerBase
     this.cc = cc;
     init();
   }
-  
+
   private void init() {
     try {
       InetAddress addr = InetAddress.getLocalHost();
@@ -109,27 +105,27 @@ public class SystemInfoHandler extends RequestHandlerBase
   private CoreContainer getCoreContainer(SolrQueryRequest req, SolrCore core) {
     CoreContainer coreContainer;
     if (core != null) {
-       coreContainer = req.getCore().getCoreDescriptor().getCoreContainer();
+      coreContainer = req.getCore().getCoreDescriptor().getCoreContainer();
     } else {
       coreContainer = cc;
     }
     return coreContainer;
   }
-  
+
   /**
    * Get system info
    */
   private SimpleOrderedMap<Object> getCoreInfo( SolrCore core, IndexSchema schema ) {
     SimpleOrderedMap<Object> info = new SimpleOrderedMap<>();
-    
+
     info.add( "schema", schema != null ? schema.getSchemaName():"no schema!" );
-    
+
     // Host
     info.add( "host", hostname );
 
     // Now
     info.add( "now", new Date() );
-    
+
     // Start Time
     info.add( "start", new Date(core.getStartTime()) );
 
@@ -153,7 +149,7 @@ public class SystemInfoHandler extends RequestHandlerBase
     info.add( "directory", dirs );
     return info;
   }
-  
+
   /**
    * Get system info
    */
@@ -332,24 +328,6 @@ public class SystemInfoHandler extends RequestHandlerBase
     jvm.add( "jmx", jmx );
     return jvm;
   }
-  
-  /**
-   * CLOUDERA. Get the input arguments with sensitive values (i.e. passwords) redacted.
-   */
-  private static List<String> getInputArgumentsRedacted(RuntimeMXBean mx) {
-    List<String> list = new LinkedList<String>();
-    for (String arg : mx.getInputArguments()) {
-      boolean redacted = false;
-      for (String redact : cmdLineArgsToRedact) {
-        if (arg.startsWith("-D" + redact + "=")) {
-          list.add("-D" + redact + "=" + REDACT_STRING);
-          redacted = true;
-        }
-      }
-      if (!redacted) list.add(arg);
-    }
-    return list;
-  }
 
   private static SimpleOrderedMap<Object> getLuceneInfo() {
     SimpleOrderedMap<Object> info = new SimpleOrderedMap<>();
@@ -401,7 +379,19 @@ public class SystemInfoHandler extends RequestHandlerBase
 
     return newSizeAndUnits;
   }
-  
+
+  private static List<String> getInputArgumentsRedacted(RuntimeMXBean mx) {
+    List<String> list = new LinkedList<>();
+    for (String arg : mx.getInputArguments()) {
+      if (arg.startsWith("-D") && arg.contains("=") && RedactionUtils.isSystemPropertySensitive(arg.substring(2, arg.indexOf("=")))) {
+        list.add(String.format(Locale.ROOT, "%s=%s", arg.substring(0, arg.indexOf("=")), REDACT_STRING));
+      } else {
+        list.add(arg);
+      }
+    }
+    return list;
+  }
+
 }
 
 
