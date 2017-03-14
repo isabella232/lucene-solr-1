@@ -236,7 +236,7 @@ import static com.carrotsearch.randomizedtesting.RandomizedTest.systemPropertyAs
 @ThreadLeakFilters(defaultFilters = true, filters = {
     QuickPatchThreadsFilter.class
 })
-@TestRuleLimitSysouts.Limit(bytes = TestRuleLimitSysouts.DEFAULT_SYSOUT_BYTES_THRESHOLD)
+//@TestRuleLimitSysouts.Limit(bytes = TestRuleLimitSysouts.DEFAULT_SYSOUT_BYTES_THRESHOLD)
 public abstract class LuceneTestCase extends Assert {
 
   // --------------------------------------------------------------------
