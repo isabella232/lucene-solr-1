@@ -25,6 +25,7 @@ import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Array;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Set;
 
 import javax.management.AttributeNotFoundException;
@@ -47,6 +48,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.solr.handler.admin.SystemInfoHandler;
+import org.apache.solr.util.RedactionUtils;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
 import org.slf4j.Logger;
@@ -123,6 +125,8 @@ public class JMXJsonServlet extends HttpServlet {
   private static final Logger LOG = LoggerFactory.getLogger(JMXJsonServlet.class);
 
   private static final long serialVersionUID = 1L;
+
+  public static String REDACT_STRING = RedactionUtils.getRedactString();
 
   // ----------------------------------------------------- Instance Variables
   /**
@@ -386,18 +390,17 @@ public class JMXJsonServlet extends HttpServlet {
         boolean needsRedact = false;
         Object keyVal = cds.containsKey("key") ? cds.get("key") : null;
         if (keyVal instanceof String) {
-          for (String redact : SystemInfoHandler.cmdLineArgsToRedact) {
-            if (keyVal.toString().startsWith(redact) || keyVal.toString().startsWith("-D" + redact)) {
-              needsRedact = true;
-              break;
-            }
+          String keyValStr = keyVal.toString();
+          if (RedactionUtils.isSystemPropertySensitive(keyValStr)
+            || (keyValStr.startsWith("-D") && keyValStr.contains("=") && RedactionUtils.isSystemPropertySensitive(keyValStr.substring(2, keyValStr.indexOf("="))))) {
+            needsRedact = true;
           }
         }
 
         for(String key : keys) {
           Object val = cds.get(key);
           if (needsRedact && key.equals("value")) {
-            val = SystemInfoHandler.REDACT_STRING;
+            val = REDACT_STRING;
           }
           writeAttribute(jg, key, val);
         }
@@ -411,16 +414,15 @@ public class JMXJsonServlet extends HttpServlet {
         jg.writeEndArray();
       } else {
         // CLOUDERA. redact sensitive values
-        for (String redact : SystemInfoHandler.cmdLineArgsToRedact) {
-          if (value.toString().startsWith(redact + "=")) {
-            value = redact + "=" + SystemInfoHandler.REDACT_STRING;
-            break;
-          } else if  (value.toString().startsWith("-D" + redact + "=")) {
-            value = "-D" + redact + "=" + SystemInfoHandler.REDACT_STRING;
-            break;
+        String valueStr = value.toString();
+        if(valueStr.contains("=")){
+          if (valueStr.startsWith("-D") && RedactionUtils.isSystemPropertySensitive(valueStr.substring(2, valueStr.indexOf("=")))) {
+            valueStr = String.format(Locale.ROOT, "%s=%s", valueStr.substring(0, valueStr.indexOf("=")), REDACT_STRING);
+          } else if (RedactionUtils.isSystemPropertySensitive(valueStr.substring(2, valueStr.indexOf("=")))) {
+            valueStr = String.format(Locale.ROOT, "%s=%s", valueStr.substring(0, valueStr.indexOf("=")), REDACT_STRING);
           }
         }
-        jg.writeString(value.toString());
+        jg.writeString(valueStr);
       }
     }
   }
