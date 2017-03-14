@@ -1662,7 +1662,7 @@
       <processor class="solr.RunUpdateProcessorFactory" />
     </updateRequestProcessorChain>
   -->
-    <updateRequestProcessorChain name="updateIndexAuthorization">
+    <updateRequestProcessorChain name="updateIndexAuthorization" default="true">
       <processor class="solr.UpdateIndexAuthorizationProcessorFactory" />
       <processor class="solr.LogUpdateProcessorFactory" />
       <processor class="solr.DistributedUpdateProcessorFactory" />
