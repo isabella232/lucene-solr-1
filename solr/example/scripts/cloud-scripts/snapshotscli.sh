@@ -85,7 +85,7 @@ copy_snapshot_files() {
     for shardId in $(hdfs dfs -stat "%n" "${copylisting_dir_path}/*"); do
       oPath="${destPath}/${snapshotName}/snapshot.${shardId}"
       echo "Copying the index files for ${shardId} to ${oPath}"
-      ${distCpCmd} -f " ${copylisting_dir_path}/${shardId}" "${oPath}" >&3
+      ${distCpCmd} -f "${copylisting_dir_path}/${shardId}" "${oPath}" >&3
     done
   else
     echo "Directory ${copylisting_dir_path} does not exist."
