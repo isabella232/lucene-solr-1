@@ -16,6 +16,8 @@
  */
 
 package org.apache.solr;
+import java.security.SecureRandom;
+
 
 import com.carrotsearch.randomizedtesting.RandomizedContext;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
@@ -2111,5 +2113,13 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
   }
 
   public static Path TEST_PATH() { return getFile("solr/collection1").getParentFile().toPath(); }
+
+  @BeforeClass
+  public static void assertNonBlockingRandomGeneratorAvailable() {
+    if(Boolean.parseBoolean(System.getProperty("test.solr.allow.any.securerandom","false")))
+      return;
+    // Use -Djava.security.egd=file:/dev/./urandom VM option if you hit this 
+    assertEquals("SHA1PRNG", new SecureRandom().getAlgorithm());
+  }
 
 }
