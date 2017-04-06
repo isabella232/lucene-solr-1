@@ -68,6 +68,7 @@ import org.apache.solr.util.RevertDefaultThreadHandlerRule;
 import org.apache.solr.util.SSLTestConfig;
 import org.apache.solr.util.TestHarness;
 import org.apache.solr.util.TestInjection;
+import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -113,6 +114,7 @@ import java.util.logging.Level;
 import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.hamcrest.CoreMatchers.not;
 
 /**
  * A junit4 Solr test harness that extends LuceneTestCaseJ4. To change which core is used when loading the schema and solrconfig.xml, simply
@@ -2118,8 +2120,15 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
   public static void assertNonBlockingRandomGeneratorAvailable() {
     if(Boolean.parseBoolean(System.getProperty("test.solr.allow.any.securerandom","false")))
       return;
-    // Use -Djava.security.egd=file:/dev/./urandom VM option if you hit this 
-    assertEquals("SHA1PRNG", new SecureRandom().getAlgorithm());
+    // Setting the random source at this point may be too late. If any code makes Sun security provider loaded (for 
+    // example by instantiating SecureRandom class) the random generator algorithm will remain the same.
+    // So this setting is based on a best effort.
+    if(System.getProperty("java.security.egd") == null)
+      System.setProperty("java.security.egd", "file:/dev/./urandom");
+    assertThat("NativePRNG may be blocking in some cases, " +
+                    "use the following vm option instead if you hit this assert: " +
+                    "-Djava.security.egd=file:/dev/./urandom",
+            new SecureRandom().getAlgorithm(), not("NativePRNG"));
   }
 
 }
