@@ -140,7 +140,7 @@ public class Lucene3xSegmentInfoReader extends SegmentInfoReader {
       try {
         version = Version.parse(input.readString());
       } catch (ParseException pe) {
-        throw new CorruptIndexException("unable to parse version string (input: " + input + "): " + pe.getMessage(), pe);
+        throw new CorruptIndexException("unable to parse version string " + pe.getMessage(), input, pe);
       }
     } else {
       version = null;
@@ -263,7 +263,7 @@ public class Lucene3xSegmentInfoReader extends SegmentInfoReader {
     try {
       version = Version.parse(input.readString());
     } catch (ParseException pe) {
-      throw new CorruptIndexException("unable to parse version string (input: " + input + "): " + pe.getMessage(), pe);
+      throw new CorruptIndexException("unable to parse version string " + pe.getMessage(), input, pe);
     }
 
     final int docCount = input.readInt();
