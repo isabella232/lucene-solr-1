@@ -178,7 +178,7 @@ final class Lucene3xStoredFieldsReader extends StoredFieldsReader implements Clo
         this.size = (int) (indexSize >> 3);
         // Verify two sources of "maxDoc" agree:
         if (this.size != si.getDocCount()) {
-          throw new CorruptIndexException("doc counts differ for segment " + segment + ": fieldsReader shows " + this.size + " but segmentInfo shows " + si.getDocCount());
+          throw new CorruptIndexException("doc counts differ for segment " + segment + ": fieldsReader shows " + this.size + " but segmentInfo shows " + si.getDocCount(), indexStream);
         }
       }
       numTotalDocs = (int) (indexSize >> 3);
@@ -265,7 +265,7 @@ final class Lucene3xStoredFieldsReader extends StoredFieldsReader implements Clo
           visitor.doubleField(info, Double.longBitsToDouble(fieldsStream.readLong()));
           return;
         default:
-          throw new CorruptIndexException("Invalid numeric type: " + Integer.toHexString(numeric));
+          throw new CorruptIndexException("Invalid numeric type: " + Integer.toHexString(numeric), fieldsStream);
       }
     } else { 
       final int length = fieldsStream.readVInt();
@@ -292,7 +292,7 @@ final class Lucene3xStoredFieldsReader extends StoredFieldsReader implements Clo
           fieldsStream.readLong();
           return;
         default: 
-          throw new CorruptIndexException("Invalid numeric type: " + Integer.toHexString(numeric));
+          throw new CorruptIndexException("Invalid numeric type: " + Integer.toHexString(numeric), fieldsStream);
       }
     } else {
       final int length = fieldsStream.readVInt();

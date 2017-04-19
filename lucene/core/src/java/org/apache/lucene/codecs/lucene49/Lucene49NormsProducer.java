@@ -67,30 +67,22 @@ class Lucene49NormsProducer extends DocValuesProducer {
   Lucene49NormsProducer(SegmentReadState state, String dataCodec, String dataExtension, String metaCodec, String metaExtension) throws IOException {
     maxDoc = state.segmentInfo.getDocCount();
     String metaName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, metaExtension);
-    // read in the entries from the metadata file.
-    ChecksumIndexInput in = state.directory.openChecksumInput(metaName, state.context);
-    boolean success = false;
     ramBytesUsed = new AtomicLong(RamUsageEstimator.shallowSizeOfInstance(getClass()));
-    try {
+    
+    // read in the entries from the metadata file.
+    try (ChecksumIndexInput in = state.directory.openChecksumInput(metaName, state.context)) {
       version = CodecUtil.checkHeader(in, metaCodec, VERSION_START, VERSION_CURRENT);
       readFields(in, state.fieldInfos);
       CodecUtil.checkFooter(in);
-      success = true;
-    } finally {
-      if (success) {
-        IOUtils.close(in);
-      } else {
-        IOUtils.closeWhileHandlingException(in);
-      }
     }
 
     String dataName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, dataExtension);
     this.data = state.directory.openInput(dataName, state.context);
-    success = false;
+    boolean success = false;
     try {
       final int version2 = CodecUtil.checkHeader(data, dataCodec, VERSION_START, VERSION_CURRENT);
       if (version != version2) {
-        throw new CorruptIndexException("Format versions mismatch");
+        throw new CorruptIndexException("Format versions mismatch: meta=" + version + ",data=" + version2, data);
       }
       
       // NOTE: data file is too costly to verify checksum against all the bytes on open,
@@ -112,9 +104,9 @@ class Lucene49NormsProducer extends DocValuesProducer {
     while (fieldNumber != -1) {
       FieldInfo info = infos.fieldInfo(fieldNumber);
       if (info == null) {
-        throw new CorruptIndexException("Invalid field number: " + fieldNumber + " (resource=" + meta + ")");
+        throw new CorruptIndexException("Invalid field number: " + fieldNumber, meta);
       } else if (!info.hasNorms()) {
-        throw new CorruptIndexException("Invalid field: " + info.name + " (resource=" + meta + ")");
+        throw new CorruptIndexException("Invalid field: " + info.name, meta);
       }
       NormsEntry entry = new NormsEntry();
       entry.format = meta.readByte();
@@ -126,7 +118,7 @@ class Lucene49NormsProducer extends DocValuesProducer {
         case DELTA_COMPRESSED:
           break;
         default:
-          throw new CorruptIndexException("Unknown format: " + entry.format + ", input=" + meta);
+          throw new CorruptIndexException("Unknown format: " + entry.format, meta);
       }
       norms.put(fieldNumber, entry);
       fieldNumber = meta.readVInt();
@@ -187,7 +179,7 @@ class Lucene49NormsProducer extends DocValuesProducer {
         int packedVersion = data.readVInt();
         int size = data.readVInt();
         if (size > 256) {
-          throw new CorruptIndexException("TABLE_COMPRESSED cannot have more than 256 distinct values, input=" + data);
+          throw new CorruptIndexException("TABLE_COMPRESSED cannot have more than 256 distinct values, got=" + size, data);
         }
         final long decode[] = new long[size];
         for (int i = 0; i < decode.length; i++) {

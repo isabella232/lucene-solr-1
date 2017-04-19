@@ -133,7 +133,7 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
                                                  Lucene45DocValuesFormat.VERSION_START,
                                                  Lucene45DocValuesFormat.VERSION_CURRENT);
       if (version != version2) {
-        throw new CorruptIndexException("Format versions mismatch");
+        throw new CorruptIndexException("Format versions mismatch: meta=" + version + ", data=" + version2, data);
       }
       
       if (version >= Lucene45DocValuesFormat.VERSION_CHECKSUM) {
@@ -157,19 +157,19 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
   private void readSortedField(int fieldNumber, IndexInput meta, FieldInfos infos) throws IOException {
     // sorted = binary + numeric
     if (meta.readVInt() != fieldNumber) {
-      throw new CorruptIndexException("sorted entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sorted entry for field: " + fieldNumber + " is corrupt", meta);
     }
     if (meta.readByte() != Lucene45DocValuesFormat.BINARY) {
-      throw new CorruptIndexException("sorted entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sorted entry for field: " + fieldNumber + " is corrupt", meta);
     }
     BinaryEntry b = readBinaryEntry(meta);
     binaries.put(fieldNumber, b);
     
     if (meta.readVInt() != fieldNumber) {
-      throw new CorruptIndexException("sorted entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sorted entry for field: " + fieldNumber + " is corrupt", meta);
     }
     if (meta.readByte() != Lucene45DocValuesFormat.NUMERIC) {
-      throw new CorruptIndexException("sorted entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sorted entry for field: " + fieldNumber + " is corrupt", meta);
     }
     NumericEntry n = readNumericEntry(meta);
     ords.put(fieldNumber, n);
@@ -178,28 +178,28 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
   private void readSortedSetFieldWithAddresses(int fieldNumber, IndexInput meta, FieldInfos infos) throws IOException {
     // sortedset = binary + numeric (addresses) + ordIndex
     if (meta.readVInt() != fieldNumber) {
-      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt", meta);
     }
     if (meta.readByte() != Lucene45DocValuesFormat.BINARY) {
-      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt", meta);
     }
     BinaryEntry b = readBinaryEntry(meta);
     binaries.put(fieldNumber, b);
 
     if (meta.readVInt() != fieldNumber) {
-      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt", meta);
     }
     if (meta.readByte() != Lucene45DocValuesFormat.NUMERIC) {
-      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt", meta);
     }
     NumericEntry n1 = readNumericEntry(meta);
     ords.put(fieldNumber, n1);
 
     if (meta.readVInt() != fieldNumber) {
-      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt", meta);
     }
     if (meta.readByte() != Lucene45DocValuesFormat.NUMERIC) {
-      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+      throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt", meta);
     }
     NumericEntry n2 = readNumericEntry(meta);
     ordIndexes.put(fieldNumber, n2);
@@ -211,7 +211,7 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
       if ((lenientFieldInfoCheck && fieldNumber < 0) || (!lenientFieldInfoCheck && infos.fieldInfo(fieldNumber) == null)) {
         // trickier to validate more: because we re-use for norms, because we use multiple entries
         // for "composite" types like sortedset, etc.
-        throw new CorruptIndexException("Invalid field number: " + fieldNumber + " (resource=" + meta + ")");
+        throw new CorruptIndexException("Invalid field number: " + fieldNumber, meta);
       }
       byte type = meta.readByte();
       if (type == Lucene45DocValuesFormat.NUMERIC) {
@@ -228,17 +228,17 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
           readSortedSetFieldWithAddresses(fieldNumber, meta, infos);
         } else if (ss.format == SORTED_SET_SINGLE_VALUED_SORTED) {
           if (meta.readVInt() != fieldNumber) {
-            throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+            throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt", meta);
           }
           if (meta.readByte() != Lucene45DocValuesFormat.SORTED) {
-            throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt (resource=" + meta + ")");
+            throw new CorruptIndexException("sortedset entry for field: " + fieldNumber + " is corrupt", meta);
           }
           readSortedField(fieldNumber, meta, infos);
         } else {
           throw new AssertionError();
         }
       } else {
-        throw new CorruptIndexException("invalid type: " + type + ", resource=" + meta);
+        throw new CorruptIndexException("invalid type: " + type, meta);
       }
       fieldNumber = meta.readVInt();
     }
@@ -259,11 +259,11 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
         break;
       case TABLE_COMPRESSED:
         if (entry.count > Integer.MAX_VALUE) {
-          throw new CorruptIndexException("Cannot use TABLE_COMPRESSED with more than MAX_VALUE values, input=" + meta);
+          throw new CorruptIndexException("Cannot use TABLE_COMPRESSED with more than MAX_VALUE values, got=" + entry.count, meta);
         }
         final int uniqueValues = meta.readVInt();
         if (uniqueValues > 256) {
-          throw new CorruptIndexException("TABLE_COMPRESSED cannot have more than 256 distinct values, input=" + meta);
+          throw new CorruptIndexException("TABLE_COMPRESSED cannot have more than 256 distinct values, got=" + uniqueValues, meta);
         }
         entry.table = new long[uniqueValues];
         for (int i = 0; i < uniqueValues; ++i) {
@@ -273,7 +273,7 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
       case DELTA_COMPRESSED:
         break;
       default:
-        throw new CorruptIndexException("Unknown format: " + entry.format + ", input=" + meta);
+        throw new CorruptIndexException("Unknown format: " + entry.format, meta);
     }
     return entry;
   }
@@ -301,7 +301,7 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
         entry.blockSize = meta.readVInt();
         break;
       default:
-        throw new CorruptIndexException("Unknown format: " + entry.format + ", input=" + meta);
+        throw new CorruptIndexException("Unknown format: " + entry.format, meta);
     }
     return entry;
   }
@@ -314,7 +314,7 @@ class Lucene45DocValuesProducer extends DocValuesProducer implements Closeable {
       entry.format = SORTED_SET_WITH_ADDRESSES;
     }
     if (entry.format != SORTED_SET_SINGLE_VALUED_SORTED && entry.format != SORTED_SET_WITH_ADDRESSES) {
-      throw new CorruptIndexException("Unknown format: " + entry.format + ", input=" + meta);
+      throw new CorruptIndexException("Unknown format: " + entry.format, meta);
     }
     return entry;
   }

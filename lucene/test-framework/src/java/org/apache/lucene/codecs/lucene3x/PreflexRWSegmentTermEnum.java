@@ -35,7 +35,7 @@ class PreflexRWSegmentTermEnum extends SegmentTermEnum {
     input.seek(input.length() - 16);
     long magic = input.readLong();
     if (magic != TermInfosWriter.MAGIC) {
-      throw new CorruptIndexException("this file was not written with PreFlexRWCodec (resource: " + input + ")");
+      throw new CorruptIndexException("this file was not written with PreFlexRWCodec", input);
     }
     long size = input.readLong();
     input.seek(savedPosition + 8); // we still left the 'hole'
