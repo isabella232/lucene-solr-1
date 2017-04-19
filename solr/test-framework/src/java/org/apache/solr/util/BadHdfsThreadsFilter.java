@@ -35,6 +35,8 @@ public class BadHdfsThreadsFilter implements ThreadFilter {
       return true;
     } else if (name.endsWith("StatisticsDataReferenceCleaner")) {
       return true;
+    } else if (name.startsWith("RollingAverages")) { // HADOOP-14329
+      return true;
     }
     return false;
   }
