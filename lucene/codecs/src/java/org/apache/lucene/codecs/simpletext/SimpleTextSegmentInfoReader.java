@@ -69,7 +69,7 @@ public class SimpleTextSegmentInfoReader extends SegmentInfoReader {
       try {
         version = Version.parse(readString(SI_VERSION.length, scratch));
       } catch (ParseException pe) {
-        throw new CorruptIndexException("unable to parse version string (resource=" + input + "): " + pe.getMessage(), pe);
+        throw new CorruptIndexException("unable to parse version string : " + pe.getMessage(), input, pe);
       }
     
       SimpleTextUtil.readLine(input, scratch);

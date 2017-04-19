@@ -137,7 +137,7 @@ class MemoryDocValuesProducer extends DocValuesProducer {
                                                  VERSION_START,
                                                  VERSION_CURRENT);
       if (version != version2) {
-        throw new CorruptIndexException("Format versions mismatch");
+        throw new CorruptIndexException("Format versions mismatch: meta=" + version + ", data=" + version2, data);
       }
       
       // NOTE: data file is too costly to verify checksum against all the bytes on open,
@@ -171,7 +171,7 @@ class MemoryDocValuesProducer extends DocValuesProducer {
       case GCD_COMPRESSED:
            break;
       default:
-           throw new CorruptIndexException("Unknown format: " + entry.format + ", input=" + meta);
+           throw new CorruptIndexException("Unknown format: " + entry.format, meta);
     }
     entry.packedIntsVersion = meta.readVInt();
     entry.count = meta.readLong();
@@ -235,7 +235,7 @@ class MemoryDocValuesProducer extends DocValuesProducer {
         entry.singleton = true;
         sortedNumerics.put(fieldNumber, entry);
       } else {
-        throw new CorruptIndexException("invalid entry type: " + fieldType + ", input=" + meta);
+        throw new CorruptIndexException("invalid entry type: " + fieldType + ", fieldName=" + fieldNumber, meta);
       }
       fieldNumber = meta.readVInt();
     }
@@ -268,7 +268,7 @@ class MemoryDocValuesProducer extends DocValuesProducer {
       case TABLE_COMPRESSED:
         int size = data.readVInt();
         if (size > 256) {
-          throw new CorruptIndexException("TABLE_COMPRESSED cannot have more than 256 distinct values, input=" + data);
+          throw new CorruptIndexException("TABLE_COMPRESSED cannot have more than 256 distinct values, got=" + size, data);
         }
         final long decode[] = new long[size];
         for (int i = 0; i < decode.length; i++) {

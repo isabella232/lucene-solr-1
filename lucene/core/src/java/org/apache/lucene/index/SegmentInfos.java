@@ -312,7 +312,7 @@ public final class SegmentInfos implements Cloneable, Iterable<SegmentCommitInfo
         counter = input.readInt();
         int numSegments = input.readInt();
         if (numSegments < 0) {
-          throw new CorruptIndexException("invalid segment count: " + numSegments + " (resource: " + input + ")");
+          throw new CorruptIndexException("invalid segment count: " + numSegments, input);
         }
         for (int seg = 0; seg < numSegments; seg++) {
           String segName = input.readString();
@@ -323,7 +323,7 @@ public final class SegmentInfos implements Cloneable, Iterable<SegmentCommitInfo
           long delGen = input.readLong();
           int delCount = input.readInt();
           if (delCount < 0 || delCount > info.getDocCount()) {
-            throw new CorruptIndexException("invalid deletion count: " + delCount + " vs docCount=" + info.getDocCount() + " (resource: " + input + ")");
+            throw new CorruptIndexException("invalid deletion count: " + delCount + " vs docCount=" + info.getDocCount(), input);
           }
           long fieldInfosGen = -1;
           if (actualFormat >= VERSION_46) {
@@ -390,14 +390,15 @@ public final class SegmentInfos implements Cloneable, Iterable<SegmentCommitInfo
         final long checksumNow = input.getChecksum();
         final long checksumThen = input.readLong();
         if (checksumNow != checksumThen) {
-          throw new CorruptIndexException("checksum mismatch in segments file (resource: " + input + ")");
+          throw new CorruptIndexException("checksum failed (hardware problem?) : expected=" + Long.toHexString(checksumThen) +  
+                                          " actual=" + Long.toHexString(checksumNow), input);
         }
         CodecUtil.checkEOF(input);
       }
 
       success = true;
     } catch (EOFException e) {
-      throw new CorruptIndexException("Unexpected end of file while reading index (resource: " + input + ")", e);
+      throw new CorruptIndexException("Unexpected end of file while reading index", input, e);
     } finally {
       if (!success) {
         // Clear any segment infos we had loaded so we

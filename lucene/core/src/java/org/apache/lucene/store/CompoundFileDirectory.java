@@ -156,7 +156,7 @@ public final class CompoundFileDirectory extends BaseDirectory {
             thirdByte != CODEC_MAGIC_BYTE3 || 
             fourthByte != CODEC_MAGIC_BYTE4) {
           throw new CorruptIndexException("Illegal/impossible header for CFS file: " 
-                                         + secondByte + "," + thirdByte + "," + fourthByte);
+                                         + secondByte + "," + thirdByte + "," + fourthByte, stream);
         }
         version = CodecUtil.checkHeaderNoMagic(stream, CompoundFileWriter.DATA_CODEC, 
             CompoundFileWriter.VERSION_START, CompoundFileWriter.VERSION_CURRENT);
@@ -172,7 +172,7 @@ public final class CompoundFileDirectory extends BaseDirectory {
           final String id = entriesStream.readString();
           FileEntry previous = mapping.put(id, fileEntry);
           if (previous != null) {
-            throw new CorruptIndexException("Duplicate cfs entry id=" + id + " in CFS: " + entriesStream);
+            throw new CorruptIndexException("Duplicate cfs entry id=" + id + " in CFS: ", entriesStream);
           }
           fileEntry.offset = entriesStream.readLong();
           fileEntry.length = entriesStream.readLong();
@@ -206,7 +206,7 @@ public final class CompoundFileDirectory extends BaseDirectory {
     if (firstInt < CompoundFileWriter.FORMAT_PRE_VERSION) {
       if (firstInt < CompoundFileWriter.FORMAT_NO_SEGMENT_PREFIX) {
         throw new CorruptIndexException("Incompatible format version: "
-            + firstInt + " expected >= " + CompoundFileWriter.FORMAT_NO_SEGMENT_PREFIX + " (resource: " + stream + ")");
+            + firstInt + " expected >= " + CompoundFileWriter.FORMAT_NO_SEGMENT_PREFIX, stream);
       }
       // It's a post-3.1 index, read the count.
       count = stream.readVInt();
@@ -222,7 +222,7 @@ public final class CompoundFileDirectory extends BaseDirectory {
     for (int i=0; i<count; i++) {
       long offset = stream.readLong();
       if (offset < 0 || offset > streamLength) {
-        throw new CorruptIndexException("Invalid CFS entry offset: " + offset + " (resource: " + stream + ")");
+        throw new CorruptIndexException("Invalid CFS entry offset: " + offset, stream);
       }
       String id = stream.readString();
       
@@ -242,7 +242,7 @@ public final class CompoundFileDirectory extends BaseDirectory {
 
       FileEntry previous = entries.put(id, entry);
       if (previous != null) {
-        throw new CorruptIndexException("Duplicate cfs entry id=" + id + " in CFS: " + stream);
+        throw new CorruptIndexException("Duplicate cfs entry id=" + id + " in CFS: " + stream, stream);
       }
     }
     
