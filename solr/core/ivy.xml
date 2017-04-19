@@ -83,6 +83,11 @@
     <dependency org="org.apache.curator" name="curator-framework" rev="${/org.apache.curator/curator-framework}" conf="compile.hadoop"/>
     <dependency org="org.apache.curator" name="curator-client" rev="${/org.apache.curator/curator-client}" conf="compile.hadoop"/> 
     <dependency org="org.apache.curator" name="curator-recipes" rev="${/org.apache.curator/curator-recipes}" conf="compile.hadoop"/>
+    <!-- Hadoop auth framework needs kerby jars -->
+    <dependency org="org.apache.kerby" name="kerb-util"  rev="${/org.apache.kerby/kerb-util}"  conf="compile.hadoop"/>
+    <dependency org="org.apache.kerby" name="kerby-asn1" rev="${/org.apache.kerby/kerby-asn1}" conf="compile.hadoop"/>
+    <dependency org="org.apache.kerby" name="kerby-pkix" rev="${/org.apache.kerby/kerby-pkix}" conf="compile.hadoop"/>
+    <dependency org="org.apache.kerby" name="kerb-core"  rev="${/org.apache.kerby/kerb-core}"  conf="compile.hadoop"/>
 
     <!-- Hadoop DfsMiniCluster Dependencies-->
     <dependency org="org.apache.hadoop" name="hadoop-common" rev="${/org.apache.hadoop/hadoop-common}" conf="test.DfsMiniCluster">
@@ -116,16 +121,16 @@
     <dependency org="org.apache.kerby" name="kerb-common" rev="${/org.apache.kerby/kerb-common}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-core" rev="${/org.apache.kerby/kerb-core}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-crypto" rev="${/org.apache.kerby/kerb-crypto}" conf="test.MiniKdc"/>
-    <dependency org="org.apache.kerby" name="kerb-identity" rev="${/org.apache.kerby/kerb-identity}" conf="test.MiniKdc"/> 
+    <dependency org="org.apache.kerby" name="kerb-identity" rev="${/org.apache.kerby/kerb-identity}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-server" rev="${/org.apache.kerby/kerb-server}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-simplekdc" rev="${/org.apache.kerby/kerb-simplekdc}" conf="test.MiniKdc"/>
-    <dependency org="org.apache.kerby" name="kerb-util" rev="${/org.apache.kerby/kerb-util}" conf="test.MiniKdc"/> 
+    <dependency org="org.apache.kerby" name="kerb-util" rev="${/org.apache.kerby/kerb-util}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerby-asn1" rev="${/org.apache.kerby/kerby-asn1}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerby-pkix" rev="${/org.apache.kerby/kerby-pkix}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerby-util" rev="${/org.apache.kerby/kerby-util}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerb-admin" rev="${/org.apache.kerby/kerb-admin}" conf="test.MiniKdc"/>
     <dependency org="org.apache.kerby" name="kerby-kdc" rev="${/org.apache.kerby/kerby-kdc}" conf="test.MiniKdc"/>
-    
+
     <dependency org="org.apache.curator" name="curator-framework" rev="${/org.apache.curator/curator-framework}" conf="compile"/>
     <dependency org="org.apache.curator" name="curator-client" rev="${/org.apache.curator/curator-client}" conf="compile"/>
     <dependency org="org.apache.curator" name="curator-recipes" rev="${/org.apache.curator/curator-recipes}" conf="compile"/>
