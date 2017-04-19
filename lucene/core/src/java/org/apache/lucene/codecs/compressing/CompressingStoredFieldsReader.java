@@ -132,7 +132,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
       fieldsStream = d.openInput(fieldsStreamFN, context);
       if (version >= VERSION_CHECKSUM) {
         if (maxPointer + CodecUtil.footerLength() != fieldsStream.length()) {
-          throw new CorruptIndexException("Invalid fieldsStream maxPointer (file truncated?): maxPointer=" + maxPointer + ", length=" + fieldsStream.length());
+          throw new CorruptIndexException("Invalid fieldsStream maxPointer (file truncated?): maxPointer=" + maxPointer + ", length=" + fieldsStream.length(), fieldsStream);
         }
       } else {
         maxPointer = fieldsStream.length();
@@ -141,7 +141,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
       final String codecNameDat = formatName + CODEC_SFX_DAT;
       final int fieldsVersion = CodecUtil.checkHeader(fieldsStream, codecNameDat, VERSION_START, VERSION_CURRENT);
       if (version != fieldsVersion) {
-        throw new CorruptIndexException("Version mismatch between stored fields index and data: " + version + " != " + fieldsVersion);
+        throw new CorruptIndexException("Version mismatch between stored fields index and data: " + version + " != " + fieldsVersion, fieldsStream);
       }
       assert CodecUtil.headerLength(codecNameDat) == fieldsStream.getFilePointer();
 
@@ -253,7 +253,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         || docBase + chunkDocs > numDocs) {
       throw new CorruptIndexException("Corrupted: docID=" + docID
           + ", docBase=" + docBase + ", chunkDocs=" + chunkDocs
-          + ", numDocs=" + numDocs + " (resource=" + fieldsStream + ")");
+          + ", numDocs=" + numDocs, fieldsStream);
     }
 
     final int numStoredFields, offset, length, totalLength;
@@ -267,7 +267,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
       if (bitsPerStoredFields == 0) {
         numStoredFields = fieldsStream.readVInt();
       } else if (bitsPerStoredFields > 31) {
-        throw new CorruptIndexException("bitsPerStoredFields=" + bitsPerStoredFields + " (resource=" + fieldsStream + ")");
+        throw new CorruptIndexException("bitsPerStoredFields=" + bitsPerStoredFields, fieldsStream);
       } else {
         final long filePointer = fieldsStream.getFilePointer();
         final PackedInts.Reader reader = PackedInts.getDirectReaderNoHeader(fieldsStream, PackedInts.Format.PACKED, packedIntsVersion, chunkDocs, bitsPerStoredFields);
@@ -281,7 +281,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         offset = (docID - docBase) * length;
         totalLength = chunkDocs * length;
       } else if (bitsPerStoredFields > 31) {
-        throw new CorruptIndexException("bitsPerLength=" + bitsPerLength + " (resource=" + fieldsStream + ")");
+        throw new CorruptIndexException("bitsPerLength=" + bitsPerLength, fieldsStream);
       } else {
         final PackedInts.ReaderIterator it = PackedInts.getReaderIteratorNoHeader(fieldsStream, PackedInts.Format.PACKED, packedIntsVersion, chunkDocs, bitsPerLength, 1);
         int off = 0;
@@ -299,7 +299,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
     }
 
     if ((length == 0) != (numStoredFields == 0)) {
-      throw new CorruptIndexException("length=" + length + ", numStoredFields=" + numStoredFields + " (resource=" + fieldsStream + ")");
+      throw new CorruptIndexException("length=" + length + ", numStoredFields=" + numStoredFields, fieldsStream);
     }
     if (numStoredFields == 0) {
       // nothing to do
@@ -447,7 +447,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
           || docBase + chunkDocs > numDocs) {
         throw new CorruptIndexException("Corrupted: current docBase=" + this.docBase
             + ", current numDocs=" + this.chunkDocs + ", new docBase=" + docBase
-            + ", new numDocs=" + chunkDocs + " (resource=" + fieldsStream + ")");
+            + ", new numDocs=" + chunkDocs, fieldsStream);
       }
       this.docBase = docBase;
       this.chunkDocs = chunkDocs;
@@ -466,7 +466,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         if (bitsPerStoredFields == 0) {
           Arrays.fill(numStoredFields, 0, chunkDocs, fieldsStream.readVInt());
         } else if (bitsPerStoredFields > 31) {
-          throw new CorruptIndexException("bitsPerStoredFields=" + bitsPerStoredFields + " (resource=" + fieldsStream + ")");
+          throw new CorruptIndexException("bitsPerStoredFields=" + bitsPerStoredFields, fieldsStream);
         } else {
           final PackedInts.ReaderIterator it = PackedInts.getReaderIteratorNoHeader(fieldsStream, PackedInts.Format.PACKED, packedIntsVersion, chunkDocs, bitsPerStoredFields, 1);
           for (int i = 0; i < chunkDocs; ++i) {
@@ -478,7 +478,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         if (bitsPerLength == 0) {
           Arrays.fill(lengths, 0, chunkDocs, fieldsStream.readVInt());
         } else if (bitsPerLength > 31) {
-          throw new CorruptIndexException("bitsPerLength=" + bitsPerLength);
+          throw new CorruptIndexException("bitsPerLength=" + bitsPerLength, fieldsStream);
         } else {
           final PackedInts.ReaderIterator it = PackedInts.getReaderIteratorNoHeader(fieldsStream, PackedInts.Format.PACKED, packedIntsVersion, chunkDocs, bitsPerLength, 1);
           for (int i = 0; i < chunkDocs; ++i) {
@@ -508,7 +508,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         decompressor.decompress(fieldsStream, chunkSize, 0, chunkSize, bytes);
       }
       if (bytes.length != chunkSize) {
-        throw new CorruptIndexException("Corrupted: expected chunk size = " + chunkSize() + ", got " + bytes.length + " (resource=" + fieldsStream + ")");
+        throw new CorruptIndexException("Corrupted: expected chunk size = " + chunkSize() + ", got " + bytes.length, fieldsStream);
       }
     }
 

@@ -130,7 +130,7 @@ class PreFlexRWFieldsWriter extends FieldsConsumer {
 
         final int delta = docID - lastDocID;
         if (docID < 0 || (df > 0 && delta <= 0)) {
-          throw new CorruptIndexException("docs out of order (" + docID + " <= " + lastDocID + " )");
+          throw new CorruptIndexException("docs out of order (" + docID + " <= " + lastDocID + " )", freqOut.toString());
         }
 
         if ((++df % termsOut.skipInterval) == 0) {

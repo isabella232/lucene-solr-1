@@ -74,7 +74,7 @@ class PreFlexRWFieldInfosReader extends FieldInfosReader {
           if (format <= PreFlexRWFieldInfosWriter.FORMAT_OMIT_POSITIONS) {
             indexOptions = IndexOptions.DOCS_AND_FREQS;
           } else {
-            throw new CorruptIndexException("Corrupt fieldinfos, OMIT_POSITIONS set but format=" + format + " (resource: " + input + ")");
+            throw new CorruptIndexException("Corrupt fieldinfos, OMIT_POSITIONS set but format=" + format, input);
           }
         } else {
           indexOptions = IndexOptions.DOCS_AND_FREQS_AND_POSITIONS;
@@ -98,7 +98,7 @@ class PreFlexRWFieldInfosReader extends FieldInfosReader {
       }
 
       if (input.getFilePointer() != input.length()) {
-        throw new CorruptIndexException("did not read all bytes from file \"" + fileName + "\": read " + input.getFilePointer() + " vs size " + input.length() + " (resource: " + input + ")");
+        throw new CorruptIndexException("did not read all bytes from file \"" + fileName + "\": read " + input.getFilePointer() + " vs size " + input.length(), input);
       }
       return new FieldInfos(infos);
     } finally {
