@@ -23,6 +23,7 @@
   <settings defaultResolver="default"/>
 
   <property name="local-maven2-dir" value="${user.home}/.m2/repository/" />
+  <property name="cauldron.cloudera.com" value="http://maven.jenkins.cloudera.com:8081/artifactory/cauldron-latest-snapshot-local/" override="false"/>
   <property name="reactor.repo" value="https://repository.cloudera.com/artifactory/libs-snapshot-local/" override="false"/>
   <property name="snapshots.cloudera.com" value="https://repository.cloudera.com/artifactory/libs-snapshot-local/" override="false"/>
   <property name="releases.cloudera.com" value="https://repository.cloudera.com/artifactory/cdh-releases-rcs/" override="false"/>
@@ -52,6 +53,8 @@
              root="${releases.cloudera.com}" checkmodified="true"/>
     <ibiblio name="cloudera-snapshots" m2compatible="true"
              root="${snapshots.cloudera.com}" checkmodified="true"/>
+    <ibiblio name="cloudera-cauldron-snapshots" m2compatible="true"
+             root="${cauldron.cloudera.com}" checkmodified="true"/>
     <ibiblio name="maven2" root="${repo.maven.org}" pattern="${maven2.pattern.ext}" m2compatible="true"/>
 
     <ibiblio name="maven.restlet.org" root="http://maven.restlet.org" m2compatible="true" />
@@ -83,6 +86,7 @@
       <resolver ref="reactor-repo" />
       <resolver ref="cloudera-releases" />
       <resolver ref="cloudera-snapshots" />
+      <resolver ref="cloudera-cauldron-snapshots" />
     </chain>
 
   </resolvers>
@@ -92,6 +96,7 @@
     <!-- <module organisation="org.apache.zookeeper" name=".*" resolver="cloudera" />  -->
     <module organisation="org.apache.hadoop" name=".*" resolver="cloudera" />
     <module organisation="org.apache.sentry" name=".*" resolver="cloudera" />
+    <module organisation="org.apache.kerby" name=".*" resolver="cloudera" />
   </modules>
   
 </ivysettings>
