@@ -684,6 +684,8 @@ Other Changes
   verifier to simplify SSL setup. (Steve Davids via Mark Miller)
 
 
+* SOLR-10430: Add ls command to ZkCLI for listing only sub-directories. (Peter Szantai-Kis via Mark Miller)
+
 Optimizations
 ----------------------
 
