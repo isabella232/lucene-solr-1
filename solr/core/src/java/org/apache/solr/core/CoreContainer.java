@@ -32,9 +32,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.solr.cloud.Overseer;
 import org.apache.solr.cloud.ZkController;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.cloud.ZkNodeProps;
+import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.core.backup.repository.BackupRepository;
 import org.apache.solr.core.backup.repository.BackupRepositoryFactory;
@@ -518,10 +521,11 @@ public class CoreContainer {
       throw new SolrException(ErrorCode.SERVICE_UNAVAILABLE, "Solr has shutdown.");
     }
 
+    ZkNodeProps prevProps = null;
     try {
 
       if (zkSys.getZkController() != null) {
-        zkSys.getZkController().preRegister(dcore);
+        prevProps = zkSys.getZkController().preRegister(dcore);
       }
 
       ConfigSet coreConfig = coreConfigService.getConfig(dcore);
@@ -540,6 +544,33 @@ public class CoreContainer {
 
     }
     catch (Exception e) {
+      if (isZooKeeperAware() && prevProps != null) {
+        try {
+          // try to undo pre register
+          Map<String,Object> props = prevProps.shallowCopy();
+          props.put(Overseer.QUEUE_OPERATION, "state");
+          props.put(ZkStateReader.STATE_PROP, ZkStateReader.DOWN);
+          zkSys.zkController.getOverseerJobQueue().offer(ZkStateReader.toJSON(props));
+        } catch (KeeperException e1) {
+          SolrException.log(log, e1);
+        } catch (InterruptedException e1) {
+          Thread.currentThread().interrupt();
+        }
+      } else if (isZooKeeperAware()) {
+        
+        ZkNodeProps m = new ZkNodeProps(Overseer.QUEUE_OPERATION,
+            Overseer.DELETECORE, ZkStateReader.CORE_NAME_PROP, dcore.getName(),
+            ZkStateReader.NODE_NAME_PROP, zkSys.zkController.getNodeName(),
+            ZkStateReader.COLLECTION_PROP, dcore.getCloudDescriptor().getCollectionName(),
+            ZkStateReader.CORE_NODE_NAME_PROP, dcore.getCloudDescriptor().getCoreNodeName(), ZkStateReader.BASE_URL_PROP, zkSys.zkController.getBaseUrl());
+        try {
+          zkSys.zkController.getOverseerJobQueue().offer(ZkStateReader.toJSON(m));
+        } catch (KeeperException e1) {
+          SolrException.log(log, e1);
+        } catch (InterruptedException e1) {
+          Thread.currentThread().interrupt();
+        }
+      }
       coreInitFailures.put(dcore.getName(), new CoreLoadFailure(dcore, e));
       log.error("Error creating core [{}]: {}", dcore.getName(), e.getMessage(), e);
       throw new SolrException(ErrorCode.SERVER_ERROR, "Unable to create core [" + dcore.getName() + "]", e);

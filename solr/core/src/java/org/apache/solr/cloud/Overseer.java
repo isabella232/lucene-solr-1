@@ -1075,6 +1075,8 @@ public class Overseer implements Closeable {
       private ClusterState removeCore(final ClusterState clusterState, ZkNodeProps message) {
         final String cnn = message.getStr(ZkStateReader.CORE_NODE_NAME_PROP);
         final String collection = message.getStr(ZkStateReader.COLLECTION_PROP);
+        final String coreName = message.getStr(ZkStateReader.CORE_NAME_PROP);
+        final String baseUrl = message.getStr(ZkStateReader.BASE_URL_PROP);
         if (!checkCollectionKeyExistence(message)) return clusterState;
 
 //        final Map<String, DocCollection> newCollections = new LinkedHashMap<>(clusterState.getCollectionStates()); // shallow copy
@@ -1098,7 +1100,8 @@ public class Overseer implements Closeable {
         boolean lastSlice = false;
         for (Slice slice : coll.getSlices()) {
           Replica replica = slice.getReplica(cnn);
-          if (replica != null) {
+          // be sure to only remove cores we created, not just same core node name
+          if (replica != null && (replica.getCoreName().equals(coreName) && replica.getStr(ZkStateReader.BASE_URL_PROP).equals(baseUrl) || (coreName == null || baseUrl == null))) {
             Map<String, Replica> newReplicas = slice.getReplicasCopy();
             newReplicas.remove(cnn);
             // TODO TODO TODO!!! if there are no replicas left for the slice, and the slice has no hash range, remove it

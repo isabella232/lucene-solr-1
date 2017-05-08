@@ -329,6 +329,7 @@ public class SharedFSAutoReplicaFailoverUtilsTest extends SolrTestCaseJ4 {
           }
           
           replicaPropMap.put(ZkStateReader.NODE_NAME_PROP, nodeName);
+          replicaPropMap.put(ZkStateReader.CORE_NAME_PROP, "corename");
           replicaPropMap.put(ZkStateReader.BASE_URL_PROP, "http://baseUrl" + node);
           replicaPropMap.put(ZkStateReader.STATE_PROP, state);
           
