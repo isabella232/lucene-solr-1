@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -81,6 +82,8 @@ import org.apache.zookeeper.KeeperException.ConnectionLossException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.KeeperException.SessionExpiredException;
 import org.apache.zookeeper.Op;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -593,8 +596,10 @@ public class ZkController {
   }
 
   private void init(CurrentCoreDescriptorProvider registerOnReconnect) {
-
+    
     try {
+      checkForExistingEphemeralNode();
+      
       boolean createdWatchesAndUpdated = false;
       Stat stat = zkClient.exists(ZkStateReader.LIVE_NODES_ZKNODE, null, true);
       if (stat!= null && stat.getNumChildren()>0) {
@@ -606,7 +611,6 @@ public class ZkController {
       // makes nodes zkNode
       cmdExecutor.ensureExists(ZkStateReader.LIVE_NODES_ZKNODE, zkClient);
       
-      createEphemeralLiveNode();
       cmdExecutor.ensureExists(ZkStateReader.COLLECTIONS_ZKNODE, zkClient);
 
       ShardHandler shardHandler;
@@ -630,6 +634,9 @@ public class ZkController {
         zkStateReader.createClusterStateWatchersAndUpdate();
       }
       
+      
+      // Do this last to signal we're up.
+      createEphemeralLiveNode();
     } catch (IOException e) {
       log.error("", e);
       throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
@@ -646,6 +653,43 @@ public class ZkController {
           "", e);
     }
 
+  }
+  
+  private void checkForExistingEphemeralNode() throws KeeperException, InterruptedException {
+    if (zkRunOnly) {
+      return;
+    }
+    String nodeName = getNodeName();
+    String nodePath = ZkStateReader.LIVE_NODES_ZKNODE + "/" + nodeName;
+
+    if (!zkClient.exists(nodePath, true)) {
+      return;
+    }
+
+    final CountDownLatch deletedLatch = new CountDownLatch(1);
+    Stat stat = zkClient.exists(nodePath, new Watcher() {
+      
+      @Override
+      public void process(WatchedEvent event) {
+        if (Watcher.Event.EventType.None.equals(event.getType())) {
+          return;
+        }
+        if (Watcher.Event.EventType.NodeDeleted.equals(event.getType())) {
+          deletedLatch.countDown();
+        }
+      }
+    }, true);
+
+    if (stat == null) {
+      // znode suddenly disappeared but that's okay
+      return;
+    }
+
+    boolean deleted = deletedLatch.await(zkClient.getSolrZooKeeper().getSessionTimeout() * 2, TimeUnit.MILLISECONDS);
+    if (!deleted) {
+      throw new SolrException(ErrorCode.SERVER_ERROR, "A previous ephemeral live node still exists. " +
+          "Solr cannot continue. Please ensure that no other Solr process using the same port is running already.");
+    }
   }
 
   public void publishAndWaitForDownStates() throws KeeperException,
@@ -725,33 +769,7 @@ public class ZkController {
     String nodeName = getNodeName();
     String nodePath = ZkStateReader.LIVE_NODES_ZKNODE + "/" + nodeName;
     log.info("Register node as live in ZooKeeper:" + nodePath);
-   
-    try {
-      boolean nodeDeleted = true;
-      try {
-        // we attempt a delete in the case of a quick server bounce -
-        // if there was not a graceful shutdown, the node may exist
-        // until expiration timeout - so a node won't be created here because
-        // it exists, but eventually the node will be removed. So delete
-        // in case it exists and create a new node.
-        zkClient.delete(nodePath, -1, true);
-      } catch (KeeperException.NoNodeException e) {
-        // fine if there is nothing to delete
-        // TODO: annoying that ZK logs a warning on us
-        nodeDeleted = false;
-      }
-      if (nodeDeleted) {
-        log
-            .info("Found a previous node that still exists while trying to register a new live node "
-                + nodePath + " - removing existing node to create another.");
-      }
-      zkClient.makePath(nodePath, CreateMode.EPHEMERAL, true);
-    } catch (KeeperException e) {
-      // its okay if the node already exists
-      if (e.code() != KeeperException.Code.NODEEXISTS) {
-        throw e;
-      }
-    }    
+    zkClient.makePath(nodePath, CreateMode.EPHEMERAL, true);  
   }
   
   public String getNodeName() {
@@ -1126,6 +1144,24 @@ public class ZkController {
           if (ulog != null) {
             props.put("ulogDir", ulog.getLogDir());
           }
+        } else if (core == null) {
+          // check old state
+          try {
+            String dataDir = zkStateReader.getClusterState()
+                .getSlice(collection, cd.getCloudDescriptor().getShardId())
+                .getReplica(coreNodeName).getStr("dataDir");
+            String ulogDir = zkStateReader.getClusterState()
+                .getSlice(collection, cd.getCloudDescriptor().getShardId())
+                .getReplica(coreNodeName).getStr("ulogDir");
+            if (dataDir != null) {
+              props.put("dataDir", dataDir);
+            }
+            if (ulogDir != null) {
+              props.put("ulogDir", ulogDir);
+            }
+          } catch (NullPointerException e) {
+            // did not find existing entries
+          }
         }
       }
     }
@@ -1175,7 +1211,7 @@ public class ZkController {
         Overseer.DELETECORE, ZkStateReader.CORE_NAME_PROP, coreName,
         ZkStateReader.NODE_NAME_PROP, getNodeName(),
         ZkStateReader.COLLECTION_PROP, cloudDescriptor.getCollectionName(),
-        ZkStateReader.CORE_NODE_NAME_PROP, coreNodeName);
+        ZkStateReader.CORE_NODE_NAME_PROP, coreNodeName, ZkStateReader.BASE_URL_PROP, getBaseUrl());
     overseerJobQueue.offer(ZkStateReader.toJSON(m));
   }
   
@@ -1387,9 +1423,11 @@ public class ZkController {
     log.info("waiting to find shard id in clusterstate for " + cd.getName());
     int retryCount = 320;
     while (retryCount-- > 0) {
-      final String shardId = zkStateReader.getClusterState().getShardId(getNodeName(), cd.getName());
-      if (shardId != null) {
+      final String shardId = zkStateReader.getClusterState().getShardIdByCoreNodeName(cd.getCollectionName(), cd.getCloudDescriptor().getCoreNodeName());
+      if (shardId != null && cd.getCloudDescriptor().getShardId() == null) {
         cd.getCloudDescriptor().setShardId(shardId);
+        return;
+      } else if (shardId != null) {
         return;
       }
       try {
@@ -1455,10 +1493,20 @@ public class ZkController {
     downloadFromZK(zkClient, ZkController.CONFIGS_ZKNODE + "/" + configName, dir);
   }
 
-  public void preRegister(CoreDescriptor cd ) {
+  public ZkNodeProps preRegister(CoreDescriptor cd ) {
 
     String coreNodeName = getCoreNodeName(cd);
-
+    Replica prevProps = null;
+    try {
+      Replica replica = zkStateReader.getClusterState().getSlice(cd.getCollectionName(),
+          cd.getCloudDescriptor().getShardId()).getReplica(coreNodeName);
+      if (replica != null) {
+        prevProps = replica;
+      }
+    } catch (NullPointerException e) {
+      
+    }
+    
     // before becoming available, make sure we are not live and active
     // this also gets us our assigned shard id if it was not specified
     try {
@@ -1488,6 +1536,7 @@ public class ZkController {
       doGetShardIdAndNodeNameProcess(cd);
     }
 
+    return prevProps;
   }
 
   private void checkStateInZk(CoreDescriptor cd) throws InterruptedException {

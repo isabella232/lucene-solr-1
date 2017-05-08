@@ -587,7 +587,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
         ZkStateReader.CORE_NAME_PROP, core,
         ZkStateReader.NODE_NAME_PROP, replica.getStr(ZkStateReader.NODE_NAME_PROP),
         ZkStateReader.COLLECTION_PROP, collectionName,
-        ZkStateReader.CORE_NODE_NAME_PROP, replicaName);
+        ZkStateReader.CORE_NODE_NAME_PROP, replicaName, ZkStateReader.BASE_URL_PROP, zkStateReader.getBaseUrlForNodeName(replica.getStr(ZkStateReader.NODE_NAME_PROP)));
     Overseer.getInQueue(zkStateReader.getZkClient()).offer(ZkStateReader.toJSON(m));
   }
 
