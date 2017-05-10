@@ -49,6 +49,8 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.junit.matchers.JUnitMatchers.containsString;
+
 // TODO: This test would be a lot faster if it used a solrhome with fewer config
 // files - there are a lot of them to upload
 public class ZkCLITest extends SolrTestCaseJ4 {
@@ -211,34 +213,49 @@ public class ZkCLITest extends SolrTestCaseJ4 {
   @Test
   public void testList() throws Exception {
     zkClient.makePath("/test", true);
-    String[] args = new String[] {"-zkhost", zkServer.getZkAddress(), "-cmd",
+    try {
+      String[] args = new String[] {"-zkhost", zkServer.getZkAddress(), "-cmd",
         "list"};
 
-    ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-    final PrintStream myOut = new PrintStream(byteStream, false, StandardCharsets.UTF_8.name());
-    ZkCLI.setStdout(myOut);
+      ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+      final PrintStream myOut = new PrintStream(byteStream, false, StandardCharsets.UTF_8.name());
+      ZkCLI.setStdout(myOut);
+  
+      ZkCLI.main(args);
+      final String standardOutput = byteStream.toString(StandardCharsets.UTF_8.name());
 
-    ZkCLI.main(args);
-    final String standardOutput = byteStream.toString(StandardCharsets.UTF_8.name());
-    String separator = System.lineSeparator();
-    assertEquals("/ (3)" + separator + " /test (0)" + separator + " /live_nodes (0)" + separator + " /clusterstate.json (0)" + separator + " DATA:" + separator + "     {}" + separator + separator, standardOutput);
+      assertThat(standardOutput, containsString("/ (3)"));
+      assertThat(standardOutput, containsString("/test (0)"));
+      assertThat(standardOutput, containsString("/live_nodes (0)"));
+      assertThat(standardOutput, containsString("/clusterstate.json (0)"));
+      assertThat(standardOutput, containsString("DATA:"));
+      assertThat(standardOutput, containsString("{}"));
+    } finally {
+      zkClient.delete("/test", 0, true);
+    }
   }
 
   @Test
   public void testLs() throws Exception {
     zkClient.makePath("/test/path", true);
-    String[] args = new String[] {"-zkhost", zkServer.getZkAddress(), "-cmd",
-            "ls", "/test"};
+    try {
+      String[] args = new String[]{"-zkhost", zkServer.getZkAddress(), "-cmd",
+              "ls", "/test"};
 
-    ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-    final PrintStream myOut = new PrintStream(byteStream, false, StandardCharsets.UTF_8.name());
-    ZkCLI.setStdout(myOut);
+      ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+      final PrintStream myOut = new PrintStream(byteStream, false, StandardCharsets.UTF_8.name());
+      ZkCLI.setStdout(myOut);
 
-    ZkCLI.main(args);
+      ZkCLI.main(args);
 
-    final String standardOutput = byteStream.toString(StandardCharsets.UTF_8.name());
-    String separator = System.lineSeparator();
-    assertEquals("/test (1)" + separator + " /test/path (0)" + separator + separator, standardOutput);
+      final String standardOutput = byteStream.toString(StandardCharsets.UTF_8.name());
+      String separator = System.lineSeparator();
+      assertThat(standardOutput, containsString("/test (1)"));
+      assertThat(standardOutput, containsString("/test/path (0)"));      
+    } finally {
+      zkClient.delete("/test/path", 0, true);
+      zkClient.delete("/test", 0, true);
+    }
   }
   
   @Test
