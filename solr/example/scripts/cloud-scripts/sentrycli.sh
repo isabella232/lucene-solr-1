@@ -19,5 +19,5 @@ else
   log4j_config="file:$sdir/log4j.properties"
 fi
 
-PATH=$JAVA_HOME/bin:$PATH $JVM $SENTRYCLI_JVM_FLAGS -Dlog4j.configuration=$log4j_config -classpath "$sdir/../webapps/solr/WEB-INF/lib/*:$sdir/../lib/ext/*" ${1+"$@"}
+PATH=$JAVA_HOME/bin:$PATH $JVM $SENTRYCLI_JVM_FLAGS -Dlog4j.configuration=$log4j_config -classpath "$sdir/../webapps/solr/WEB-INF/lib/*:$sdir/../lib/ext/*:${SENTRY_CONF_DIR}" ${1+"$@"}
 
