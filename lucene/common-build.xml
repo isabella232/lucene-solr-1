@@ -938,6 +938,7 @@
         <property name="tests.method" value="" />
         <property name="tests.dynamicAssignmentRatio" value="0.50" /> <!-- 50% of suites -->
         <property name="tests.haltonfailure" value="true" />
+        <property name="tests.haltonerror" value="true" />
         <property name="tests.leaveTemporary" value="false" />
         <property name="tests.iters" value="" />
         <property name="tests.dups"  value="1" />
@@ -986,6 +987,7 @@
 
             printSummary="true"
             haltonfailure="${tests.haltonfailure}" 
+            haltonerror="${tests.haltonerror}"
             failureProperty="tests.failed"
 
             dynamicAssignmentRatio="${tests.dynamicAssignmentRatio}"
@@ -1322,8 +1324,11 @@ ant -f lucene/build.xml test-updatecache
 # Miscellaneous. --------------------------------------------------
 #
 
-# Run all tests without stopping on errors (inspect log files!).
+# Run all tests without stopping on failures (inspect log files!).
 ant -Dtests.haltonfailure=false test
+
+# Run all tests without stopping on errors (inspect log files!).
+ant -Dtests.haltonerror=false test
 
 # Run more verbose output (slave JVM parameters, etc.).
 ant -verbose test
