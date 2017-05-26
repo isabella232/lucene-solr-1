@@ -70,10 +70,12 @@ import org.junit.BeforeClass;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope.Scope;
+import org.junit.Ignore;
 
 @Slow
 @SuppressSSL
 @ThreadLeakScope(Scope.NONE) // hdfs client currently leaks thread(s)
+@Ignore
 public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBase {
   
   private static final boolean DEBUG = true;
