@@ -70,6 +70,7 @@ import org.apache.solr.update.DirectUpdateHandler2;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 
 
 /**
@@ -78,6 +79,7 @@ import org.junit.BeforeClass;
  */
 @Slow 
 @SuppressSSL(bugUrl = "https://issues.apache.org/jira/browse/SOLR-5776")
+@Ignore
 public class BasicDistributedZkTest extends AbstractFullDistribZkTestBase {
   
   private static final String DEFAULT_COLLECTION = "collection1";

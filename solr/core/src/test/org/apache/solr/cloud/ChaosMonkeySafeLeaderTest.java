@@ -33,8 +33,10 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 
 @Slow
+@Ignore
 public class ChaosMonkeySafeLeaderTest extends AbstractFullDistribZkTestBase {
   private static final int FAIL_TOLERANCE = 20;
   
