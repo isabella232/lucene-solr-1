@@ -1,0 +1,2 @@
+This product includes BSD-licensed software developed by Joe Walnes, Nat Pryce, Steve Freeman, Neil Dunn, Tom Denley
+(http://hamcrest.org/JavaHamcrest/).
