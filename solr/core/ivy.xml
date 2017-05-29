@@ -95,6 +95,8 @@
     <dependency org="org.apache.hadoop" name="hadoop-minikdc" rev="${/org.apache.hadoop/hadoop-minikdc}" conf="test.MiniKdc"/>
     <dependency org="org.apache.directory.server" name="apacheds-all" rev="${/org.apache.directory.server/apacheds-all}" conf="test.MiniKdc"/>
 
-    <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/> 
+    <dependency org="org.hamcrest" name="hamcrest-all" rev="${/org.hamcrest/hamcrest-all}" conf="test"/>
+    <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
+    
   </dependencies>
 </ivy-module>
