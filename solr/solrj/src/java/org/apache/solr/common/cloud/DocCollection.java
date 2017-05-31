@@ -1,5 +1,7 @@
 package org.apache.solr.common.cloud;
 
+import java.util.ArrayList;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -21,6 +23,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.solr.common.SolrException;
@@ -195,6 +198,14 @@ public class DocCollection extends ZkNodeProps {
       if (replica != null) return replica;
     }
     return null;
+  }
+
+  public List<Replica> getReplicas() {
+    List<Replica> replicas = new ArrayList<>();
+    for (Slice slice : slices.values()) {
+      replicas.addAll(slice.getReplicas());
+    }
+    return replicas;
   }
 
 }
