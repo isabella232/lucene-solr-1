@@ -22,6 +22,7 @@ import static org.apache.solr.cloud.OverseerCollectionMessageHandler.ASYNC;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.COLL_CONF;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.CREATESHARD;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.CREATE_NODE_SET;
+import static org.apache.solr.cloud.OverseerCollectionMessageHandler.CREATE_NODE_SET_EMPTY;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.DELETEREPLICA;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.NUM_SLICES;
 import static org.apache.solr.cloud.OverseerCollectionMessageHandler.REQUESTID;
@@ -345,13 +346,20 @@ public class CollectionsHandler extends RequestHandlerBase {
       throw new SolrException(ErrorCode.SERVER_ERROR, "Failed to check the existance of " + uri + ". Is it valid?", ex);
     }
 
+    String createNodeArg = req.getParams().get(CREATE_NODE_SET);
+    if (CREATE_NODE_SET_EMPTY.equals(createNodeArg)) {
+      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
+          "Cannot restore with a CREATE_NODE_SET of CREATE_NODE_SET_EMPTY.");
+    }
+
     Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP);
     if (req.getParams().get(ASYNC) != null) {
       params.put(ASYNC, req.getParams().get(ASYNC));
     }
     params.put(CoreAdminParams.BACKUP_LOCATION, location);
     // from CREATE_OP:
-    req.getParams().getAll(params, COLL_CONF, REPLICATION_FACTOR, MAX_SHARDS_PER_NODE, AUTO_ADD_REPLICAS);
+    req.getParams().getAll(params, COLL_CONF, REPLICATION_FACTOR, MAX_SHARDS_PER_NODE,
+        AUTO_ADD_REPLICAS, CREATE_NODE_SET);
     copyPropertiesIfNotNull(req.getParams(), params);
     params.put(Overseer.QUEUE_OPERATION, RESTORE.toLower());
     handleResponse(RESTORE.toLower(), new ZkNodeProps(params), rsp);

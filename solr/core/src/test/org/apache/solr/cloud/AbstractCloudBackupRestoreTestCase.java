@@ -20,6 +20,8 @@ package org.apache.solr.cloud;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -30,17 +32,21 @@ import org.apache.solr.SolrTestCaseJ4;
 import org.apache.lucene.util.TestUtil;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.impl.CloudSolrServer;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.SplitShard;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.ImplicitDocRouter;
+import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Joiner;
 
 import static org.apache.solr.common.params.ShardParams._ROUTE_;
 
@@ -183,6 +189,19 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
         // may need to increase maxShardsPerNode (e.g. if it was shard split, then now we need more)
         restore.setMaxShardsPerNode(origShardToDocCount.size());
       }
+
+      if (rarely()) { // Try with createNodeSet configuration
+        int nodeSetSize = cluster.getJettySolrRunners().size() / 2;
+        List<String> nodeStrs = new ArrayList<>(nodeSetSize);
+        Iterator<JettySolrRunner> iter = cluster.getJettySolrRunners().iterator();
+        for (int i = 0; i < nodeSetSize ; i++) {
+          nodeStrs.add(iter.next().getNodeName());
+        }
+        restore.setCreateNodeSet(Joiner.on(",").join(nodeStrs));
+        // we need to double maxShardsPerNode value since we reduced number of available nodes by half.
+        restore.setMaxShardsPerNode(origShardToDocCount.size() * 2);
+      }
+
       Properties props = new Properties();
       props.setProperty("customKey", "customVal");
       restore.setProperties(props);
@@ -212,6 +231,20 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
         restoreCollection.getActiveSlices().iterator().next().getReplicas().size());
     assertEquals(sameConfig ? "conf1" : "customConfigName",
         cluster.getSolrClient().getZkStateReader().readConfigName(restoreCollectionName));
+
+    Map<String, Integer> numReplicasByNodeName = new HashMap<>();
+    for (Replica x : restoreCollection.getReplicas()) {
+      int count = 0;
+      if (numReplicasByNodeName.containsKey(x.getNodeName())) {
+        count = numReplicasByNodeName.get(x.getNodeName());
+      }
+      numReplicasByNodeName.put(x.getNodeName(), count + 1);
+    }
+    for (Map.Entry<String,Integer> entry : numReplicasByNodeName.entrySet()) {
+      assertTrue("Node " + entry.getKey() + " has " + entry.getValue() + " replicas."
+          + " Expected num replicas : " + restoreCollection.getMaxShardsPerNode() ,
+          entry.getValue() <= restoreCollection.getMaxShardsPerNode());
+    }
 
     // assert added core properties:
     // DWS: did via manual inspection.
