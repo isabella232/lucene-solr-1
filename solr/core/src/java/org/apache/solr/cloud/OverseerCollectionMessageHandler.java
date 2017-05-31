@@ -130,7 +130,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
 
   public static final String CREATE_NODE_SET_EMPTY = "EMPTY";
 
-  public static final String CREATE_NODE_SET = "createNodeSet";
+  public static final String CREATE_NODE_SET = CollectionAdminParams.CREATE_NODE_SET_PARAM;
   
   public static final String DELETECOLLECTION = "deletecollection";
 
@@ -2389,6 +2389,22 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     String backupCollection = properties.getProperty(BackupManager.COLLECTION_NAME_PROP);
     DocCollection backupCollectionState = backupMgr.readCollectionState(location, backupName, backupCollection);
 
+    // Get the Solr nodes to restore a collection.
+    final List<String> nodeList = getLiveOrLiveAndCreateNodeSetList(
+        zkStateReader.getClusterState().getLiveNodes(), message);
+
+    int numShards = backupCollectionState.getActiveSlices().size();
+    int repFactor = message.getInt(REPLICATION_FACTOR, backupCollectionState.getReplicationFactor());
+    int maxShardsPerNode = message.getInt(MAX_SHARDS_PER_NODE, backupCollectionState.getMaxShardsPerNode());
+    int availableNodeCount = nodeList.size();
+    if ((numShards * repFactor) > (availableNodeCount * maxShardsPerNode)) {
+      throw new SolrException(ErrorCode.BAD_REQUEST,
+          String.format(Locale.ROOT, "Solr cloud with available number of nodes:%d is insufficient for"
+              + " restoring a collection with %d shards, replication factor %d and maxShardsPerNode %d."
+              + " Consider increasing maxShardsPerNode value OR number of available nodes.",
+              availableNodeCount, numShards, repFactor, maxShardsPerNode));
+    }
+
     //Upload the configs
     String configName = (String) properties.get(COLL_CONF);
     String restoreConfigName = message.getStr(COLL_CONF, configName);
@@ -2468,16 +2484,21 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       inQueue.offer(Utils.toJSON(new ZkNodeProps(propMap)));
     }
 
-    // TODO how do we leverage the CREATE_NODE_SET / RULE / SNITCH logic in createCollection?
+    // TODO how do we leverage the RULE / SNITCH logic in createCollection?
 
     ClusterState clusterState = zkStateReader.getClusterState();
     //Create one replica per shard and copy backed up data to it
+    int assignment_id = 0;
     for (Slice slice: restoreCollection.getSlices()) {
-      log.debug("Adding replica for shard={} collection={} ", slice.getName(), restoreCollection);
+      String nodeName = nodeList.get(assignment_id++ % nodeList.size());
+
+      log.info("Adding replica for shard={} collection={} on node {}",
+          slice.getName(), restoreCollection.getName(), nodeName);
       HashMap<String, Object> propMap = new HashMap<>();
       propMap.put(Overseer.QUEUE_OPERATION, CREATESHARD);
       propMap.put(COLLECTION_PROP, restoreCollectionName);
       propMap.put(SHARD_ID_PROP, slice.getName());
+      propMap.put("node", nodeName);
       // add async param
       if (asyncId != null) {
         propMap.put(ASYNC, asyncId);
@@ -2522,10 +2543,15 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
 
       for (Slice slice: restoreCollection.getSlices()) {
         for(int i=1; i<numReplicas; i++) {
-          log.debug("Adding replica for shard={} collection={} ", slice.getName(), restoreCollection);
+          String nodeName = nodeList.get(assignment_id++ % nodeList.size());
+
+          log.info("Adding replica for shard={} collection={} on node {}",
+              slice.getName(), restoreCollection.getName(), nodeName);
+
           HashMap<String, Object> propMap = new HashMap<>();
           propMap.put(COLLECTION_PROP, restoreCollectionName);
           propMap.put(SHARD_ID_PROP, slice.getName());
+          propMap.put("node", nodeName);
           // add async param
           if (asyncId != null) {
             propMap.put(ASYNC, asyncId);
@@ -2538,6 +2564,28 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     }
 
     log.info("Completed restoring collection={} backupName={}", restoreCollection, backupName);
+  }
+
+  static List<String> getLiveOrLiveAndCreateNodeSetList(final Set<String> liveNodes, final ZkNodeProps message) {
+    // TODO: add smarter options that look at the current number of cores per
+    // node?
+    // for now we just go random (except when createNodeSet and createNodeSet.shuffle=false are passed in)
+
+    List<String> nodeList;
+
+    final String createNodeSetStr = message.getStr(CREATE_NODE_SET);
+    final List<String> createNodeList = (createNodeSetStr == null)?null:StrUtils.splitSmart((CREATE_NODE_SET_EMPTY.equals(createNodeSetStr)?"":createNodeSetStr), ",", true);
+
+    if (createNodeList != null) {
+      nodeList = new ArrayList<>(createNodeList);
+      nodeList.retainAll(liveNodes);
+    } else {
+      nodeList = new ArrayList<>(liveNodes);
+    }
+
+    Collections.shuffle(nodeList);
+
+    return nodeList;
   }
 
   private void processResponses(NamedList results, ShardHandler shardHandler, Set<String> okayExceptions) {
