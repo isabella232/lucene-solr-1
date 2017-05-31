@@ -24,6 +24,11 @@ public abstract class CollectionAdminParams {
   public static final String COLLECTION = "collection";
 
   /**
+   * A parameter to specify list of Solr nodes to be used (e.g. for collection creation or restore operation).
+   */
+  public static final String CREATE_NODE_SET_PARAM = "createNodeSet";
+
+  /**
    * A parameter to specify the name of the index backup strategy to be used.
    */
   public static final String INDEX_BACKUP_STRATEGY = "indexBackup";
