@@ -38,6 +38,8 @@ import org.apache.solr.common.params.ShardParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.ContentStream;
 
+import static org.apache.solr.common.params.CollectionAdminParams.CREATE_NODE_SET_PARAM;
+
 /**
  * This class is experimental and subject to change.
  *
@@ -136,7 +138,7 @@ public class CollectionAdminRequest extends SolrRequest
         params.set( "collection.configName", configName);
       }
       if (createNodeSet != null) {
-        params.set( "createNodeSet", createNodeSet);
+        params.set( CREATE_NODE_SET_PARAM, createNodeSet);
       }
       if (numShards != null) {
         params.set( ZkStateReader.NUM_SHARDS_PROP, numShards);
@@ -324,6 +326,7 @@ public class CollectionAdminRequest extends SolrRequest
     protected final String backupName;
     protected String location;
     protected String repositoryName;
+    protected String createNodeSet;
 
     // in common with collection creation:
     protected String configName;
@@ -355,6 +358,13 @@ public class CollectionAdminRequest extends SolrRequest
       this.repositoryName = repositoryName;
     }
 
+    public String getCreateNodeSet() {
+      return createNodeSet;
+    }
+
+    public void setCreateNodeSet(String createNodeSet) {
+      this.createNodeSet = createNodeSet;
+    }
 
     // Collection creation params in common:
     public Restore setConfigName(String config) { this.configName = config; return this; }
@@ -393,6 +403,9 @@ public class CollectionAdminRequest extends SolrRequest
       if (autoAddReplicas != null) {
         params.set(ZkStateReader.AUTO_ADD_REPLICAS, autoAddReplicas);
       }
+      if (createNodeSet != null) {
+        params.set(CREATE_NODE_SET_PARAM, createNodeSet);
+      }
       if (properties != null) {
         addProperties(params, properties);
       }
@@ -429,7 +442,7 @@ public class CollectionAdminRequest extends SolrRequest
     @Override
     public SolrParams getParams() {
       ModifiableSolrParams params = getCommonParams();
-      params.set( "createNodeSet", nodeSet);
+      params.set(CREATE_NODE_SET_PARAM, nodeSet);
       if(properties != null) {
         addProperties(params, properties);
       }

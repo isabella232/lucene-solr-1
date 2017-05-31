@@ -376,6 +376,10 @@ public class JettySolrRunner {
     return dispatchFilter;
   }
 
+  public String getNodeName() {
+    return getCoreContainer().getZkController().getNodeName();
+  }
+
   public boolean isRunning() {
     return server.isRunning();
   }
