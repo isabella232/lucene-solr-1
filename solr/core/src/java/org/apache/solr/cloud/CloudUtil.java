@@ -65,6 +65,15 @@ public class CloudUtil {
               && !thisBaseUrl.equals(baseUrl)) {
             if (cc.getCoreNames().contains(desc.getName())) {
               cc.unload(desc.getName(), false, false, true);
+            } else {
+              // the core is not loaded yet and won't load, remove it's instance dir
+              File instanceDir = new File(desc.getInstanceDir());
+              try {
+                FileUtils.deleteDirectory(instanceDir);
+              } catch (IOException e) {
+                SolrException.log(log, "Failed to delete instance dir for core:"
+                    + desc.getName() + " dir:" + instanceDir.getAbsolutePath());
+              }
             }
             
             log.error("", new SolrException(ErrorCode.SERVER_ERROR,
