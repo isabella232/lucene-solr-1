@@ -31,6 +31,9 @@ import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.util.BadZookeeperThreadsFilter;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,8 +48,9 @@ import org.slf4j.LoggerFactory;
     BadZookeeperThreadsFilter.class // Zookeeper login leaks TGT renewal threads
 })
 
-@LuceneTestCase.Slow
-public class TestSolrCloudWithKerberosAlt extends SolrCloudTestCase {
+@Ignore
+@LuceneTestCase.SuppressSysoutChecks(bugUrl = "Solr logs to JUL")
+public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -113,10 +117,11 @@ public class TestSolrCloudWithKerberosAlt extends SolrCloudTestCase {
         );
 
     // more debugging, if needed
-    // System.setProperty("sun.security.jgss.debug", "true");
-    // System.setProperty("sun.security.krb5.debug", "true");
-    // System.setProperty("sun.security.jgss.debug", "true");
-    // System.setProperty("java.security.debug", "logincontext,policy,scl,gssloginconfig");
+    System.setProperty("sun.security.jgss.debug", "true");
+    System.setProperty("sun.security.krb5.debug", "true");
+    System.setProperty("sun.security.jgss.debug", "true");
+    System.setProperty("java.security.debug", "logincontext,policy,scl,gssloginconfig");
+    System.setProperty("hostName", hostname);
   }
   
   @Test

@@ -158,7 +158,7 @@ public class HdfsDirectoryTest extends SolrTestCaseJ4 {
     try {
       input.readByte();
       fail("should throw eof");
-    } catch (IOException e) {
+    } catch (Exception e) {
     }
   }
 
