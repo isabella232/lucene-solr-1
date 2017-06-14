@@ -47,6 +47,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.solr.handler.admin.SystemInfoHandler;
 import org.apache.solr.util.RedactionUtils;
 import org.codehaus.jackson.JsonFactory;
@@ -196,6 +197,10 @@ public class JMXJsonServlet extends HttpServlet {
     } catch ( MalformedObjectNameException e ) {
       LOG.error("Caught an exception while processing JMX request", e);
       response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    } catch ( Exception e ) {
+      LOG.error("Caught an exception while processing JMX request", e);
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      throw e;
     }
   }
 
@@ -355,13 +360,14 @@ public class JMXJsonServlet extends HttpServlet {
 
     writeAttribute(jg, attName, value);
   }
-  
-  private void writeAttribute(JsonGenerator jg, String attName, Object value) throws IOException {
+
+  @VisibleForTesting
+  public static void writeAttribute(JsonGenerator jg, String attName, Object value) throws IOException {
     jg.writeFieldName(attName);
     writeObject(jg, value);
   }
   
-  private void writeObject(JsonGenerator jg, Object value) throws IOException {
+  private static void writeObject(JsonGenerator jg, Object value) throws IOException {
     if(value == null) {
       jg.writeNull();
     } else {
@@ -418,7 +424,7 @@ public class JMXJsonServlet extends HttpServlet {
         if(valueStr.contains("=")){
           if (valueStr.startsWith("-D") && RedactionUtils.isSystemPropertySensitive(valueStr.substring(2, valueStr.indexOf("=")))) {
             valueStr = String.format(Locale.ROOT, "%s=%s", valueStr.substring(0, valueStr.indexOf("=")), REDACT_STRING);
-          } else if (RedactionUtils.isSystemPropertySensitive(valueStr.substring(2, valueStr.indexOf("=")))) {
+          } else if (RedactionUtils.isSystemPropertySensitive(valueStr.substring(0, valueStr.indexOf("=")))) {
             valueStr = String.format(Locale.ROOT, "%s=%s", valueStr.substring(0, valueStr.indexOf("=")), REDACT_STRING);
           }
         }
