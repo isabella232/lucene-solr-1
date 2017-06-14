@@ -47,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Set;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.solr.common.params.SolrParams;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
@@ -75,20 +76,20 @@ import org.slf4j.LoggerFactory;
  * For example <code>http://.../jmx?qry=Hadoop:*</code> will return
  * all hadoop metrics exposed through JMX.
  * <p>
- * The optional <code>get</code> parameter is used to query an specific 
+ * The optional <code>get</code> parameter is used to query an specific
  * attribute of a JMX bean.  The format of the URL is
  * <code>http://.../jmx?get=MXBeanName::AttributeName</code>
  * <p>
- * For example 
+ * For example
  * <code>
  * http://../jmx?get=Hadoop:service=NameNode,name=NameNodeInfo::ClusterId
  * </code> will return the cluster id of the namenode mxbean.
  * <p>
- * If the <code>qry</code> or the <code>get</code> parameter is not formatted 
- * correctly then a 400 BAD REQUEST http response code will be returned. 
+ * If the <code>qry</code> or the <code>get</code> parameter is not formatted
+ * correctly then a 400 BAD REQUEST http response code will be returned.
  * <p>
- * If a resouce such as a mbean or attribute can not be found, 
- * a 404 SC_NOT_FOUND http response code will be returned. 
+ * If a resouce such as a mbean or attribute can not be found,
+ * a 404 SC_NOT_FOUND http response code will be returned.
  * <p>
  * The return format is JSON and in the form
  * <p>
@@ -105,19 +106,19 @@ import org.slf4j.LoggerFactory;
  *  <p>
  *  The servlet attempts to convert the the JMXBeans into JSON. Each
  *  bean's attributes will be converted to a JSON object member.
- *  
+ *
  *  If the attribute is a boolean, a number, a string, or an array
- *  it will be converted to the JSON equivalent. 
- *  
+ *  it will be converted to the JSON equivalent.
+ *
  *  If the value is a {@link CompositeData} then it will be converted
  *  to a JSON object with the keys as the name of the JSON member and
  *  the value is converted following these same rules.
- *  
+ *
  *  If the value is a {@link TabularData} then it will be converted
  *  to an array of the {@link CompositeData} elements that it contains.
- *  
+ *
  *  All other objects will be converted to a string and output as such.
- *  
+ *
  *  The bean's name and modelerType will be returned for all beans.
  */
 public class JMXJsonServlet extends HttpServlet {
@@ -143,7 +144,7 @@ public class JMXJsonServlet extends HttpServlet {
 
   /**
    * Process a GET request for the specified resource.
-   * 
+   *
    * @param request
    *          The servlet request we are processing
    * @param response
@@ -169,7 +170,7 @@ public class JMXJsonServlet extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_NOT_FOUND);
         return;
       }
-      
+
       // query per mbean attribute
       String getmethod = params.get("get");
       if (getmethod != null) {
@@ -201,13 +202,17 @@ public class JMXJsonServlet extends HttpServlet {
     } catch ( MalformedObjectNameException e ) {
       LOG.error("Caught an exception while processing JMX request", e);
       response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+    } catch ( Exception e ) {
+      LOG.error("Caught an exception while processing JMX request", e);
+      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      throw e;
     }
   }
 
   // --------------------------------------------------------- Private Methods
-  private void listBeans(JsonGenerator jg, ObjectName qry, String attribute, 
-      HttpServletResponse response) 
-  throws IOException {
+  private void listBeans(JsonGenerator jg, ObjectName qry, String attribute,
+                         HttpServletResponse response)
+      throws IOException {
     LOG.debug("Listing beans for "+qry);
     Set<ObjectName> names = null;
     names = mBeanServer.queryNames(qry, null);
@@ -232,14 +237,14 @@ public class JMXJsonServlet extends HttpServlet {
             prs = attribute;
             attributeinfo = mBeanServer.getAttribute(oname, prs);
           }
-        } catch (RuntimeMBeanException e) { 
+        } catch (RuntimeMBeanException e) {
           // this happens in normal course of business, continue
           if (e.getCause() instanceof UnsupportedOperationException) {
             LOG.debug("getting attribute " + prs + " of " + oname
                 + " threw an exception", e);
           } else {
             LOG.error("getting attribute " + prs + " of " + oname
-              + " threw an exception", e);
+                + " threw an exception", e);
           }
         } catch (AttributeNotFoundException e) {
           // If the modelerType attribute was not found, the class name is used
@@ -283,7 +288,7 @@ public class JMXJsonServlet extends HttpServlet {
 
       jg.writeStartObject();
       jg.writeStringField("name", oname.toString());
-      
+
       jg.writeStringField("modelerType", code);
       if ((attribute != null) && (attributeinfo == null)) {
         jg.writeStringField("result", "ERROR");
@@ -295,7 +300,7 @@ public class JMXJsonServlet extends HttpServlet {
         response.setStatus(HttpServletResponse.SC_NOT_FOUND);
         return;
       }
-      
+
       if (attribute != null) {
         writeAttribute(jg, attribute, attributeinfo);
       } else {
@@ -324,7 +329,7 @@ public class JMXJsonServlet extends HttpServlet {
     Object value = null;
     try {
       value = mBeanServer.getAttribute(oname, attName);
-    } catch (RuntimeMBeanException e) { 
+    } catch (RuntimeMBeanException e) {
       // this happens in normal course of business, return
       if (e.getCause() instanceof UnsupportedOperationException) {
         LOG.debug("getting attribute "+attName+" of "+oname+" threw an exception", e);
@@ -361,13 +366,14 @@ public class JMXJsonServlet extends HttpServlet {
 
     writeAttribute(jg, attName, value);
   }
-  
-  private void writeAttribute(JsonGenerator jg, String attName, Object value) throws IOException {
+
+  @VisibleForTesting
+  public static void writeAttribute(JsonGenerator jg, String attName, Object value) throws IOException {
     jg.writeFieldName(attName);
     writeObject(jg, value);
   }
-  
-  private void writeObject(JsonGenerator jg, Object value) throws IOException {
+
+  private static void writeObject(JsonGenerator jg, Object value) throws IOException {
     if(value == null) {
       jg.writeNull();
     } else {
@@ -391,8 +397,24 @@ public class JMXJsonServlet extends HttpServlet {
         CompositeType comp = cds.getCompositeType();
         Set<String> keys = comp.keySet();
         jg.writeStartObject();
-        for(String key: keys) {
-          writeAttribute(jg, key, cds.get(key));
+
+        // CLOUDERA. redact sensitive values
+        boolean needsRedact = false;
+        Object keyVal = cds.containsKey("key") ? cds.get("key") : null;
+        if (keyVal instanceof String) {
+          String keyValStr = keyVal.toString();
+          if (RedactionUtils.isSystemPropertySensitive(keyValStr)
+              || (keyValStr.startsWith("-D") && keyValStr.contains("=") && RedactionUtils.isSystemPropertySensitive(keyValStr.substring(2, keyValStr.indexOf("="))))) {
+            needsRedact = true;
+          }
+        }
+
+        for(String key : keys) {
+          Object val = cds.get(key);
+          if (needsRedact && key.equals("value")) {
+            val = REDACT_STRING;
+          }
+          writeAttribute(jg, key, val);
         }
         jg.writeEndObject();
       } else if(value instanceof TabularData) {
@@ -403,7 +425,16 @@ public class JMXJsonServlet extends HttpServlet {
         }
         jg.writeEndArray();
       } else {
-        jg.writeString(value.toString());
+        // CLOUDERA. redact sensitive values
+        String valueStr = value.toString();
+        if(valueStr.contains("=")){
+          if (valueStr.startsWith("-D") && RedactionUtils.isSystemPropertySensitive(valueStr.substring(2, valueStr.indexOf("=")))) {
+            valueStr = String.format(Locale.ROOT, "%s=%s", valueStr.substring(0, valueStr.indexOf("=")), REDACT_STRING);
+          } else if (RedactionUtils.isSystemPropertySensitive(valueStr.substring(0, valueStr.indexOf("=")))) {
+            valueStr = String.format(Locale.ROOT, "%s=%s", valueStr.substring(0, valueStr.indexOf("=")), REDACT_STRING);
+          }
+        }
+        jg.writeString(valueStr);
       }
     }
   }
