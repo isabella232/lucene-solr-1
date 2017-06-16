@@ -36,7 +36,7 @@
       <dependency org="org.apache.sentry" name="solr-sentry-handlers" rev="${/org.apache.sentry/solr-sentry-handlers}" conf="compile"/>
       <dependency org="org.apache.shiro" name="shiro-core" rev="${/org.apache.shiro/shiro-core}" conf="compile"/>
       <dependency org="org.apache.thrift" name="libthrift" rev="${/org.apache.thrift/libthrift}" conf="compile"/>
-      
+      <dependency org="org.apache.commons" name="commons-pool2" rev="${/org.apache.commons/commons-pool2}" conf="compile"/>
       <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
     </dependencies>
 </ivy-module>
