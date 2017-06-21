@@ -25,6 +25,7 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.solr.util.RedactionUtils;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonGenerator;
 import org.junit.Assert;
@@ -36,6 +37,7 @@ public class JMXJsonServletTest {
 
     @Test
     public void testWriteObject() throws IOException {
+        RedactionUtils.setRedactSystemProperty(true);
         JMXJsonServlet sut = new JMXJsonServlet();
         JsonFactory jsonFactory = new JsonFactory();
 
