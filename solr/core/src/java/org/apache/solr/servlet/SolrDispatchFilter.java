@@ -63,6 +63,7 @@ import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.handler.ContentStreamHandlerBase;
+import org.apache.solr.logging.MDCLoggingContext;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequestBase;
 import org.apache.solr.request.SolrRequestHandler;
@@ -73,11 +74,9 @@ import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.servlet.cache.HttpCacheHeaderUtil;
 import org.apache.solr.servlet.cache.Method;
 import org.apache.solr.update.processor.DistributingUpdateProcessorFactory;
-import org.apache.solr.servlet.SolrHadoopAuthenticationFilter;
 import org.apache.solr.util.FastWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
@@ -256,6 +255,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   }
   
   public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain, boolean retry) throws IOException, ServletException {
+      MDCLoggingContext.clear();
     try {
       httpSolrCall(request, response, chain, retry);
     } finally {
@@ -264,6 +264,8 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   }
   
   public void httpSolrCall(ServletRequest request, ServletResponse response, FilterChain chain, boolean retry) throws IOException, ServletException {
+    MDCLoggingContext.reset();
+    MDCLoggingContext.setNode(cores);
     if (abortErrorMessage != null) {
       sendError(request, response, 500, abortErrorMessage);
       return;
@@ -413,6 +415,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
 
         // With a valid core...
         if( core != null ) {
+          MDCLoggingContext.setCore(core);
           final SolrConfig config = core.getSolrConfig();
           // get or create/cache the parser for the core
           SolrRequestParsers parser = config.getRequestParsers();
@@ -520,6 +523,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
             }
           } finally {
             SolrRequestInfo.clearRequestInfo();
+            MDCLoggingContext.clear();
           }
         }
       }
@@ -536,7 +540,8 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       ((HttpServletResponse) response).sendError(errorCode);
     }
   }
-  
+
+
   private void processAliases(SolrQueryRequest solrReq, Aliases aliases,
       List<String> collectionsList) {
     String collection = solrReq.getParams().get("collection");

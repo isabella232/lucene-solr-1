@@ -68,6 +68,7 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SolrjNamedThreadFactory;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.zookeeper.KeeperException;
+import org.slf4j.MDC;
 
 /**
  * SolrJ client class to communicate with SolrCloud.
@@ -353,12 +354,17 @@ public class CloudSolrServer extends SolrServer {
       for (final Map.Entry<String, LBHttpSolrServer.Req> entry : routes.entrySet()) {
         final String url = entry.getKey();
         final LBHttpSolrServer.Req lbRequest = entry.getValue();
-        responseFutures.put(url, threadPool.submit(new Callable<NamedList<?>>() {
-          @Override
-          public NamedList<?> call() throws Exception {
-            return lbServer.request(lbRequest).getResponse();
-          }
-        }));
+        try {
+          MDC.put("CloudSolrServer.url", url);
+          responseFutures.put(url, threadPool.submit(new Callable<NamedList<?>>() {
+            @Override
+            public NamedList<?> call() throws Exception {
+              return lbServer.request(lbRequest).getResponse();
+            }
+          }));
+        } finally {
+          MDC.remove("CloudSolrServer.url");
+        }
       }
 
       for (final Map.Entry<String, Future<NamedList<?>>> entry: responseFutures.entrySet()) {

@@ -1,5 +1,10 @@
 package org.apache.solr.cloud;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -16,11 +21,7 @@ package org.apache.solr.cloud;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
+import org.slf4j.MDC;
 
 import org.apache.http.client.HttpClient;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -40,6 +41,7 @@ import org.apache.solr.core.SolrCore;
 import org.apache.solr.handler.component.ShardHandler;
 import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
+import org.apache.solr.logging.MDCLoggingContext;
 import org.apache.solr.request.LocalSolrQueryRequest;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.request.SolrRequestInfo;
@@ -86,15 +88,16 @@ public class SyncStrategy {
     return sync(zkController, core, leaderProps, false);
   }
   
-  public boolean sync(ZkController zkController, SolrCore core, ZkNodeProps leaderProps, boolean peerSyncOnlyWithActive) {
+  public boolean sync(ZkController zkController, SolrCore core, ZkNodeProps leaderProps,
+      boolean peerSyncOnlyWithActive) {
     if (SKIP_AUTO_RECOVERY) {
       return true;
     }
-    boolean success;
-    SolrQueryRequest req = new LocalSolrQueryRequest(core, new ModifiableSolrParams());
-    SolrQueryResponse rsp = new SolrQueryResponse();
-    SolrRequestInfo.setRequestInfo(new SolrRequestInfo(req, rsp));
+    
+    MDCLoggingContext.setCore(core);
     try {
+      boolean success;
+      
       if (isClosed) {
         log.warn("Closed, skipping sync up.");
         return false;
@@ -108,12 +111,13 @@ public class SyncStrategy {
         log.error("No UpdateLog found - cannot sync");
         return false;
       }
-
+      
       success = syncReplicas(zkController, core, leaderProps, peerSyncOnlyWithActive);
+      
+      return success;
     } finally {
-      SolrRequestInfo.clearRequestInfo();
+      MDCLoggingContext.clear();
     }
-    return success;
   }
   
   private boolean syncReplicas(ZkController zkController, SolrCore core,

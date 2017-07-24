@@ -41,6 +41,7 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.request.SolrQueryRequest;
+import org.slf4j.MDC;
 
 import java.net.ConnectException;
 import java.util.Collection;
@@ -181,7 +182,18 @@ public class HttpShardHandler extends ShardHandler {
       }
     };
 
-    pending.add( completionService.submit(task) );
+    try {
+      if (shard != null)  {
+        MDC.put("ShardRequest.shards", shard);
+      }
+      if (urls != null && !urls.isEmpty())  {
+        MDC.put("ShardRequest.urlList", urls.toString());
+      }
+      pending.add( completionService.submit(task) );
+    } finally {
+      MDC.remove("ShardRequest.shards");
+      MDC.remove("ShardRequest.urlList");
+    }
   }
 
   /** returns a ShardResponse of the last response correlated with a ShardRequest.  This won't 

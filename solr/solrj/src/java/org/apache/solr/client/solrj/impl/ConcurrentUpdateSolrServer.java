@@ -406,7 +406,12 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
           if (runners.isEmpty() || (queue.remainingCapacity() < queue.size() && runners.size() < threadCount))
           {
             // We need more runners, so start a new one.
-            addRunner();
+            MDC.put("ConcurrentUpdateSolrServer.url", server.getBaseURL());
+            try {
+              addRunner();
+            } finally {
+              MDC.remove("ConcurrentUpdateSolrServer.url");
+            }
           } else {
             // break out of the retry loop if we added the element to the queue
             // successfully, *and*
@@ -466,8 +471,13 @@ public class ConcurrentUpdateSolrServer extends SolrServer {
           if (queueSize > 0 && runners.isEmpty()) {
             // TODO: can this still happen?
             log.warn("No more runners, but queue still has "+
-                    queueSize+" adding more runners to process remaining requests on queue");
-            addRunner();
+              queueSize+" adding more runners to process remaining requests on queue");
+            MDC.put("ConcurrentUpdateSolrServer.url", server.getBaseURL());
+            try {
+              addRunner();
+            } finally {
+              MDC.remove("ConcurrentUpdateSolrServer.url");
+            }
           }
         }
       }

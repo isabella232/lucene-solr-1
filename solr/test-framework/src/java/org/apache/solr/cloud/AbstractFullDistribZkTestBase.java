@@ -23,6 +23,9 @@ import static org.apache.solr.cloud.OverseerCollectionMessageHandler.SHARDS_PROP
 import static org.apache.solr.common.cloud.ZkStateReader.REPLICATION_FACTOR;
 import static org.apache.solr.common.cloud.ZkStateReader.MAX_SHARDS_PER_NODE;
 
+
+import static org.apache.solr.common.cloud.ZkNodeProps.makeMap;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -96,8 +99,6 @@ public abstract class AbstractFullDistribZkTestBase extends AbstractDistribZkTes
 
   @BeforeClass
   public static void beforeFullSolrCloudTest() {
-    // shorten the log output more for this test type
-    if (formatter != null) formatter.setShorterFormat();
   }
 
   public static final String SHARD1 = "shard1";

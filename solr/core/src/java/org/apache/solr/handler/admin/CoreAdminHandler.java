@@ -99,6 +99,7 @@ import org.apache.solr.util.TestInjection;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
@@ -206,7 +207,16 @@ public class CoreAdminHandler extends RequestHandlerBase {
       handleRequestInternal(req, rsp, action);
     } else {
       ParallelCoreAdminHandlerThread parallelHandlerThread = new ParallelCoreAdminHandlerThread(req, rsp, action, taskObject);
-      parallelExecutor.execute(parallelHandlerThread);
+      try {
+        MDC.put("CoreAdminHandler.asyncId", taskId);
+        if (action != null) {
+          MDC.put("CoreAdminHandler.action", action.name());
+        }
+        parallelExecutor.execute(parallelHandlerThread);
+      } finally {
+        MDC.remove("CoreAdminHandler.asyncId");
+        MDC.remove("CoreAdminHandler.action");
+      }
     }
   }
 

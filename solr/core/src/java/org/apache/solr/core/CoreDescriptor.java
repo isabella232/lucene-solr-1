@@ -209,6 +209,9 @@ public class CoreDescriptor {
     else {
       cloudDesc = null;
     }
+
+      SolrCore.log.info("Created CoreDescriptor: " + coreProperties);
+
   }
 
   /**

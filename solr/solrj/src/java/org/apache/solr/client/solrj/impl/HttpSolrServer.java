@@ -82,6 +82,7 @@ import org.apache.solr.common.util.SolrjNamedThreadFactory;
 import org.apache.solr.common.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 public class HttpSolrServer extends SolrServer {
   private static final String UTF_8 = StandardCharsets.UTF_8.name();
@@ -284,6 +285,7 @@ public class HttpSolrServer extends SolrServer {
     final HttpRequestBase method = createMethod(request, null);
     ExecutorService pool = Executors.newFixedThreadPool(1, new SolrjNamedThreadFactory("httpUriRequest"));
     try {
+      MDC.put("HttpSolrServer.url", baseUrl);
       mrr.future = pool.submit(new Callable<NamedList<Object>>(){
 
         @Override
@@ -293,6 +295,7 @@ public class HttpSolrServer extends SolrServer {
  
     } finally {
       pool.shutdown();
+      MDC.remove("HttpSolrServer.url");
     }
     assert method != null;
     mrr.httpUriRequest = method;
