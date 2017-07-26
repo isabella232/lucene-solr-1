@@ -139,7 +139,7 @@ solr_webapi() {
   # If SOLR_ADMIN_URI wasn't given explicitly via --solr we need to guess it
   if [ -z "$SOLR_ADMIN_URI" ] ; then
     local SOLR_PROTOCOL=`get_solr_protocol`
-    for node in `get_solr_state 'live_nodes' | sed -ne 's#/live_nodes/\(.*:[0-9][0-9]*\).*$#\1#p'` localhost:$SOLR_PORT ; do
+    for node in `get_solr_state '/live_nodes' | sed -ne 's#/live_nodes/\(.*:[0-9][0-9]*\).*$#\1#p'` localhost:$SOLR_PORT ; do
       if $SOLR_ADMIN_CURL "$SOLR_PROTOCOL://$node/solr" >&3 2>&1 ; then
         SOLR_ADMIN_URI="$SOLR_PROTOCOL://$node/solr"
         break
@@ -171,7 +171,7 @@ get_solr_protocol() {
 }
 
 get_solr_state() {
-	SOLR_STATE=`eval ${SOLR_ADMIN_ZK_CMD} -cmd ls /$1`
+	SOLR_STATE=`eval ${SOLR_ADMIN_ZK_CMD} -cmd ls $1`
 
 	echo "$SOLR_STATE" | grep -v '^/ '
 }
@@ -288,7 +288,7 @@ while test $# != 0 ; do
       if [ "$2" == "--force" ] ; then
         shift 1
       else
-        LIVE_NODES=`get_solr_state "live_nodes" | sed -ne 's#/live_nodes/##p'`
+        LIVE_NODES=`get_solr_state "/live_nodes" | sed -ne 's#/live_nodes/##p'`
 
         if [ -n "$LIVE_NODES" ] ; then
           die "Warning: It appears you have live SolrCloud nodes running: `printf '\n%s\nPlease shut them down.' \"${LIVE_NODES}\"`" $ERROR_INIT_LIVE_NODES
@@ -329,7 +329,7 @@ while test $# != 0 ; do
 
             [ -e ${INSTANCE_DIR}/solrconfig.xml -a -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at least solrconfig.xml and schema.xml"
 
-            get_solr_state configs | grep -q /"$3/" && die "Error: \"$3\" configuration already exists. Aborting. Try --update if you want to override"
+            get_solr_state "/configs" | grep -q /"$3/" && die "Error: \"$3\" configuration already exists. Aborting. Try --update if you want to override"
 
             $SOLR_ADMIN_CHAT "Uploading configs from ${INSTANCE_DIR} to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
             eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${INSTANCE_DIR} -confname $3 || die "Error: can't upload configuration"
@@ -389,7 +389,7 @@ while test $# != 0 ; do
             fi
             ;;
         --list)
-            get_solr_state configs | sed -n -e '/\/configs\//s#^.*/configs/\([^/]*\)/.*$#\1#p' | sort -u
+            get_solr_state "/configs" | sed -n -e '/\/configs\//s#^.*/configs/\([^/]*\)/.*$#\1#p' | sort -u
             shift 2
             ;;
         *)  
@@ -500,11 +500,11 @@ while test $# != 0 ; do
             shift 3
             ;;
         --stat)
-            get_solr_state collections | sed -ne 's#^.*/collections/##p' | sed -ne '/election\//s###p' | grep "$3/"
+            get_solr_state "/collections" | sed -ne 's#^.*/collections/##p' | sed -ne '/election\//s###p' | grep "$3/"
             shift 3
             ;;
         --list)
-            get_solr_state collections | sed -ne '/\/collections\/[^\/]*$/s#^.*/collections/##p'
+            get_solr_state "/collections" | sed -ne '/\/collections\/[^\/]*$/s#^.*/collections/##p'
             shift 2
             ;;
         --create-snapshot)
