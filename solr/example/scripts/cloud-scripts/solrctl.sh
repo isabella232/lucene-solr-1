@@ -329,7 +329,7 @@ while test $# != 0 ; do
 
             [ -e ${INSTANCE_DIR}/solrconfig.xml -a -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at least solrconfig.xml and schema.xml"
 
-            get_solr_state "/configs" | grep -q /"$3/" && die "Error: \"$3\" configuration already exists. Aborting. Try --update if you want to override"
+            get_solr_state "/configs" | grep -q "^ */$3/" && die "Error: \"$3\" configuration already exists. Aborting. Try --update if you want to override"
 
             $SOLR_ADMIN_CHAT "Uploading configs from ${INSTANCE_DIR} to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
             eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${INSTANCE_DIR} -confname $3 || die "Error: can't upload configuration"
