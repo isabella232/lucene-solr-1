@@ -47,7 +47,7 @@ export CATALINA_OUT=${SOLR_LOG:-/var/log/solr}/solr.out
 
 export SOLR_LOGS_DIR=${SOLR_LOG}
 
-export SOLR_TIMEZONE=`date +%Z`
+export SOLR_TIMEZONE="GMT"`date +%z`
 
 export SOLR_JETTY_SSL_INI=${SOLR_CUSTOM_CONFIG_DIR}/start.d/ssl.ini
 
