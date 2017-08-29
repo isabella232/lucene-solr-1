@@ -29,7 +29,7 @@ import org.apache.solr.client.solrj.ResponseParser;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.DelegationTokenHttpSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
-import org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer;
+import org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder;
 import org.apache.solr.client.solrj.request.CoreAdminRequest;
 import org.apache.solr.client.solrj.request.DelegationTokenRequest;
 import org.apache.solr.client.solrj.response.DelegationTokenResponse;
@@ -94,15 +94,15 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
   public void testCredentialsPassJobBased() throws Exception {
     // with jaas config
     Job job = new Job();
-    System.setProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP, "test");
+    System.setProperty(Krb5HttpClientBuilder.LOGIN_CONFIG_PROP, "test");
     try (HttpSolrClient jaasConfServer = (new HttpSolrClient.Builder()).withBaseSolrUrl(baseURL)
         .withInvariantParams(getAuthParams())
         .build()) {
       JobSecurityUtil.initCredentials(jaasConfServer, job, zkHost);
-      System.clearProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP);
+      System.clearProperty(Krb5HttpClientBuilder.LOGIN_CONFIG_PROP);
       verifyCredentialsPass(job);
     } finally {
-      System.clearProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP);
+      System.clearProperty(Krb5HttpClientBuilder.LOGIN_CONFIG_PROP);
     }
 
     // no jaas conf, but enabled via configuration
@@ -131,12 +131,12 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
     // jaas config, but disabled via conf
     job = new Job();
     job.getConfiguration().setBoolean(JobSecurityUtil.USE_SECURE_CREDENTIALS, false);
-    System.setProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP, "test");
+    System.setProperty(Krb5HttpClientBuilder.LOGIN_CONFIG_PROP, "test");
     try {
       JobSecurityUtil.initCredentials(userAuthServer, job, zkHost);
       verifyCredentialsFail(job);
     } finally {
-      System.clearProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP);
+      System.clearProperty(Krb5HttpClientBuilder.LOGIN_CONFIG_PROP);
     }
   }
 
@@ -264,7 +264,7 @@ public class TestJobSecurityUtil extends SolrCloudTestCase {
 
     // a new server shouldn't work even if we try to use the token
     server = (new HttpSolrClient.Builder()).withBaseSolrUrl(baseURL)
-                                           .withDelegationToken(authToken)
+                                           .withKerberosDelegationToken(authToken)
                                            .build();
     try {
       doSolrRequest(server, ErrorCode.FORBIDDEN.code);

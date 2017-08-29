@@ -31,7 +31,7 @@ import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdenti
 
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.impl.DelegationTokenHttpSolrClient;
-import org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer;
+import org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.DelegationTokenRequest;
 import org.apache.solr.client.solrj.response.DelegationTokenResponse;
@@ -205,7 +205,7 @@ public class JobSecurityUtil {
   }
 
   private static boolean isJaasConfigured() {
-    return System.getProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP) != null;
+    return System.getProperty(Krb5HttpClientBuilder.LOGIN_CONFIG_PROP) != null;
   }
 
   private static Token<? extends TokenIdentifier> getCredentialsToken(String token, String serviceName) throws IOException {
