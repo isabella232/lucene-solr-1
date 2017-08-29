@@ -96,7 +96,6 @@
     <!-- <module organisation="org.apache.zookeeper" name=".*" resolver="cloudera" />  -->
     <module organisation="org.apache.hadoop" name=".*" resolver="cloudera" />
     <module organisation="org.apache.sentry" name=".*" resolver="cloudera" />
-    <module organisation="org.apache.kerby" name=".*" resolver="cloudera" />
   </modules>
   
 </ivysettings>
