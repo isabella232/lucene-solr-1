@@ -278,7 +278,7 @@ while test $# != 0 ; do
 
       eval $SOLR_ADMIN_ZK_CMD -cmd putfile /solr.xml ${SOLR_HOME}/clusterconfig/solr.xml
       eval $SOLR_ADMIN_ZK_CMD -cmd makepath /configs
-      for DIRNAME in predefinedTemplate managedTemplate schemalessTemplate predefinedTemplateSecure managedTemplateSecure schemalessTemplateSecure
+      for DIRNAME in managedTemplate schemalessTemplate managedTemplateSecure schemalessTemplateSecure
       do
         eval $SOLR_ADMIN_ZK_CMD -cmd upconfig -confdir ${SOLR_HOME}/$DIRNAME -confname $DIRNAME
       done
@@ -303,7 +303,9 @@ while test $# != 0 ; do
               INSTANCE_DIR="$4"
             fi
 
-            [ -e ${INSTANCE_DIR}/solrconfig.xml -a -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at least solrconfig.xml and schema.xml"
+            [ -e ${INSTANCE_DIR}/solrconfig.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at solrconfig.xml"
+            [ -e ${INSTANCE_DIR}/managed-schema -o -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with schema.xml or managed-schema"
+
 
             get_solr_state | grep -q '^ */configs/'"$3/" && die "Error: \"$3\" configuration already exists. Aborting. Try --update if you want to override"
 
@@ -320,8 +322,9 @@ while test $# != 0 ; do
               INSTANCE_DIR="$4"
             fi
 
-            [ -e ${INSTANCE_DIR}/solrconfig.xml -a -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at least solrconfig.xml and schema.xml"
-
+            [ -e ${INSTANCE_DIR}/solrconfig.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with at solrconfig.xml"
+            [ -e ${INSTANCE_DIR}/managed-schema -o -e ${INSTANCE_DIR}/schema.xml ] || die "Error: ${INSTANCE_DIR} must be a directory with schema.xml or managed-schema"
+            
             eval $SOLR_ADMIN_ZK_CMD -cmd clear /configs/$3 2>/dev/null || die "Error: can't delete configuration"
 
             $SOLR_ADMIN_CHAT "Uploading configs from ${INSTANCE_DIR} to $SOLR_ZK_ENSEMBLE. This may take up to a minute."
@@ -356,9 +359,7 @@ while test $# != 0 ; do
             cp -r ${SOLR_HOME}/coreconfig-template "$3/conf"
             if [ "$schemaless" = "true" ] ; then
               [ -d "$3"/conf ] || die "Error: subdirectory $3/conf must exist"
-              cp ${SOLR_HOME}/coreconfig-schemaless-template/schema.xml.schemaless "$3/conf/schema.xml"
-              cp ${SOLR_HOME}/coreconfig-schemaless-template/solrconfig.xml.schemaless "$3/conf/solrconfig.xml"
-              cp ${SOLR_HOME}/coreconfig-schemaless-template/solrconfig.xml.schemaless.secure "$3/conf/solrconfig.xml.secure"
+              cp ${SOLR_HOME}/coreconfig-schemaless-template/* "$3/conf/"
               shift 4
             else
               shift 3
