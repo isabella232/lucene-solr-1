@@ -137,8 +137,8 @@ public class HttpClientUtil {
     String factoryClassName = System.getProperty(SYS_PROP_HTTP_CLIENT_BUILDER_FACTORY);
 
     // CLOUDERA-BUILD (Necessary to maintain backwards compatibility with CDH5)
-    if (factoryClassName == null && (System.getProperty(Krb5HttpClientConfigurer.LOGIN_CONFIG_PROP) != null)) {
-      factoryClassName = Krb5HttpClientConfigurer.class.getName();
+    if (factoryClassName == null && (System.getProperty(Krb5HttpClientBuilder.LOGIN_CONFIG_PROP) != null)) {
+      factoryClassName = Krb5HttpClientBuilder.class.getName();
     }
 
     if (factoryClassName != null) {
