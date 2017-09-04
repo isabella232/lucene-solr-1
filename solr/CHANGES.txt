@@ -37,6 +37,10 @@ Bug Fixes
 
 * SOLR-11406: Solr 7.0 cannot read indexes from 6.x versions. (Shawn Heisey, Steve Rowe)
 
+* SOLR-11322: JSON Facet API: instead of returning NaN, min & max aggregations omit
+  the value for any bucket with no values in the numeric field. (yonik)
+
+
 ==================  7.0.0 ==================
 
 Versions of Major Components
