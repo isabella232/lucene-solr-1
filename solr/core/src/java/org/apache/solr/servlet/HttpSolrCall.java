@@ -996,6 +996,11 @@ public class HttpSolrCall {
       }
 
       @Override
+      public String getUserName() {
+        return getReq().getRemoteUser();
+      }
+
+      @Override
       public String getHttpHeader(String s) {
         return getReq().getHeader(s);
       }
