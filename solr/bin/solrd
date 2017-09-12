@@ -71,6 +71,7 @@ if ([ "$1" = "start" -o "$1" = "run" ]) && [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
 fi
 
 
+export SOLR_JAVA_MEM=" "
 JAVA_OPTS="${JAVA_OPTS} -Dsolr.solrxml.location=zookeeper"
 
 if [ -n "$SOLR_HDFS_HOME" ] ; then
