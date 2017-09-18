@@ -22,6 +22,8 @@
 
   <settings defaultResolver="default"/>
 
+  <property name="cauldron-gbn" value="http://cloudera-build-us-west-1.vpc.cloudera.com/s3/build/${cdh.gbn}/maven-repository" override="false"/>
+
   <property name="local-maven2-dir" value="${user.home}/.m2/repository/" />
   <property name="cauldron.cloudera.com" value="http://maven.jenkins.cloudera.com:8081/artifactory/cauldron-latest-snapshot-local/" override="false"/>
   <property name="reactor.repo" value="https://repository.cloudera.com/artifactory/libs-snapshot-local/" override="false"/>
@@ -55,6 +57,8 @@
              root="${snapshots.cloudera.com}" checkmodified="true"/>
     <ibiblio name="cloudera-cauldron-snapshots" m2compatible="true"
              root="${cauldron.cloudera.com}" checkmodified="true"/>
+    <ibiblio name="cauldron-gbn" m2compatible="true"
+             root="${cauldron-gbn}" checkmodified="true"/>
     <ibiblio name="maven2" root="${repo.maven.org}" pattern="${maven2.pattern.ext}" m2compatible="true"/>
 
     <ibiblio name="maven.restlet.org" root="http://maven.restlet.org" m2compatible="true" />
@@ -87,6 +91,7 @@
       <resolver ref="cloudera-releases" />
       <resolver ref="cloudera-snapshots" />
       <resolver ref="cloudera-cauldron-snapshots" />
+      <resolver ref="cauldron-gbn" />
     </chain>
 
   </resolvers>
