@@ -268,11 +268,11 @@ fi
 if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
   SOLR_ADMIN_ZK_CMD="local_coreconfig"
   cat >&2 <<-__EOT__
-	Warning: Non-SolrCloud mode has been completely deprecated
-	Please configure SolrCloud via SOLR_ZK_ENSEMBLE setting in 
-	SOLR_DEFAULTS file
-	If you running remotely, please use --zk zk_ensemble.
-	__EOT__
+    Warning: Non-SolrCloud mode has been completely deprecated
+    Please configure SolrCloud via SOLR_ZK_ENSEMBLE setting in
+    SOLR_DEFAULTS file
+    If you running remotely, please use --zk zk_ensemble.
+    __EOT__
 else
   SOLR_ADMIN_ZK_CMD='ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties ${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>&3'
 fi
