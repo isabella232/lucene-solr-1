@@ -3,7 +3,7 @@
         "class": "org.apache.solr.security.ConfigurableInternodeAuthHadoopPlugin",
         "sysPropPrefix": "solr.authentication.",
         "type": "multi-scheme",
-        "clientBuilderFactory": "org.apache.solr.client.solrj.impl.Krb5HttpClientConfigurer",
+        "clientBuilderFactory": "org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder",
         "initKerberosZk": "true",
         "enableDelegationToken":"true",
         "authConfigs": [
