@@ -56,11 +56,14 @@ public class SaslZkACLProviderTest extends SolrTestCaseJ4 {
     assumeFalse("FIXME: SOLR-7040: This test fails under IBM J9",
                 Constants.JAVA_VENDOR.startsWith("IBM"));
     System.setProperty("solrcloud.skip.autorecovery", "true");
+
+    System.setProperty("hostName", "localhost");
   }
   
   @AfterClass
   public static void afterClass() throws InterruptedException {
     System.clearProperty("solrcloud.skip.autorecovery");
+    System.clearProperty("hostName");
   }
 
   @Override
