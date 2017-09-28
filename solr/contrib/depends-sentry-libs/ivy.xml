@@ -29,6 +29,7 @@
       <dependency org="org.apache.sentry" name="sentry-core-common" rev="${/org.apache.sentry/sentry-core-common}" conf="compile"/>
       <dependency org="org.apache.sentry" name="sentry-core-model-solr" rev="${/org.apache.sentry/sentry-core-model-solr}" conf="compile"/>
       <dependency org="org.apache.sentry" name="sentry-policy-common" rev="${/org.apache.sentry/sentry-policy-common}" conf="compile"/>
+      <dependency org="org.apache.sentry" name="sentry-policy-engine" rev="${/org.apache.sentry/sentry-policy-engine}" conf="compile"/>
       <dependency org="org.apache.sentry" name="sentry-provider-common" rev="${/org.apache.sentry/sentry-provider-common}" conf="compile"/>
       <dependency org="org.apache.sentry" name="sentry-provider-db" rev="${/org.apache.sentry/sentry-provider-db}" conf="compile"/>
       <dependency org="org.apache.sentry" name="sentry-provider-file" rev="${/org.apache.sentry/sentry-provider-file}" conf="compile"/>
