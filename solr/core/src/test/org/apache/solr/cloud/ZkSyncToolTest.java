@@ -89,6 +89,7 @@ public final class ZkSyncToolTest extends SolrTestCaseJ4 {
     env.put("SOLR_ZK_ENSEMBLE", zkServer.getZkAddress("/path1/path2"));
     env.put("SOLR_SEC_CONFIG_FILE", configFilePath.toString());
     env.put("SOLR_AUTHENTICATION_TYPE", "kerberos");
+    env.put("SOLR_SENTRY_ENABLED", "true"); // Enable file based Sentry conf
 
     ZkSyncTool tool = new ZkSyncTool(env);
     tool.sync();
@@ -96,25 +97,46 @@ public final class ZkSyncToolTest extends SolrTestCaseJ4 {
     assertTrue(zkClient.exists(SOLR_SECURITY_CONF_PATH, true));
 
     // Build the expected security config.
-    Map<String, Object> securityConfig = (Map<String, Object>)readFromFileSystem(configFilePath);
-    Map<String, Object> authConfig = (Map<String, Object>)securityConfig.get("authentication");
-    Map<String, String> proxyUserConfigs = (Map<String, String>)authConfig.getOrDefault("proxyUserConfigs", new HashMap<>());
-    proxyUserConfigs.put("proxyuser.solr.groups", "*");
-    proxyUserConfigs.put("proxyuser.solr.hosts", "*");
-    authConfig.put("proxyUserConfigs", proxyUserConfigs);
-    securityConfig.put("authentication", authConfig);
+    {
+      Map<String, Object> securityConfig = (Map<String, Object>)readFromFileSystem(configFilePath);
+      Map<String, Object> authConfig = (Map<String, Object>)securityConfig.get("authentication");
+      Map<String, String> proxyUserConfigs = (Map<String, String>)authConfig.getOrDefault("proxyUserConfigs", new HashMap<>());
+      proxyUserConfigs.put("proxyuser.solr.groups", "*");
+      proxyUserConfigs.put("proxyuser.solr.hosts", "*");
+      authConfig.put("proxyUserConfigs", proxyUserConfigs);
+      securityConfig.put("authentication", authConfig);
 
-    assertTrue(Objects.deepEquals(securityConfig, readConfigFromZk(SOLR_SECURITY_CONF_PATH)));
+      assertTrue(Objects.deepEquals(securityConfig, readConfigFromZk(SOLR_SECURITY_CONF_PATH)));
+    }
 
     // Now configure some proxy users.
     env.put("SOLR_SECURITY_ALLOWED_PROXYUSERS", "hue");
     env.put("SOLR_SECURITY_PROXYUSER_hue_HOSTS", "*");
     env.put("SOLR_SECURITY_PROXYUSER_hue_GROUPS", "*");
+    // Enable Sentry service
+    env.remove("SOLR_SENTRY_ENABLED"); // remove Sentry file-based provider config
+    env.put("SOLR_SENTRY_SERVICE_ENABLED", "true");
 
     tool.sync();
 
     assertTrue(zkClient.exists(SOLR_SECURITY_CONF_PATH, true));
     assertTrue(Objects.deepEquals(readFromFileSystem(proxyUserConfigFilePath), readConfigFromZk(SOLR_SECURITY_CONF_PATH)));
+
+    // Disable Sentry authorization
+    env.remove("SOLR_SENTRY_SERVICE_ENABLED");
+
+    tool.sync();
+
+    {
+      assertTrue(zkClient.exists(SOLR_SECURITY_CONF_PATH, true));
+      // The security configration in the file should not match that in ZK (since the "authorization" section should be missing in ZK).
+      assertFalse(Objects.deepEquals(readFromFileSystem(proxyUserConfigFilePath), readConfigFromZk(SOLR_SECURITY_CONF_PATH)));
+
+      Map securityConfig = (Map)readFromFileSystem(proxyUserConfigFilePath);
+      securityConfig.remove("authorization");
+
+      assertTrue(Objects.deepEquals(securityConfig, readConfigFromZk(SOLR_SECURITY_CONF_PATH)));
+    }
 
     // Disable security
     env.remove("SOLR_AUTHENTICATION_TYPE");

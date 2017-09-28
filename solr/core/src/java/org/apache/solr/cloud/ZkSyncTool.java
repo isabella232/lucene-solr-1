@@ -94,6 +94,15 @@ public class ZkSyncTool {
         Map securityConfigMap = (Map) Utils.fromJSON(securityConf);
         // Perform extra processing.
         prepareSecurityJson(securityConfigMap);
+
+        boolean sentryFileProviderEnabled = Boolean.parseBoolean(env.get("SOLR_SENTRY_ENABLED"));
+        boolean sentryServiceEnabled = Boolean.parseBoolean(env.get("SOLR_SENTRY_SERVICE_ENABLED"));
+        if (!sentryFileProviderEnabled && !sentryServiceEnabled) { // delete authorization section when Sentry is not enabled.
+          log.info("Sentry is not enabled for SOLR. Hence removing the authorization section in security.json");
+          securityConfigMap.remove("authorization");
+        }
+
+        // Push the new configuration to Zookeeper
         updateConfig(zkClient, ZkStateReader.SOLR_SECURITY_CONF_PATH, securityConfigMap);
 
       } else { // security disabled. Remove security config if present.
