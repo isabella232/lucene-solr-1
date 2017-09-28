@@ -41,5 +41,18 @@
           "proxyuser.solr.hosts": "*",
           "proxyuser.solr.groups" : "*"
         }
+    },
+    "authorization": {
+        "class": "org.apache.sentry.binding.solr.authz.SentrySolrPluginImpl",
+        "sysPropPrefix": "solr.",
+        "authConfigs": [
+            "authorization.sentry.site",
+            "authorization.superuser",
+            "authorization.enable.auditlog"
+        ],
+        "defaultConfigs": {
+            "authorization.superuser": "solr",
+            "authorization.enable.auditlog": "false"
+        }
     }
 }
