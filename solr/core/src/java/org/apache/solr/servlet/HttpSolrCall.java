@@ -1036,8 +1036,10 @@ public class HttpSolrCall {
 
       @Override
       public String toString() {
-        StringBuilder response = new StringBuilder("userPrincipal: [").append(getUserPrincipal()).append("]")
-            .append(" type: [").append(requestType.toString()).append("], collections: [");
+        String pricName = (getUserPrincipal() != null) ? getUserPrincipal().getName() : "";
+        StringBuilder response = new StringBuilder("userPrincipal: [").append(pricName).append("]")
+           .append(" userName: ").append(getUserName())
+           .append(" type: [").append(requestType.toString()).append("], collections: [");
         for (CollectionRequest collectionRequest : collectionRequests) {
           response.append(collectionRequest.collectionName).append(", ");
         }
