@@ -91,7 +91,9 @@ public class CloudSolrClientBuilderTest extends LuceneTestCase {
   
   @Test
   public void test0Timeouts() throws IOException {
-    try(CloudSolrClient createdClient = new Builder(Collections.singletonList(ANY_ZK_HOST), Optional.empty())
+    try(CloudSolrClient createdClient = new Builder()
+        .withZkHost(ANY_ZK_HOST)
+        .withZkChroot(ANY_CHROOT)
         .withSocketTimeout(0)
         .withConnectionTimeout(0)
         .build()) {
