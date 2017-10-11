@@ -839,12 +839,9 @@
          <str>nameOfCustomComponent2</str>
        </arr>
       -->
-
-      <arr name="first-components">
-        <str>queryIndexAuthorization</str>
-        <str>queryDocAuthorization</str>
-      </arr>
-
+    <arr name="first-components">
+      <str>queryDocAuthorization</str>
+    </arr>
   </requestHandler>
 
   <!-- A request handler that returns indented JSON by default -->
@@ -855,27 +852,24 @@
       <str name="indent">true</str>
     </lst>
     <arr name="first-components">
-      <str>queryIndexAuthorization</str>
       <str>queryDocAuthorization</str>
     </arr>
   </requestHandler>
-
 
   <!-- realtime get handler, guaranteed to return the latest stored fields of
        any document, without the need to commit or open a new searcher.  The
        current implementation relies on the updateLog feature being enabled. -->
   <requestHandler name="/get" class="solr.SecureRealTimeGetHandler">
-     <lst name="defaults">
-       <str name="omitHeader">true</str>
-       <str name="wt">json</str>
-       <str name="indent">true</str>
-     </lst>
-     <arr name="first-components">
-        <str>queryIndexAuthorization</str>
-        <str>queryDocAuthorization</str>
-     </arr>
+    <lst name="defaults">
+      <str name="omitHeader">true</str>
+      <str name="wt">json</str>
+      <str name="indent">true</str>
+    </lst>
+    <arr name="first-components">
+      <str>queryIndexAuthorization</str>
+      <str>queryDocAuthorization</str>
+    </arr>
   </requestHandler>
-
 
   <!-- A Robust Example
        
@@ -891,7 +885,6 @@
       <str name="echoParams">explicit</str>
     </lst>
     <arr name="first-components">
-      <str>queryIndexAuthorization</str>
       <str>queryDocAuthorization</str>
     </arr>
   </requestHandler>
@@ -947,7 +940,7 @@
    -->
   <requestHandler name="/analysis/field"
                   startup="lazy"
-                  class="solr.SecureFieldAnalysisRequestHandler" />
+                  class="solr.FieldAnalysisRequestHandler" />
 
 
   <!-- Document Analysis Handler
@@ -981,7 +974,7 @@
     as a "match". 
   -->
   <requestHandler name="/analysis/document"
-                  class="solr.SecureDocumentAnalysisRequestHandler" 
+                  class="solr.DocumentAnalysisRequestHandler"
                   startup="lazy" />
 
   <!-- Echo the request contents back to the client -->
@@ -1140,7 +1133,6 @@
       <bool name="tv">true</bool>
     </lst>
     <arr name="first-components">
-      <str>queryIndexAuthorization</str>
       <str>queryDocAuthorization</str>
     </arr>
     <arr name="last-components">
@@ -1166,7 +1158,6 @@
       <bool name="distrib">false</bool>
     </lst>
     <arr name="components">
-      <str>queryIndexAuthorization</str>
       <str>queryDocAuthorization</str>
       <str>terms</str>
     </arr>
@@ -1193,7 +1184,6 @@
       <str name="echoParams">explicit</str>
     </lst>
     <arr name="first-components">
-      <str>queryIndexAuthorization</str>
       <str>queryDocAuthorization</str>
     </arr>
     <arr name="last-components">
@@ -1307,6 +1297,19 @@
     </highlighting>
   </searchComponent>
 
+  <searchComponent name="queryDocAuthorization" class="org.apache.solr.handler.component.QueryDocAuthorizationComponent" >
+    <!-- Set to true to enabled document-level authorization -->
+    <bool name="enabled">true</bool>
+
+    <!-- Field where the auth tokens are stored in the document -->
+    <str name="sentryAuthField">sentry_auth</str>
+
+    <!-- Auth token defined to allow any role to access the document.
+         Uncomment to enable. -->
+    <!--<str name="allRolesToken">*</str>-->
+  </searchComponent>
+
+
   <!-- Update Processors
 
        Chains of Update Processor Factories for dealing with Update
@@ -1331,8 +1334,6 @@
        See http://wiki.apache.org/solr/GuessingFieldTypes
     -->
   <updateRequestProcessorChain name="add-unknown-fields-to-the-schema">
-    <processor class="solr.UpdateIndexAuthorizationProcessorFactory"/>
-    
     <!-- UUIDUpdateProcessorFactory will generate an id if none is present in the incoming document -->
     <processor class="solr.UUIDUpdateProcessorFactory" />
 
@@ -1555,32 +1556,4 @@
       EditorialMarkerFactory will do exactly that:
      <transformer name="qecBooster" class="org.apache.solr.response.transform.EditorialMarkerFactory" />
     -->
-
-
-
-  <searchComponent name="queryIndexAuthorization" class="org.apache.solr.handler.component.QueryIndexAuthorizationComponent" >
-  </searchComponent>
-
-  <searchComponent name="queryDocAuthorization" class="org.apache.solr.handler.component.QueryDocAuthorizationComponent" >
-    <!-- Set to true to enabled document-level authorization -->
-    <bool name="enabled">false</bool>
-
-    <!-- Field where the auth tokens are stored in the document -->
-    <str name="sentryAuthField">sentry_auth</str>
-
-    <!-- Auth token defined to allow any role to access the document.
-         Uncomment to enable. -->
-    <!--<str name="allRolesToken">*</str>-->
-  </searchComponent>
-
-  <searchComponent name="secureGet" class="org.apache.solr.handler.component.SecureRealTimeGetComponent" >
-  </searchComponent>
-
-  <updateRequestProcessorChain name="updateIndexAuthorization">
-    <processor class="solr.UpdateIndexAuthorizationProcessorFactory" />
-    <processor class="solr.LogUpdateProcessorFactory" />
-    <processor class="solr.DistributedUpdateProcessorFactory" />
-    <processor class="solr.RunUpdateProcessorFactory" />
-  </updateRequestProcessorChain>
-
 </config>
