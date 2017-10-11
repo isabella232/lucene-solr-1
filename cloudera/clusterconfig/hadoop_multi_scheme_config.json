@@ -48,7 +48,7 @@
         ],
         "defaultConfigs": {
             "authorization.superuser": "solr",
-            "authorization.enable.auditlog": "false"
+            "authorization.enable.auditlog": "true"
         }
     }
 }
