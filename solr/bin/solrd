@@ -80,6 +80,11 @@ fi
 
 if [ -n "$SOLR_HDFS_CONFIG" ] ; then
   JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.confdir=${SOLR_HDFS_CONFIG}"
+
+  if [ -n "${SOLR_SENTRY_ENABLED}" ] || [ -n "${SOLR_SENTRY_SERVICE_ENABLED}" ]; then
+    JAVA_OPTS="${JAVA_OPTS} -Dsolr.authorization.sentry.hadoop.conf=${SOLR_HDFS_CONFIG}"
+  fi
+
 fi
 
 if [ "$SOLR_KERBEROS_ENABLED" == "true" ] ; then
