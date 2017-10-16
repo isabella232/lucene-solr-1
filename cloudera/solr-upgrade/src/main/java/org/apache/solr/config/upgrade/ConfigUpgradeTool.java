@@ -19,6 +19,7 @@ package org.apache.solr.config.upgrade;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
@@ -46,7 +47,12 @@ public class ConfigUpgradeTool {
   // more useful as a verbose flag for debugging - x could be used for XSLT
   // compiler warnings only if desired.
   public static final String VERBOSE_OUTPUT = "v";
+  
+  private static Consumer<Integer> exitFunction = System::exit;
 
+  public static void setExitFunction(Consumer<Integer> f) {
+    exitFunction = f;
+  }
   public static void main(String[] args) {
     CommandLineParser parser = new PosixParser();
     Options options = new Options();
@@ -71,19 +77,20 @@ public class ConfigUpgradeTool {
       String resultDirPathStr = cmd.getOptionValue(RESULT_DIR_PATH);
       if (!dryRun && (resultDirPathStr == null)) {
         System.out.println("Please specify the value for option -d");
-        System.exit(1);
+        exitFunction.accept(1);
       }
       Path resultDirPath = (resultDirPathStr != null) ? Paths.get(resultDirPathStr) : null;
 
       boolean verbose = cmd.hasOption(VERBOSE_OUTPUT);
 
       ToolParams params = new ToolParams(confType, solrConfPath, processorConfPath, resultDirPath, dryRun, verbose);
-      System.exit((new ConfigUpgradeTool()).runTool(params));
+
+      exitFunction.accept((new ConfigUpgradeTool()).runTool(params));
 
     } catch (Exception e) {
       e.printStackTrace();
       System.out.println(e.getLocalizedMessage());
-      System.exit(1);
+      exitFunction.accept(1);
     }
   }
 
@@ -187,7 +194,7 @@ public class ConfigUpgradeTool {
   private static String requiredArg(Options options, CommandLine cmd, String optVal) {
     if (!cmd.hasOption(optVal)) {
       System.out.println("Please specify the value for option " + optVal);
-      System.exit(1);
+      exitFunction.accept(1);
     }
     return cmd.getOptionValue(optVal);
   }
