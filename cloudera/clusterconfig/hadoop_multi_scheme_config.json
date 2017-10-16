@@ -44,7 +44,8 @@
         "authConfigs": [
             "authorization.sentry.site",
             "authorization.superuser",
-            "authorization.enable.auditlog"
+            "authorization.enable.auditlog",
+            "authorization.sentry.hadoop.conf"
         ],
         "defaultConfigs": {
             "authorization.superuser": "solr",
