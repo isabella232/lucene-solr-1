@@ -39,7 +39,7 @@ public class ToolParams {
     this.resultDirPath = resultDirPath;
     this.dryRun = dryRun;
     this.factory = TransformerFactory.newInstance();
-    this.factory.setErrorListener(new SuppressCompilerWarnings(verbose));
+    this.factory.setErrorListener(new SuppressXSLTCompilerWarnings(verbose));
     this.upgradeProcessorConf = UpgradeProcessorsConfigFactory.newInstance(processorConfPath);
     this.verbose = verbose;
   }
