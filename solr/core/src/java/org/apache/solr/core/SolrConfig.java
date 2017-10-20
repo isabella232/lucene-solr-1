@@ -102,7 +102,10 @@ public class SolrConfig extends Config {
   private boolean addHttpRequestToContext;
 
   private final SolrRequestParsers solrRequestParsers;
-  
+
+  private boolean jsonFacetsEnabled;
+
+
   /** Creates a default instance from the solrconfig.xml. */
   public SolrConfig()
   throws ParserConfigurationException, IOException, SAXException {
@@ -314,6 +317,9 @@ public class SolrConfig extends Config {
          "requestDispatcher/requestParsers/@addHttpRequestToContext", true ); 
 
     solrRequestParsers = new SolrRequestParsers(this);
+
+    jsonFacetsEnabled = getBool("//jsonFacets/@enable", false);
+
     Config.log.info("Loaded SolrConfig: " + name);
   }
 
@@ -612,5 +618,9 @@ public class SolrConfig extends Config {
 
   public boolean isEnableRemoteStreams() {
     return enableRemoteStreams;
+  }
+
+  public boolean jsonFacetsEnabled() {
+    return jsonFacetsEnabled;
   }
 }

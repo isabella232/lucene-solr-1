@@ -605,9 +605,9 @@ public class QueryParsing {
    * <b>Note: This API is experimental and may change in non backward-compatible ways in the future</b>
    */
   public static class StrParser {
-    String val;
-    int pos;
-    int end;
+    public String val;
+    public int pos;
+    public int end;
 
     public StrParser(String val) {
       this(val, 0, val.length());
@@ -619,7 +619,7 @@ public class QueryParsing {
       this.end = end;
     }
 
-    void eatws() {
+    public void eatws() {
       while (pos < end && Character.isWhitespace(val.charAt(pos))) pos++;
     }
 
@@ -631,7 +631,7 @@ public class QueryParsing {
       pos = Math.max(pos + nChars, end);
     }
 
-    boolean opt(String s) {
+    public boolean opt(String s) {
       eatws();
       int slen = s.length();
       if (val.regionMatches(pos, s, 0, slen)) {
@@ -641,7 +641,7 @@ public class QueryParsing {
       return false;
     }
 
-    boolean opt(char ch) {
+    public boolean opt(char ch) {
       eatws();
       if (pos < end && val.charAt(pos) == ch) {
         pos++;
@@ -651,7 +651,7 @@ public class QueryParsing {
     }
 
 
-    void expect(String s) throws SyntaxError {
+    public void expect(String s) throws SyntaxError {
       eatws();
       int slen = s.length();
       if (val.regionMatches(pos, s, 0, slen)) {
@@ -746,11 +746,11 @@ public class QueryParsing {
     }
 
 
-    String getId() throws SyntaxError {
+    public String getId() throws SyntaxError {
       return getId("Expected identifier");
     }
 
-    String getId(String errMessage) throws SyntaxError {
+    public String getId(String errMessage) throws SyntaxError {
       eatws();
       int id_start = pos;
       char ch;

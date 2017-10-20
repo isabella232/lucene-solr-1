@@ -83,6 +83,7 @@ import org.apache.solr.search.QParserPlugin;
 import org.apache.solr.search.SolrFieldCacheMBean;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.search.ValueSourceParser;
+import org.apache.solr.search.facet.FacetModule;
 import org.apache.solr.update.DefaultSolrCoreState;
 import org.apache.solr.update.DirectUpdateHandler2;
 import org.apache.solr.update.IndexFingerprint;
@@ -1512,6 +1513,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
     addIfNotPresent(components,HighlightComponent.COMPONENT_NAME,HighlightComponent.class);
     addIfNotPresent(components,QueryComponent.COMPONENT_NAME,QueryComponent.class);
     addIfNotPresent(components,FacetComponent.COMPONENT_NAME,FacetComponent.class);
+    addIfNotPresent(components,FacetModule.COMPONENT_NAME,FacetModule.class);
     addIfNotPresent(components,MoreLikeThisComponent.COMPONENT_NAME,MoreLikeThisComponent.class);
     addIfNotPresent(components,StatsComponent.COMPONENT_NAME,StatsComponent.class);
     addIfNotPresent(components,DebugComponent.COMPONENT_NAME,DebugComponent.class);

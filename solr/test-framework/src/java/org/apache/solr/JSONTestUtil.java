@@ -17,8 +17,8 @@
 
 package org.apache.solr;
 
-import org.noggit.ObjectBuilder;
 import org.apache.solr.common.util.StrUtils;
+import org.apache.solr.search.facet.noggit.ObjectBuilder;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -69,6 +69,19 @@ public class JSONTestUtil {
     String path = pos>=0 ? pathAndExpected.substring(0,pos) : null;
     String expected = pos>=0 ? pathAndExpected.substring(pos+2) : pathAndExpected;
     return match(path, input, expected, delta);
+  }
+
+  /**
+   * @param input Object structure to parse and test against
+   * @param pathAndExpected JSON path expression + '==' + expected value
+   * @param delta tollerance allowed in comparing float/double values
+   */
+  public static String matchObj(Object input, String pathAndExpected, double delta) throws Exception {
+    int pos = pathAndExpected.indexOf("==");
+    String path = pos>=0 ? pathAndExpected.substring(0,pos) : null;
+    String expected = pos>=0 ? pathAndExpected.substring(pos+2) : pathAndExpected;
+    Object expectObj = ObjectBuilder.fromJSON(expected);
+    return matchObj(path, input, expectObj, delta);
   }
 
   /**

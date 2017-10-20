@@ -42,6 +42,17 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.request.SolrRequestInfo;
 import org.apache.solr.schema.*;
+import org.apache.solr.search.facet.AggValueSource;
+import org.apache.solr.search.facet.AvgAgg;
+import org.apache.solr.search.facet.CountAgg;
+import org.apache.solr.search.facet.HLLAgg;
+import org.apache.solr.search.facet.MinMaxAgg;
+import org.apache.solr.search.facet.PercentileAgg;
+import org.apache.solr.search.facet.StddevAgg;
+import org.apache.solr.search.facet.SumAgg;
+import org.apache.solr.search.facet.SumsqAgg;
+import org.apache.solr.search.facet.UniqueAgg;
+import org.apache.solr.search.facet.VarianceAgg;
 import org.apache.solr.search.function.CollapseScoreFunction;
 import org.apache.solr.search.function.distance.*;
 import org.apache.solr.util.plugin.NamedListInitializedPlugin;
@@ -786,6 +797,95 @@ public abstract class ValueSourceParser implements NamedListInitializedPlugin {
         return new DefFunction(fp.parseValueSourceList());
       }
     });
+
+
+    addParser("agg", new ValueSourceParser() {
+      @Override
+      public AggValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return fp.parseAgg(FunctionQParser.FLAG_DEFAULT);
+      }
+    });
+
+    addParser("agg_count", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new CountAgg();
+      }
+    });
+
+    addParser("agg_unique", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new UniqueAgg(fp.parseArg());
+      }
+    });
+
+    addParser("agg_hll", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new HLLAgg(fp.parseArg());
+      }
+    });
+
+    addParser("agg_sum", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new SumAgg(fp.parseValueSource());
+      }
+    });
+
+    addParser("agg_avg", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new AvgAgg(fp.parseValueSource());
+      }
+    });
+
+    addParser("agg_sumsq", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new SumsqAgg(fp.parseValueSource());
+      }
+    });
+
+    addParser("agg_variance", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new VarianceAgg(fp.parseValueSource());
+      }
+    });
+
+    addParser("agg_stddev", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new StddevAgg(fp.parseValueSource());
+      }
+    });
+
+    /***
+     addParser("agg_multistat", new ValueSourceParser() {
+    @Override
+    public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+    return null;
+    }
+    });
+     ***/
+
+    addParser("agg_min", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new MinMaxAgg("min", fp.parseValueSource(FunctionQParser.FLAG_DEFAULT | FunctionQParser.FLAG_USE_FIELDNAME_SOURCE));
+      }
+    });
+
+    addParser("agg_max", new ValueSourceParser() {
+      @Override
+      public ValueSource parse(FunctionQParser fp) throws SyntaxError {
+        return new MinMaxAgg("max", fp.parseValueSource(FunctionQParser.FLAG_DEFAULT | FunctionQParser.FLAG_USE_FIELDNAME_SOURCE));
+      }
+    });
+
+    addParser("agg_percentile", new PercentileAgg.Parser());
 
   }
 

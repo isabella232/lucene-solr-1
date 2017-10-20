@@ -835,6 +835,30 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
     getDocSet(query);
   }
 
+  private BitDocSet makeBitDocSet(DocSet answer) {
+    // TODO: this should be implemented in DocSet, most likely with a getBits method that takes a maxDoc argument
+    // or make DocSet instances remember maxDoc
+    FixedBitSet bs = new FixedBitSet(maxDoc());
+    DocIterator iter = answer.iterator();
+    while (iter.hasNext()) {
+      bs.set(iter.nextDoc());
+    }
+
+    return new BitDocSet(bs, answer.size());
+  }
+
+  public BitDocSet getDocSetBits(Query q) throws IOException {
+    DocSet answer = getDocSet(q);
+    if (answer instanceof BitDocSet) {
+      return (BitDocSet) answer;
+    }
+    BitDocSet answerBits = makeBitDocSet(answer);
+    if (filterCache != null) {
+      filterCache.put(q, answerBits);
+    }
+    return answerBits;
+  }
+
   /**
    * Returns the set of document ids matching a query.
    * This method is cache-aware and attempts to retrieve the answer from the cache if possible.
@@ -893,7 +917,35 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable,SolrIn
   }
 
   private static Query matchAllDocsQuery = new MatchAllDocsQuery();
+  private volatile BitDocSet liveDocs;
 
+  /** @lucene.internal the type of DocSet returned may change in the future */
+  public BitDocSet getLiveDocs() throws IOException {
+    // Going through the filter cache will provide thread safety here if we only had getLiveDocs,
+    // but the addition of setLiveDocs means we needed to add volatile to "liveDocs".
+    BitDocSet docs = liveDocs;
+    if (docs == null) {
+      liveDocs = docs = getDocSetBits(matchAllDocsQuery);
+    }
+    assert docs.size() == reader.numDocs();
+    return docs;
+  }
+
+  /** @lucene.internal */
+  public boolean isLiveDocsInstantiated() {
+    return liveDocs != null;
+  }
+
+  /** @lucene.internal */
+  public void setLiveDocs(DocSet docs) {
+    // a few places currently expect BitDocSet
+    assert docs.size() == reader.numDocs();
+    if (docs instanceof BitDocSet) {
+      this.liveDocs = (BitDocSet)docs;
+    } else {
+      this.liveDocs = makeBitDocSet(docs);
+    }
+  }
 
   public static class ProcessedFilter {
     public DocSet answer;  // the answer, if non-null

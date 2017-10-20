@@ -109,6 +109,17 @@ public class JoinQParserPlugin extends QParserPlugin {
       }
     };
   }
+
+  /**
+   * A helper method for other plugins to create (non-scoring) JoinQueries wrapped around arbitrary queries against the same core.
+   *
+   * @param subQuery the query to define the starting set of documents on the "left side" of the join
+   * @param fromField "left side" field name to use in the join
+   * @param toField "right side" field name to use in the join
+   */
+  public static Query createJoinQuery(Query subQuery, String fromField, String toField) {
+    return new JoinQuery(fromField, toField, null, subQuery);
+  }
 }
 
 

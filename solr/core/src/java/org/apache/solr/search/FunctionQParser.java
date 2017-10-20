@@ -20,23 +20,42 @@ import org.apache.lucene.queries.function.FunctionQuery;
 import org.apache.lucene.queries.function.ValueSource;
 import org.apache.lucene.queries.function.valuesource.*;
 import org.apache.lucene.search.Query;
+import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.schema.SchemaField;
+import org.apache.solr.search.facet.AggValueSource;
+import org.apache.solr.search.function.FieldNameValueSource;
+import org.apache.solr.search.QueryParsing.StrParser;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+// This is a verbatim copy of the Solr7.0 FunctionQParser, only the import statements above needed adjusting since everything else back compat.
 public class FunctionQParser extends QParser {
 
+  public static final int FLAG_CONSUME_DELIMITER = 0x01;  // consume delimiter after parsing arg
+  public static final int FLAG_IS_AGG = 0x02;
+  public static final int FLAG_USE_FIELDNAME_SOURCE = 0x04; // When a field name is encountered, use the placeholder FieldNameValueSource instead of resolving to a real ValueSource
+  public static final int FLAG_DEFAULT = FLAG_CONSUME_DELIMITER;
+
   /** @lucene.internal */
-  public QueryParsing.StrParser sp;
+  public StrParser sp;
   boolean parseMultipleSources = true;
   boolean parseToEnd = true;
 
   public FunctionQParser(String qstr, SolrParams localParams, SolrParams params, SolrQueryRequest req) {
     super(qstr, localParams, params, req);
+    setString(qstr);
+  }
+
+  @Override
+  public void setString(String s) {
+    super.setString(s);
+    if (s != null) {
+      sp = new StrParser( s );
+    }
   }
 
   public void setParseMultipleSources(boolean parseMultipleSources) {
@@ -59,13 +78,11 @@ public class FunctionQParser extends QParser {
 
   @Override
   public Query parse() throws SyntaxError {
-    sp = new QueryParsing.StrParser(getString());
-
     ValueSource vs = null;
     List<ValueSource> lst = null;
 
     for(;;) {
-      ValueSource valsource = parseValueSource(false);
+      ValueSource valsource = parseValueSource(FLAG_DEFAULT & ~FLAG_CONSUME_DELIMITER);
       sp.eatws();
       if (!parseMultipleSources) {
         vs = valsource; 
@@ -210,7 +227,7 @@ public class FunctionQParser extends QParser {
   public List<ValueSource> parseValueSourceList() throws SyntaxError {
     List<ValueSource> sources = new ArrayList<>(3);
     while (hasMoreArguments()) {
-      sources.add(parseValueSource(true));
+      sources.add(parseValueSource(FLAG_DEFAULT | FLAG_CONSUME_DELIMITER));
     }
     return sources;
   }
@@ -220,7 +237,7 @@ public class FunctionQParser extends QParser {
    */
   public ValueSource parseValueSource() throws SyntaxError {
     /* consume the delimiter afterward for an external call to parseValueSource */
-    return parseValueSource(true);
+    return parseValueSource(FLAG_DEFAULT | FLAG_CONSUME_DELIMITER);
   }
   
   /*
@@ -240,7 +257,7 @@ public class FunctionQParser extends QParser {
       String v = sp.val;
   
       String qs = v;
-      HashMap nestedLocalParams = new HashMap<String,String>();
+      HashMap<String,String> nestedLocalParams = new HashMap<String,String>();
       int end = QueryParsing.parseLocalParams(qs, start, nestedLocalParams, getParams());
   
       QParser sub;
@@ -274,7 +291,11 @@ public class FunctionQParser extends QParser {
    * 
    * @param doConsumeDelimiter whether to consume a delimiter following the ValueSource  
    */
-  protected ValueSource parseValueSource(boolean doConsumeDelimiter) throws SyntaxError {
+   protected ValueSource parseValueSource(boolean doConsumeDelimiter) throws SyntaxError {
+     return parseValueSource( doConsumeDelimiter ? (FLAG_DEFAULT | FLAG_CONSUME_DELIMITER) : (FLAG_DEFAULT & ~FLAG_CONSUME_DELIMITER) );
+   }
+
+   protected ValueSource parseValueSource(int flags) throws SyntaxError {
     ValueSource valueSource;
     
     int ch = sp.peek();
@@ -315,7 +336,7 @@ public class FunctionQParser extends QParser {
       ch = val.length()==0 ? '\0' : val.charAt(0);
 
       if (ch>='0' && ch<='9'  || ch=='.' || ch=='+' || ch=='-') {
-        QueryParsing.StrParser sp = new QueryParsing.StrParser(val);
+        StrParser sp = new StrParser(val);
         Number num = sp.getNumber();
         if (num instanceof Long) {
           valueSource = new LongConstValueSource(num.longValue());
@@ -326,7 +347,7 @@ public class FunctionQParser extends QParser {
           valueSource = new ConstValueSource(num.floatValue());
         }
       } else if (ch == '"' || ch == '\'') {
-        QueryParsing.StrParser sp = new QueryParsing.StrParser(val);
+        StrParser sp = new StrParser(val);
         val = sp.getQuotedString();
         valueSource = new LiteralValueSource(val);
       } else {
@@ -358,18 +379,68 @@ public class FunctionQParser extends QParser {
         } else if ("false".equals(id)) {
           valueSource = new BoolConstValueSource(false);
         } else {
-          SchemaField f = req.getSchema().getField(id);
-          valueSource = f.getType().getValueSource(f, this);
+          if ((flags & FLAG_USE_FIELDNAME_SOURCE) != 0) {
+            // Don't try to create a ValueSource for the field, just use a placeholder.
+            valueSource = new FieldNameValueSource(id);
+          } else {
+            SchemaField f = req.getSchema().getField(id);
+            valueSource = f.getType().getValueSource(f, this);
+          }
         }
       }
 
     }
     
-    if (doConsumeDelimiter)
+    if ((flags & FLAG_CONSUME_DELIMITER) != 0) {
       consumeArgumentDelimiter();
+    }
     
     return valueSource;
   }
+
+  /** @lucene.experimental */
+  public AggValueSource parseAgg(int flags) throws SyntaxError {
+    String id = sp.getId();
+    AggValueSource vs = null;
+    boolean hasParen = false;
+
+    if ("agg".equals(id)) {
+      hasParen = sp.opt("(");
+      vs = parseAgg(flags | FLAG_IS_AGG);
+    } else {
+      // parse as an aggregation...
+      if (!id.startsWith("agg_")) {
+        id = "agg_" + id;
+      }
+
+      hasParen = sp.opt("(");
+
+      ValueSourceParser argParser = req.getCore().getValueSourceParser(id);
+      argParser = req.getCore().getValueSourceParser(id);
+      if (argParser == null) {
+        throw new SyntaxError("Unknown aggregation " + id + " in (" + sp + ")");
+      }
+
+      ValueSource vv = argParser.parse(this);
+      if (!(vv instanceof AggValueSource)) {
+        if (argParser == null) {
+          throw new SyntaxError("Expected aggregation from " + id + " but got (" + vv + ") in (" + sp + ")");
+        }
+      }
+      vs = (AggValueSource) vv;
+    }
+
+    if (hasParen) {
+      sp.expect(")");
+    }
+
+    if ((flags & FLAG_CONSUME_DELIMITER) != 0) {
+      consumeArgumentDelimiter();
+    }
+
+    return vs;
+  }
+
 
   /**
    * Consume an argument delimiter (a comma) from the token stream.

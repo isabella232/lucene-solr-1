@@ -17,12 +17,16 @@
 
 package org.apache.solr.request;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.index.DocTermOrds;
 import org.apache.lucene.index.SortedDocValues;
 import org.apache.lucene.index.Term;
@@ -32,6 +36,7 @@ import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.CharsRef;
+import org.apache.lucene.util.CharsRefBuilder;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.UnicodeUtil;
 import org.apache.solr.common.SolrException;
@@ -49,6 +54,8 @@ import org.apache.solr.search.DocIterator;
 import org.apache.solr.search.DocSet;
 import org.apache.solr.search.SolrCache;
 import org.apache.solr.search.SolrIndexSearcher;
+import org.apache.solr.search.facet.CountSlotAcc;
+import org.apache.solr.search.facet.FacetFieldProcessorByArrayUIF;
 import org.apache.solr.util.LongPriorityQueue;
 import org.apache.solr.util.PrimUtils;
 
@@ -630,7 +637,7 @@ public class UnInvertedField extends DocTermOrds {
   }
 
   /** may return a reused BytesRef */
-  BytesRef getTermValue(TermsEnum te, int termNum) throws IOException {
+  public BytesRef getTermValue(TermsEnum te, int termNum) throws IOException {
     //System.out.println("getTermValue termNum=" + termNum + " this=" + this + " numTerms=" + numTermsInField);
     if (bigTerms.size() > 0) {
       // see if the term is one of our big terms.
@@ -708,4 +715,304 @@ public class UnInvertedField extends DocTermOrds {
 
     return uif;
   }
+
+
+  ///////////////////////////////////////////
+  // New Solr 7.0 methods
+  ///////////////////////////////////////////
+  public class DocToTerm implements Closeable {
+    private final DocSet[] bigTermSets;
+    private final int[] bigTermNums;
+    private TermsEnum te;
+
+    public DocToTerm() throws IOException {
+      bigTermSets = new DocSet[bigTerms.size()];
+      bigTermNums = new int[bigTerms.size()];
+      int i=0;
+      for (TopTerm tt : bigTerms.values()) {
+        bigTermSets[i] = searcher.getDocSet(new TermQuery(new Term(field,tt.term)));
+        bigTermNums[i] = tt.termNum;
+        i++;
+      }
+    }
+
+    public BytesRef lookupOrd(int ord) throws IOException {
+      return getTermValue( getTermsEnum() , ord );
+    }
+
+    public TermsEnum getTermsEnum() throws IOException {
+      if (te == null) {
+        te = getOrdTermsEnum(searcher.getAtomicReader());
+      }
+      return te;
+    }
+
+    public void getBigTerms(int doc, Callback target) throws IOException {
+      if (bigTermSets != null) {
+        for (int i=0; i<bigTermSets.length; i++) {
+          if (bigTermSets[i].exists(doc)) {
+            target.call( bigTermNums[i] );
+          }
+        }
+      }
+    }
+
+    public void getSmallTerms(int doc, Callback target) {
+      if (termInstances > 0) {
+        int code = index[doc];
+
+        if ((code & 0xff)==1) {
+          int pos = code>>>8;
+          int whichArray = (doc >>> 16) & 0xff;
+          byte[] arr = tnums[whichArray];
+          int tnum = 0;
+          for(;;) {
+            int delta = 0;
+            for(;;) {
+              byte b = arr[pos++];
+              delta = (delta << 7) | (b & 0x7f);
+              if ((b & 0x80) == 0) break;
+            }
+            if (delta == 0) break;
+            tnum += delta - TNUM_OFFSET;
+            target.call(tnum);
+          }
+        } else {
+          int tnum = 0;
+          int delta = 0;
+          for (;;) {
+            delta = (delta << 7) | (code & 0x7f);
+            if ((code & 0x80)==0) {
+              if (delta==0) break;
+              tnum += delta - TNUM_OFFSET;
+              target.call(tnum);
+              delta = 0;
+            }
+            code >>>= 8;
+          }
+        }
+      }
+    }
+
+    @Override
+    public void close() throws IOException {
+      for (DocSet set : bigTermSets) {
+        // set.decref(); // OFF-HEAP
+      }
+    }
+  }
+
+  public interface Callback {
+    public void call(int termNum);
+  }
+
+
+
+  private void getCounts(FacetFieldProcessorByArrayUIF processor, CountSlotAcc counts) throws IOException {
+    DocSet docs = processor.fcontext.base;
+    int baseSize = docs.size();
+    int maxDoc = searcher.maxDoc();
+
+    // what about allBuckets?
+    if (baseSize < processor.effectiveMincount) {
+      return;
+    }
+
+    final int[] index = this.index;
+
+    boolean doNegative = baseSize > maxDoc >> 1 && termInstances > 0 && docs instanceof BitDocSet;
+
+    if (doNegative) {
+      FixedBitSet bs = ((BitDocSet) docs).getBits().clone();
+      bs.flip(0, maxDoc);
+      // TODO: when iterator across negative elements is available, use that
+      // instead of creating a new bitset and inverting.
+      docs = new BitDocSet(bs, maxDoc - baseSize);
+      // simply negating will mean that we have deleted docs in the set.
+      // that should be OK, as their entries in our table should be empty.
+    }
+
+    // For the biggest terms, do straight set intersections
+    for (TopTerm tt : bigTerms.values()) {
+      // TODO: counts could be deferred if sorting by index order
+      counts.incrementCount(tt.termNum, searcher.numDocs(new TermQuery(new Term(field, tt.term)), docs));
+    }
+
+    // TODO: we could short-circuit counting altogether for sorted faceting
+    // where we already have enough terms from the bigTerms
+
+    if (termInstances > 0) {
+      DocIterator iter = docs.iterator();
+      while (iter.hasNext()) {
+        int doc = iter.nextDoc();
+        int code = index[doc];
+
+        if ((code & 0xff) == 1) {
+          int pos = code >>> 8;
+          int whichArray = (doc >>> 16) & 0xff;
+          byte[] arr = tnums[whichArray];
+          int tnum = 0;
+          for (; ; ) {
+            int delta = 0;
+            for (; ; ) {
+              byte b = arr[pos++];
+              delta = (delta << 7) | (b & 0x7f);
+              if ((b & 0x80) == 0) break;
+            }
+            if (delta == 0) break;
+            tnum += delta - TNUM_OFFSET;
+            counts.incrementCount(tnum,1);
+          }
+        } else {
+          int tnum = 0;
+          int delta = 0;
+          for (; ; ) {
+            delta = (delta << 7) | (code & 0x7f);
+            if ((code & 0x80) == 0) {
+              if (delta == 0) break;
+              tnum += delta - TNUM_OFFSET;
+              counts.incrementCount(tnum,1);
+              delta = 0;
+            }
+            code >>>= 8;
+          }
+        }
+      }
+    }
+
+    if (doNegative) {
+      for (int i=0; i<numTermsInField; i++) {
+        //       counts[i] = maxTermCounts[i] - counts[i];
+        counts.incrementCount(i, maxTermCounts[i] - counts.getCount(i)*2);
+      }
+    }
+
+    /*** TODO - future optimization to handle allBuckets
+     if (processor.allBucketsSlot >= 0) {
+     int all = 0;  // overflow potential
+     for (int i=0; i<numTermsInField; i++) {
+     all += counts.getCount(i);
+     }
+     counts.incrementCount(processor.allBucketsSlot, all);
+     }
+     ***/
+  }
+
+
+
+  public void collectDocs(FacetFieldProcessorByArrayUIF processor) throws IOException {
+    if (processor.collectAcc==null && processor.allBucketsAcc == null && processor.startTermIndex == 0 && processor.endTermIndex >= numTermsInField) {
+      getCounts(processor, processor.countAcc);
+      return;
+    }
+
+    collectDocsGeneric(processor);
+  }
+
+  // called from FieldFacetProcessor
+  // TODO: do a callback version that can be specialized!
+  public void collectDocsGeneric(FacetFieldProcessorByArrayUIF processor) throws IOException {
+    use.incrementAndGet();
+
+    int startTermIndex = processor.startTermIndex;
+    int endTermIndex = processor.endTermIndex;
+    int nTerms = processor.nTerms;
+    DocSet docs = processor.fcontext.base;
+
+    int uniqueTerms = 0;
+    final CountSlotAcc countAcc = processor.countAcc;
+
+    for (TopTerm tt : bigTerms.values()) {
+      if (tt.termNum >= startTermIndex && tt.termNum < endTermIndex) {
+        // handle the biggest terms
+        DocSet intersection = searcher.getDocSet(new TermQuery(new Term(field, tt.term)), docs);
+        int collected = processor.collectFirstPhase(intersection, tt.termNum - startTermIndex);
+        countAcc.incrementCount(tt.termNum - startTermIndex, collected);
+        if (collected > 0) {
+          uniqueTerms++;
+        }
+      }
+    }
+
+
+    if (termInstances > 0) {
+
+      final List<AtomicReaderContext> leaves = searcher.getIndexReader().leaves();
+      final Iterator<AtomicReaderContext> ctxIt = leaves.iterator();
+      AtomicReaderContext ctx = null;
+      int segBase = 0;
+      int segMax;
+      int adjustedMax = 0;
+
+
+      // TODO: handle facet.prefix here!!!
+
+      DocIterator iter = docs.iterator();
+      while (iter.hasNext()) {
+        int doc = iter.nextDoc();
+
+        if (doc >= adjustedMax) {
+          do {
+            ctx = ctxIt.next();
+            if (ctx == null) {
+              // should be impossible
+              throw new RuntimeException("INTERNAL FACET ERROR");
+            }
+            segBase = ctx.docBase;
+            segMax = ctx.reader().maxDoc();
+            adjustedMax = segBase + segMax;
+          } while (doc >= adjustedMax);
+          assert doc >= ctx.docBase;
+          processor.setNextReaderFirstPhase(ctx);
+        }
+        int segDoc = doc - segBase;
+
+
+        int code = index[doc];
+
+        if ((code & 0xff)==1) {
+          int pos = code>>>8;
+          int whichArray = (doc >>> 16) & 0xff;
+          byte[] arr = tnums[whichArray];
+          int tnum = 0;
+          for(;;) {
+            int delta = 0;
+            for(;;) {
+              byte b = arr[pos++];
+              delta = (delta << 7) | (b & 0x7f);
+              if ((b & 0x80) == 0) break;
+            }
+            if (delta == 0) break;
+            tnum += delta - TNUM_OFFSET;
+            int arrIdx = tnum - startTermIndex;
+            if (arrIdx < 0) continue;
+            if (arrIdx >= nTerms) break;
+            countAcc.incrementCount(arrIdx, 1);
+            processor.collectFirstPhase(segDoc, arrIdx);
+          }
+        } else {
+          int tnum = 0;
+          int delta = 0;
+          for (;;) {
+            delta = (delta << 7) | (code & 0x7f);
+            if ((code & 0x80)==0) {
+              if (delta==0) break;
+              tnum += delta - TNUM_OFFSET;
+              int arrIdx = tnum - startTermIndex;
+              if (arrIdx >= 0) {
+                if (arrIdx >= nTerms) break;
+                countAcc.incrementCount(arrIdx, 1);
+                processor.collectFirstPhase(segDoc, arrIdx);
+              }
+              delta = 0;
+            }
+            code >>>= 8;
+          }
+        }
+      }
+    }
+
+
+  }
+
 }

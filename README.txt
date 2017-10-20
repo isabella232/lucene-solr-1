@@ -1,5 +1,5 @@
 Apache Lucene/Solr
-# Cloudera
+#   Cloudera
 lucene/ is a search engine library
 solr/ is a search engine server that uses lucene
 
