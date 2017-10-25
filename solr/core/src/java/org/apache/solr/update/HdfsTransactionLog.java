@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.util.DataInputInputStream;
@@ -98,9 +99,15 @@ public class HdfsTransactionLog extends TransactionLog {
         tlogOutStream = fs.append(tlogFile);
       } else {
         fs.delete(tlogFile, false);
-        
-        tlogOutStream = fs.create(tlogFile, (short)tlogDfsReplication.intValue());
-        tlogOutStream.hsync();
+
+        if (!(fs instanceof DistributedFileSystem)) {
+          tlogOutStream = fs.create(tlogFile, (short)tlogDfsReplication.intValue());
+        } else {
+          // no erasure coding on transaction log files due to hdfs api limitations
+          tlogOutStream = ((DistributedFileSystem) fs).createFile(tlogFile).replicate()
+              .replication((short) tlogDfsReplication.intValue()).build();
+          tlogOutStream.hsync();
+        }
       }
 
       fos = new FastOutputStream(tlogOutStream, new byte[65536], 0);
