@@ -142,10 +142,20 @@
     <!-- Type used for data-driven schema, to add a string copy for each text field -->
     <dynamicField name="*_str" type="strings" stored="false" docValues="true" indexed="false" />
 
-    <dynamicField name="*_dt"  type="pdate"    indexed="true"  stored="true"/>
-    <dynamicField name="*_dts" type="pdate"    indexed="true"  stored="true" multiValued="true"/>
-    <dynamicField name="*_p"  type="location" indexed="true" stored="true"/>
+    <dynamicField name="*_dt"  type="pdate"    indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_dts" type="pdate"    indexed="true"  stored="true" multiValued="true" docValues="true"/>
+    <dynamicField name="*_p"  type="location" indexed="true" stored="true" docValues="true"/>
     <dynamicField name="*_srpt"  type="location_rpt" indexed="true" stored="true"/>
+    <dynamicField name="*_ti" type="pint"    indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_tis" type="pints"    indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_tl" type="plong"   indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_tls" type="plongs"   indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_tf" type="pfloat"  indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_tfs" type="pfloats"  indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_td" type="pdouble" indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_tds" type="pdoubles" indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_tdt" type="pdate"  indexed="true"  stored="true" docValues="true"/>
+    <dynamicField name="*_tdts" type="pdates"  indexed="true"  stored="true" docValues="true"/>
     
     <!-- payloaded dynamic fields -->
     <dynamicField name="*_dpf" type="delimited_payloads_float" indexed="true"  stored="true"/>
@@ -153,6 +163,9 @@
     <dynamicField name="*_dps" type="delimited_payloads_string" indexed="true"  stored="true"/>
 
     <dynamicField name="attr_*" type="text_general" indexed="true" stored="true" multiValued="true"/>
+
+    <!-- CLOUDERA: dynamic field for auth tokens -->
+    <dynamicField name="*_auth" type="string" indexed="true" stored="false" multiValued="true" docValues="false" />
 
     <!-- Field to use to determine and enforce document uniqueness.
       Unless this field is marked with required="false", it will be a required field
@@ -270,10 +283,10 @@
 
     <!-- A general text field that has reasonable, generic
          cross-language defaults: it tokenizes with StandardTokenizer,
-	       removes stop words from case-insensitive "stopwords.txt"
-	       (empty by default), and down cases.  At query time only, it
-	       also applies synonyms.
-	  -->
+         removes stop words from case-insensitive "stopwords.txt"
+         (empty by default), and down cases.  At query time only, it
+         also applies synonyms.
+    -->
     <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100" multiValued="true">
       <analyzer type="index">
         <tokenizer class="solr.StandardTokenizerFactory"/>
@@ -314,7 +327,7 @@
         <filter class="solr.KeywordMarkerFilterFactory" protected="protwords.txt"/>
         <!-- Optionally you may want to use this less aggressive stemmer instead of PorterStemFilterFactory:
         <filter class="solr.EnglishMinimalStemFilterFactory"/>
-	      -->
+        -->
         <filter class="solr.PorterStemFilterFactory"/>
       </analyzer>
       <analyzer type="query">
@@ -329,7 +342,7 @@
         <filter class="solr.KeywordMarkerFilterFactory" protected="protwords.txt"/>
         <!-- Optionally you may want to use this less aggressive stemmer instead of PorterStemFilterFactory:
         <filter class="solr.EnglishMinimalStemFilterFactory"/>
-	      -->
+        -->
         <filter class="solr.PorterStemFilterFactory"/>
       </analyzer>
     </fieldType>
@@ -408,7 +421,7 @@
     </fieldType>
 
     <!-- Just like text_general except it reverses the characters of
-	       each token, to enable more efficient leading wildcard queries.
+         each token, to enable more efficient leading wildcard queries.
     -->
     <dynamicField name="*_txt_rev" type="text_general_rev"  indexed="true"  stored="true"/>
     <fieldType name="text_general_rev" class="solr.TextField" positionIncrementGap="100">
