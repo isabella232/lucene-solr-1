@@ -369,6 +369,9 @@ Bug Fixes
 
 * SOLR-8689: Fix bin/solr.cmd so it can run properly on Java 9 (Uwe Schindler, hossman)
 
+* SOLR-11560: Specifying the replicationFactor parameter while restoring a collection would lead to extra tlog
+  and pull replicas being created (Peter Szantai-Kis, Varun Thacker)
+
 Optimizations
 ----------------------
 

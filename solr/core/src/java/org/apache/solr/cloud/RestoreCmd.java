@@ -345,8 +345,8 @@ public class RestoreCmd implements OverseerCollectionMessageHandler.Cmd {
     log.info("Completed restoring collection={} backupName={}", restoreCollection, backupName);
   }
 
-  private int getInt(ZkNodeProps message, String propertyName, Integer default1, int default2) {
-    Integer value = message.getInt(REPLICATION_FACTOR, default1);
-    return value!=null?value:default2;
+  private int getInt(ZkNodeProps message, String propertyName, Integer count, int defaultValue) {
+    Integer value = message.getInt(propertyName, count);
+    return value!=null ? value:defaultValue;
   }
 }
