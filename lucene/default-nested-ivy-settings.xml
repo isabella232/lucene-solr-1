@@ -32,7 +32,6 @@
   <property name="repo.maven.org" value="http://repo1.maven.org/maven2/" override="false"/>
   <property name="maven2.pattern" value="[organisation]/[module]/[revision]/[module]-[revision](-[classifier])"/>
   <property name="maven2.pattern.ext"  value="${maven2.pattern}.[ext]"/>
-  
 
   <property name="local-maven2-dir" value="${user.home}/.m2/repository/" />
   
@@ -58,8 +57,6 @@
              root="${snapshots.cloudera.com}" checkmodified="true"/>
     <ibiblio name="cloudera-cauldron-snapshots" m2compatible="true"
              root="${cauldron.cloudera.com}" checkmodified="true"/>
-    <ibiblio name="cauldron-repo" m2compatible="true"
-             root="${cauldron-repo}" checkmodified="true"/>
     <ibiblio name="cauldron-gbn" m2compatible="true"
              root="${cauldron-gbn}" checkmodified="true"/>
     <ibiblio name="maven2" root="${repo.maven.org}" pattern="${maven2.pattern.ext}" m2compatible="true"/>
@@ -94,7 +91,6 @@
       <resolver ref="cloudera-releases" />
       <resolver ref="cloudera-snapshots" />
       <resolver ref="cloudera-cauldron-snapshots" />
-      <resolver ref="cauldron-repo" />
       <resolver ref="cauldron-gbn" />
     </chain>
 
