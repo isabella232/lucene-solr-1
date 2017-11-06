@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.lucene.util.TestRuleLimitSysouts;
 import org.apache.solr.SolrTestCaseJ4;
+import org.apache.lucene.util.TestRuleLimitSysouts.Limit;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.cloud.rule.ImplicitSnitch;
@@ -39,7 +40,7 @@ import static org.hamcrest.core.Is.is;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
-@TestRuleLimitSysouts.Limit(bytes=32000)
+@Limit(bytes=40000)
 public class ImplicitSnitchTest extends LuceneTestCase {
 
   private ImplicitSnitch snitch;
