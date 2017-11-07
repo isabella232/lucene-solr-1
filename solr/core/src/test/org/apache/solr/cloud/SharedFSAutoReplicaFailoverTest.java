@@ -60,6 +60,7 @@ import org.apache.solr.util.BadHdfsThreadsFilter;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
@@ -70,6 +71,7 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 @ThreadLeakFilters(defaultFilters = true, filters = {
     BadHdfsThreadsFilter.class // hdfs currently leaks thread(s)
 })
+@Ignore("CDH-61529")
 public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBase {
   
   private static final boolean DEBUG = true;
