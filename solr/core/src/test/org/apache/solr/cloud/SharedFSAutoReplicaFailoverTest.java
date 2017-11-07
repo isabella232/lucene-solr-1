@@ -64,6 +64,7 @@ import org.apache.solr.util.TimeOut;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
@@ -77,6 +78,7 @@ import org.slf4j.LoggerFactory;
     BadHdfsThreadsFilter.class // hdfs currently leaks thread(s)
 })
 @LogLevel("org.apache.solr.cloud.autoscaling=DEBUG;org.apache.solr.cloud.*=DEBUG")
+@Ignore("CDH-61529")
 public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBase {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
