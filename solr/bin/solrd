@@ -240,5 +240,5 @@ fi
 if [ "$1" = "stop" ] ; then
   exec $(dirname "$BASH_SOURCE")/solr stop -d $(dirname "$BASH_SOURCE")/../server -k csearch -p $SOLR_PORT
 else
-  exec $(dirname "$BASH_SOURCE")/solr -f -d $(dirname "$BASH_SOURCE")/../server -k csearch -z $SOLR_ZK_ENSEMBLE -p $SOLR_PORT -a "$JAVA_OPTS"
+  exec $(dirname "$BASH_SOURCE")/solr -f -d $(dirname "$BASH_SOURCE")/../server -k csearch -z $SOLR_ZK_ENSEMBLE -p $SOLR_PORT -a "$JAVA_OPTS" -j "--lib=${SOLR_HDFS_CONFIG}"
 fi
