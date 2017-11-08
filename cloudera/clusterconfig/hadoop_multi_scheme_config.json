@@ -45,7 +45,9 @@
             "authorization.sentry.site",
             "authorization.superuser",
             "authorization.enable.auditlog",
-            "authorization.sentry.hadoop.conf"
+            "authorization.sentry.hadoop.conf",
+            "authorization.hdfs.kerberos.principal",
+            "authorization.hdfs.kerberos.keytabfile"
         ],
         "defaultConfigs": {
             "authorization.superuser": "solr",

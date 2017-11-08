@@ -93,10 +93,16 @@ fi
 
 if [ -n "$SOLR_KERBEROS_KEYTAB" ] ; then
   JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.security.kerberos.keytabfile=${SOLR_KERBEROS_KEYTAB}"
+  if [ -n "${SOLR_SENTRY_ENABLED}" ]; then
+    JAVA_OPTS="${JAVA_OPTS} -Dsolr.authorization.hdfs.kerberos.keytabfile=${SOLR_KERBEROS_KEYTAB}"
+  fi
 fi
 
 if [ -n "$SOLR_KERBEROS_PRINCIPAL" ] ; then
   JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.security.kerberos.principal=${SOLR_KERBEROS_PRINCIPAL}"
+  if [ -n "${SOLR_SENTRY_ENABLED}" ]; then
+    JAVA_OPTS="${JAVA_OPTS} -Dsolr.authorization.hdfs.kerberos.principal=${SOLR_KERBEROS_PRINCIPAL}"
+  fi
 fi
 
 if [ -n "$SOLR_AUTHENTICATION_TYPE" ] ; then
