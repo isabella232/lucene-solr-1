@@ -595,6 +595,15 @@
       <target name="server"/>
       <target name="documentation-online"/>
     </antcall>
+
+    <!-- CLOUDERA BUILD - build upgrade tool and prepare a tarball -->
+    <exec executable="mvn" dir="../cloudera/solr-upgrade" failonerror="true">
+      <arg line="${mvn.settings.line}" />
+      <arg value="clean" />
+      <arg value="package" />
+      <arg value="-DskipTests" />
+    </exec>
+
     <mkdir dir="${dest}/${fullnamever}"/>
     <delete includeemptydirs="true">
       <fileset dir="${dest}/${fullnamever}" includes="**/*"/>
@@ -628,6 +637,10 @@
                   prefix="${fullnamever}"
                   includes="bin/** server/**/*.sh example/**/*.sh example/**/bin/"
                   excludes="server/etc/test/**" />
+      <!-- CLOUDERA-BUILD - include upgrade tools in the the Solr package -->
+      <tarfileset dir="../cloudera/solr-upgrade/target"
+                  prefix="${fullnamever}"
+                  includes="*.tar.gz" />
       <tarfileset dir="."
                   prefix="${fullnamever}"
                   includes="dist/*.jar
