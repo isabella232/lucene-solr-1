@@ -2369,6 +2369,10 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     log.info("Completed backing up ZK data for backupName={}", backupName);
   }
 
+  private <T> T getOrDefault(T val, T defaultVal) {
+    return (val != null) ? val : defaultVal;
+  }
+
   private void processRestoreAction(ZkNodeProps message, NamedList results) throws IOException, KeeperException, InterruptedException {
     // TODO maybe we can inherit createCollection's options/code
     String restoreCollectionName =  message.getStr(COLLECTION_PROP);
@@ -2394,8 +2398,10 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
         zkStateReader.getClusterState().getLiveNodes(), message);
 
     int numShards = backupCollectionState.getActiveSlices().size();
-    int repFactor = message.getInt(REPLICATION_FACTOR, backupCollectionState.getReplicationFactor());
-    int maxShardsPerNode = message.getInt(MAX_SHARDS_PER_NODE, backupCollectionState.getMaxShardsPerNode());
+    int repFactor = message.getInt(REPLICATION_FACTOR,
+        getOrDefault(backupCollectionState.getReplicationFactor(), 1));
+    int maxShardsPerNode = message.getInt(MAX_SHARDS_PER_NODE,
+        getOrDefault(backupCollectionState.getMaxShardsPerNodeOrNull(), 1));
     int availableNodeCount = nodeList.size();
     if ((numShards * repFactor) > (availableNodeCount * maxShardsPerNode)) {
       throw new SolrException(ErrorCode.BAD_REQUEST,
@@ -2440,12 +2446,20 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       propMap.put(CREATE_NODE_SET, CREATE_NODE_SET_EMPTY); //no cores
       propMap.put(COLL_CONF, restoreConfigName);
 
-      // router.*
-      @SuppressWarnings("unchecked")
       String prefix = ROUTER.concat(".");
-      Map<String, Object> routerProps = (Map<String, Object>) backupCollectionState.getProperties().get(DocCollection.DOC_ROUTER);
-      for (Map.Entry<String, Object> pair : routerProps.entrySet()) {
-        propMap.put(prefix + pair.getKey(), pair.getValue());
+      // new router format
+      if (backupCollectionState.getProperties().get(DocCollection.DOC_ROUTER) instanceof Map) {
+        // router.*
+        @SuppressWarnings("unchecked")
+        Map<String, Object> routerProps = (Map<String, Object>) backupCollectionState
+            .getProperties().get(DocCollection.DOC_ROUTER);
+        for (Map.Entry<String, Object> pair : routerProps.entrySet()) {
+          propMap.put(prefix + pair.getKey(), pair.getValue());
+        }
+      } else if (backupCollectionState.getProperties().get(DocCollection.DOC_ROUTER_OLD) != null) {
+        // read config in old router format and convert it to new format.
+        propMap.put(prefix+"name",
+            backupCollectionState.getProperties().get(DocCollection.DOC_ROUTER_OLD));
       }
 
       Set<String> sliceNames = backupCollectionState.getActiveSlicesMap().keySet();
