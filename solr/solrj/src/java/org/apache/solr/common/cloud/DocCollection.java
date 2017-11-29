@@ -174,6 +174,9 @@ public class DocCollection extends ZkNodeProps {
     return maxShardsPerNode;
   }
 
+  public Integer getMaxShardsPerNodeOrNull() {
+    return maxShardsPerNode;
+  }
 
   public DocRouter getRouter() {
     return router;
