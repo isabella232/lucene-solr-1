@@ -110,7 +110,14 @@ download_zk_metadata() {
   echo "Copying solr.xml"
   run_zk_cli -cmd get /solr.xml > "$1"/solr.xml
 
+  echo "Copying aliases.json"
+  if ! run_zk_cli -cmd get /aliases.json > "$1"/aliases.json ; then
+    echo "Unable to copy aliases.json. Please check if it contains any data ?"
+    echo "Continuing with the download..."
+  fi
+
   for c in $(run_config_parser_tool --list-collections -i "$1"/clusterstate.json); do
+    echo "Downloading configuration for collection ${c}"
     run_zk_cli -cmd get /collections/"$c" > "$1/collections/${c}_config.json"
     coll_conf=$(run_config_parser_tool --get-config-name -i "$1/collections/${c}_config.json")
     echo "Downloading config named ${coll_conf} for collection ${c}"
@@ -188,12 +195,10 @@ validate_metadata() {
 while test $# != 0 ; do
   case "$1" in
     --debug)
-      export SOLR_DEBUG="true"
       exec 3>&1
       shift 1
       ;;
     --trace)
-      export SOLR_TRACE="true"
       set -x
       shift 1
       ;;
