@@ -71,7 +71,6 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Nightly
 @Slow
 @SuppressSSL
 @ThreadLeakFilters(defaultFilters = true, filters = {
