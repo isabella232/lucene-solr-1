@@ -49,7 +49,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 @Slow
-@Nightly
 @ThreadLeakFilters(defaultFilters = true, filters = {
     BadHdfsThreadsFilter.class // hdfs currently leaks thread(s)
 })

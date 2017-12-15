@@ -65,7 +65,6 @@ import org.junit.Test;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
-@Nightly
 @Slow
 @SuppressSSL
 @ThreadLeakFilters(defaultFilters = true, filters = {
