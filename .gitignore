@@ -29,3 +29,10 @@ pom.xml
 # Cloudera Build
 /target/
 cdh.build.properties
+# These are created during the unittest run, but need to be ignored so the
+# tests don't think the workspace is dirty
+gerrit-unittest-setup.sh
+gerrit-unittest.py
+gerrit.py
+gerrit.pyc
+mvn-gbn
