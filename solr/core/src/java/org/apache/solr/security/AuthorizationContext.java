@@ -19,6 +19,7 @@ package org.apache.solr.security;
 import java.security.Principal;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.solr.common.params.SolrParams;
 
@@ -61,6 +62,18 @@ public abstract class AuthorizationContext {
    *         null in case of unauthenticated request
    */
   public abstract String getUserName() ;
+
+  /**
+   * This method returns the name of the user impersonating on behalf of some other user
+   * in the system. e.g. in case of web application proxying requests to the Solr service,
+   * the impersonator would be the user used by the web application to authenticate against
+   * the Solr service. On the other hand, {@link #getUserName()} will return the name of the
+   * user who initiated the original request.
+   *
+   * @return impersonator username in case impersonation is used
+   *         none if impersonation is not used (e.g. user directly queried Solr service).
+   */
+  public abstract Optional<String> getImpersonatorUserName();
 
   public abstract String getHttpHeader(String header);
   

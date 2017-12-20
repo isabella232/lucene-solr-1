@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -96,6 +97,7 @@ import org.apache.solr.security.AuthorizationContext;
 import org.apache.solr.security.AuthorizationContext.CollectionRequest;
 import org.apache.solr.security.AuthorizationContext.RequestType;
 import org.apache.solr.security.AuthorizationResponse;
+import org.apache.solr.security.KerberosPlugin;
 import org.apache.solr.security.PKIAuthenticationPlugin;
 import org.apache.solr.servlet.SolrDispatchFilter.Action;
 import org.apache.solr.servlet.cache.HttpCacheHeaderUtil;
@@ -1039,6 +1041,11 @@ public class HttpSolrCall {
       @Override
       public String getUserName() {
         return getReq().getRemoteUser();
+      }
+
+      @Override
+      public Optional<String> getImpersonatorUserName() {
+        return Optional.ofNullable((String)getReq().getAttribute(KerberosPlugin.IMPERSONATOR_USER_NAME));
       }
 
       @Override

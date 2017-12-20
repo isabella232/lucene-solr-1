@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.http.auth.BasicUserPrincipal;
 import org.apache.solr.SolrTestCaseJ4;
@@ -405,6 +406,11 @@ public class TestRuleBasedAuthorizationPlugin extends SolrTestCaseJ4 {
     @Override
     public String getUserName() {
       return (getUserPrincipal() != null) ? getUserPrincipal().getName() : null;
+    }
+
+    @Override
+    public Optional<String> getImpersonatorUserName() {
+      return Optional.empty();
     }
 
     @Override
