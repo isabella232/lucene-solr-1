@@ -56,7 +56,7 @@ Commands:
   help
   download-metadata -d dest_dir
   validate-metadata -c metadata_dir
-  restore-metadata -c metadata_dir
+  bootstrap-config -c metadata_dir
   config-upgrade [--dry-run] -c conf_path -t conf_type -u upgrade_processor_conf -d result_dir [-v]
 Parameters:
   -c <arg>     This parameter specifies the path of Solr configuration to be operated upon.
@@ -191,6 +191,26 @@ validate_metadata() {
   exit 0
 }
 
+bootstrap_config() {
+  echo "Re-initializing the Solr metadata in Zookeeper"
+  solrctl init --force
+
+  echo "Copying solr.xml"
+  run_zk_cli -cmd clear /solr.xml
+  run_zk_cli -cmd putfile /solr.xml "$1/solr.xml"
+
+  echo "Copying clusterprops.json"
+  run_zk_cli -cmd putfile /clusterprops.json "$1/clusterprops.json"
+
+  for config in "$1"/configs/*; do
+    c="${config##*/}"
+    echo "Uploading config $c"
+    run_zk_cli -cmd upconfig --confdir "$1/configs/$c/conf" --confname "$c"
+  done
+
+  echo "Re-initialized Solr metadata using the configuration available at $1"
+}
+
 # First eat up all the global options
 while test $# != 0 ; do
   case "$1" in
@@ -265,9 +285,29 @@ while test $# != 0 ; do
 
       validate_metadata "${metadataDir}"
       ;;
-    restore-metdata)
-      echo "Not yet implemented"
-      exit 1
+    bootstrap-config)
+      metadataDir=
+      shift 1
+      while test $# -gt 0 ; do
+        case "$1" in
+          -c)
+            [ $# -gt 1 ] || usage "Error:  bootstrap-config command parameter $1 requires an argument"
+            metadataDir="$2"
+            shift 2
+            ;;
+          *)
+            break
+            ;;
+        esac
+      done
+
+      if [ -z "${metadataDir}" ]; then
+        echo "Please specify metadata directory to validate using -c option"
+        usage
+        exit 1
+      fi
+
+      bootstrap_config "${metadataDir}"
       ;;
     config-upgrade)
       shift 1

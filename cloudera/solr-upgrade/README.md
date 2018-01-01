@@ -64,7 +64,7 @@ Following steps are recommended during the Solr upgrade process. This tool will 
 Before proceeding with an upgrade, you need to backup your Solr collection. This will allow you to rollback to the pre-upgrade state if something goes wrong during the upgrade process. If you are managing Solr using Cloudera Manager, then this step is not needed since Cloudera Manager will backup the Solr configuration and data automatically.
 
 ### Install Solr config upgrade tool
-The Solr config upgrade tool is available as part of Cloudera Manager (version 6). Hence you should upgrade your Cloudera Manager instance to the latest version (version 6+). The tool is available at location TBD.
+The Solr config upgrade tool is available as part of Cloudera Manager (version 6). Hence you should upgrade your Cloudera Manager instance to the latest version (version 6+). The tool is available at location /opt/cloudera/cm/solr-upgrade.
 
 ### Downloading the metadata
 We need to migrate the SOLR metadata stored in Zookeeper before the upgrade. The upgrade tool provides "download-metadata" command for this purpose. This command downloads important configuration files in SOLR e.g. solr.xml, clusterstate.json, collection configsets etc. to a specified location on local file-system. e.g. following command downloads the Solr metadata to /backups/solr directory.
@@ -150,4 +150,15 @@ Solr schema validation failed.
 
 ## steps to perform after the upgrade ##
 
+### Bootstrap SOLR configuration
+Once the CDH upgrade is complete, global metadata (e.g. solr.xml) compatible with the latest SOLR version needs to be configured before SOLR service can be started successfully. Following command can be used for this purpose,
+
+```bash
+./solr-upgrade.sh bootstrap-config -c /backups/solr
+```
+
+### Restart SOLR service
+Restart SOLR service so that SOLR can start using latest configuration metadata uploaded as part of the last step.
+
+### Recreate collections in SOLR
 TBD
