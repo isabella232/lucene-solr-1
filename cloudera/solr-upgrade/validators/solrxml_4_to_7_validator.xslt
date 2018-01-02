@@ -32,4 +32,60 @@
   <xsl:apply-templates select="node() | @*"/>
 </xsl:template>
 
+<xsl:template match="str[@name='adminHandler'][text()='org.apache.solr.handler.admin.SecureAdminHandlers']">
+  <incompatibility>
+    <level>error</level>
+    <jira_number>SENTRY-1475</jira_number>
+    <description>org.apache.solr.handler.admin.SecureAdminHandlers class is removed</description>
+    <recommendation>Use org.apache.solr.handler.admin.CoreAdminHandler class instead</recommendation>
+    <reindexing>no</reindexing>
+    <transform>no</transform>
+  </incompatibility>
+</xsl:template>
+
+<xsl:template match="str[@name='adminHandler'][text()='org.apache.solr.handler.admin.SecureCoreAdminHandler']">
+  <incompatibility>
+    <level>error</level>
+    <jira_number>SENTRY-1475</jira_number>
+    <description>org.apache.solr.handler.admin.SecureCoreAdminHandler class is removed</description>
+    <recommendation>Use org.apache.solr.handler.admin.CoreAdminHandler class instead</recommendation>
+    <reindexing>no</reindexing>
+    <transform>no</transform>
+  </incompatibility>
+</xsl:template>
+
+<xsl:template match="str[@name='collectionsHandler'][text()='org.apache.solr.handler.admin.SecureCollectionsHandler']">
+  <incompatibility>
+    <level>error</level>
+    <jira_number>SENTRY-1475</jira_number>
+    <description>org.apache.solr.handler.admin.SecureCollectionsHandler class is removed</description>
+    <recommendation>Use org.apache.solr.handler.admin.CollectionsHandler class instead</recommendation>
+    <reindexing>no</reindexing>
+    <transform>no</transform>
+  </incompatibility>
+</xsl:template>
+
+<xsl:template match="str[@name='configSetsHandler'][text()='org.apache.solr.handler.admin.SecureConfigSetsHandler']">
+  <incompatibility>
+    <level>error</level>
+    <jira_number>SENTRY-1475</jira_number>
+    <description>org.apache.solr.handler.admin.SecureConfigSetsHandler class is removed</description>
+    <recommendation>Use org.apache.solr.handler.admin.ConfigSetsHandler class instead</recommendation>
+    <reindexing>no</reindexing>
+    <transform>no</transform>
+  </incompatibility>
+</xsl:template>
+
+<xsl:template match="str[@name='infoHandler'][text()='org.apache.solr.handler.admin.SecureInfoHandler']">
+  <incompatibility>
+    <level>error</level>
+    <jira_number>SENTRY-1475</jira_number>
+    <description>org.apache.solr.handler.admin.SecureInfoHandler class is removed</description>
+    <recommendation>Use org.apache.solr.handler.admin.InfoHandler class instead</recommendation>
+    <reindexing>no</reindexing>
+    <transform>no</transform>
+  </incompatibility>
+</xsl:template>
+
+
 </xsl:stylesheet>

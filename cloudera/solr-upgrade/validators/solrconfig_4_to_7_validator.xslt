@@ -94,6 +94,17 @@
       <transform>yes</transform>
     </incompatibility>
   </xsl:if>
+  <xsl:if test="./processor[@class='solr.UpdateIndexAuthorizationProcessorFactory']">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SENTRY-1475</jira_number>
+      <description>UpdateRequestProcessorFactory of type solr.UpdateIndexAuthorizationProcessorFactory is removed</description>
+      <recommendation>Remove the reference of this factory from the updateRequestProcessorChain</recommendation>
+      <reindexing>No</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
   <xsl:apply-templates select="child::node()"/>
 </xsl:template>
 
@@ -109,6 +120,62 @@
     </incompatibility>
   </xsl:if>
   <xsl:apply-templates select="child::node()"/>
+</xsl:template>
+
+<xsl:template match="searchComponent[@class='org.apache.solr.handler.component.QueryIndexAuthorizationComponent'
+                                     or @class='org.apache.solr.handler.component.SecureRealTimeGetComponent']">
+  <incompatibility>
+    <level>error</level>
+    <jira_number>SENTRY-1475</jira_number>
+    <description>Search component (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select="attribute::class"/>) is removed.</description>
+    <recommendation>Remove the configuration of this search component and update configuration of request handlers referring to it</recommendation>
+    <reindexing>no</reindexing>
+    <transform>no</transform>
+  </incompatibility>
+</xsl:template>
+
+<xsl:template match="requestHandler">
+  <!-- TODO - avoid duplication of logic -->
+  <xsl:if test="@class='solr.SecureRealTimeGetHandler'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SENTRY-1475</jira_number>
+      <description>Request handler (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select="attribute::class"/>) is removed.</description>
+      <recommendation>Update request handler class name to solr.RealTimeGetHandler</recommendation>
+      <reindexing>no</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+  <xsl:if test="@class='solr.SecureFieldAnalysisRequestHandler'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SENTRY-1475</jira_number>
+      <description>Request handler (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select="attribute::class"/>) is removed.</description>
+      <recommendation>Update request handler class name to solr.FieldAnalysisRequestHandler</recommendation>
+      <reindexing>no</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+  <xsl:if test="@class='solr.SecureDocumentAnalysisRequestHandler'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SENTRY-1475</jira_number>
+      <description>Request handler (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select="attribute::class"/>) is removed.</description>
+      <recommendation>Update request handler class name to solr.DocumentAnalysisRequestHandler</recommendation>
+      <reindexing>no</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+  <xsl:if test="@class='solr.SecureReplicationHandler'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SENTRY-1475</jira_number>
+      <description>Request handler (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select="attribute::class"/>) is removed.</description>
+      <recommendation>Update request handler class name to solr.ReplicationHandler</recommendation>
+      <reindexing>no</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
 </xsl:template>
 
 </xsl:stylesheet>
