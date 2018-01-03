@@ -41,6 +41,10 @@ public class ConfigUpgradeTool {
   private static final String UPGRADE_PROCESSORS_CONF_FILE = "u";
   public static final String SOLR_CONFIG_TYPE = "t";
   public static final String RESULT_DIR_PATH = "d";
+  
+  // TODO: currently this just turns on XSLT compiler warnings, but seems
+  // more useful as a verbose flag for debugging - x could be used for XSLT
+  // compiler warnings only if desired.
   public static final String VERBOSE_OUTPUT = "v";
 
   public static void main(String[] args) {
@@ -105,9 +109,8 @@ public class ConfigUpgradeTool {
           transformer.get().transform(getConfigSource(params));
         }
       } else {
-        if (params.isVerbose()) {
-          System.out.println("Either false result from validator or -dry-run was used, no transform done.");
-        }
+          System.out.println(
+              "No transform of the input file was done because you specified a dry run or because there are errors in the file that need to be manually addressed.");
       }
     } else {
       System.out.println("No validation rules found for config type : " + params.getConfType()
