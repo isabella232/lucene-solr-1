@@ -62,4 +62,8 @@
   </arr>
 </xsl:template>
 
+<xsl:template match="requestHandler[@class='solr.admin.AdminHandlers']">
+  <xsl:message>* Removed deprecated solr.admin.AdminHandlers RequestHandler</xsl:message>
+</xsl:template>
+
 </xsl:stylesheet>
