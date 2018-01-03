@@ -144,7 +144,7 @@
 <xsl:template match="searchComponent">
     <xsl:if test="./highlighting[@class='org.apache.solr.highlight.PostingsSolrHighlighter']">
     <incompatibility>
-      <level>info</level>
+      <level>warning</level>
       <jira_number>SOLR-10700</jira_number>
       <description>The PostingsSolrHighlighter is deprecated and is now part of the UnifiedSolrHighlighter.</description>
       <recommendation>Change configuration to use the UnifiedSolrHighlighter instead.</recommendation>
@@ -170,7 +170,7 @@
 <xsl:template match="requestHandler">
    <xsl:if test="@class='solr.admin.AdminHandlers'">
     <incompatibility>
-      <level>error</level>
+      <level>info</level>
       <jira_number>TBD</jira_number>
       <description>The AdminHandlers class has been deprecated and removed.</description>
       <recommendation>Remove this handler configuration.</recommendation>
