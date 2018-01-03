@@ -29,6 +29,7 @@ public class ToolParams {
   private final boolean dryRun;
   private final TransformerFactory factory;
   private final UpgradeProcessorsConfig upgradeProcessorConf;
+  private final boolean verbose;
 
   public ToolParams(ConfigType confType, Path solrConfPath, Path processorConfPath,
       Path resultDirPath, boolean dryRun, boolean verbose) throws Exception {
@@ -40,6 +41,7 @@ public class ToolParams {
     this.factory = TransformerFactory.newInstance();
     this.factory.setErrorListener(new SuppressCompilerWarnings(verbose));
     this.upgradeProcessorConf = UpgradeProcessorsConfigFactory.newInstance(processorConfPath);
+    this.verbose = verbose;
   }
 
   public ConfigType getConfType() {
@@ -62,6 +64,10 @@ public class ToolParams {
     return dryRun;
   }
 
+  public boolean isVerbose() {
+    return verbose;
+  }
+  
   public Path getProcessorConfPath() {
     return processorConfPath;
   }
