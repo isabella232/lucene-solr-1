@@ -104,6 +104,10 @@ public class ConfigUpgradeTool {
         if (transformer.isPresent()) {
           transformer.get().transform(getConfigSource(params));
         }
+      } else {
+        if (params.isVerbose()) {
+          System.out.println("Either false result from validator or -dry-run was used, no transform done.");
+        }
       }
     } else {
       System.out.println("No validation rules found for config type : " + params.getConfType()
