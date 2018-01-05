@@ -103,8 +103,203 @@
     </incompatibility>
   </xsl:if>
 
+  <xsl:if test="@class='solr.ThaiWordFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-4984</jira_number>
+      <description>ThaiWordFilterFactory has been removed</description>
+      <recommendation>Replace with ThaiTokenizerFactory</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.SmartChineseWordTokenFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-4984</jira_number>
+      <description>SmartChineseWordTokenFilterFactory has been removed</description>
+      <recommendation>Replace with HMMChineseTokenizerFactory</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.SmartChineseWordTokenFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-4984</jira_number>
+      <description>SmartChineseWordTokenFilterFactory has been removed</description>
+      <recommendation>Replace with HMMChineseTokenizerFactory</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.ICUCollationKeyFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-5944</jira_number>
+      <description>ICUCollationKeyFilterFactory has been removed</description>
+      <recommendation>Use ICUCollationKeyAnalyzer instead</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.CollationKeyFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-5944</jira_number>
+      <description>CollationKeyFilterFactory has been removed</description>
+      <recommendation>Use CollationKeyAnalyzer instead</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.PositionFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-5944</jira_number>
+      <description>PositionFilterFactory has been removed</description>
+      <recommendation>There is no replacement for this filter.</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.SlowSynonymFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-5944</jira_number>
+      <description>SlowSynonymFilterFactory has been removed</description>
+      <recommendation>Use SynonymFilterFactory instead</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.FSTSynonymFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-5944</jira_number>
+      <description>FSTSynonymFilterFactory has been removed</description>
+      <recommendation>Use SynonymFilterFactory instead</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.ChineseFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-5944</jira_number>
+      <description>ChineseFilterFactory has been removed</description>
+      <recommendation>Use StopFilterFactory instead, which has the same functionality.</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
   <xsl:apply-templates select="child::node()"/>
 </xsl:template>
+
+
+
+
+
+<xsl:template match="tokenizer">
+
+  <xsl:if test="@class='solr.SmartChineseSentenceTokenizerFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-4984</jira_number>
+      <description>SmartChineseSentenceTokenizerFactory has been removed</description>
+      <recommendation>Replace with HMMChineseTokenizer</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+   <xsl:if test="@class='solr.ArabicLetterTokenizerFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-5944</jira_number>
+      <description>ArabicLetterTokenizerFactory has been removed</description>
+      <recommendation>Use StandardTokenizerFactory instead</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.CJKTokenizerFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>LUCENE-5944</jira_number>
+      <description>CJKTokenizerFactory has been removed</description>
+      <recommendation>Use StandardTokenizer, CJKWidthFilter, CJKBigramFilter, and LowerCaseFilter instead</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.RussianLetterTokenizerFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SOLR-1410</jira_number>
+      <description>RussianLetterTokenizerFactory has been removed</description>
+      <recommendation>Replace with StandardTokenizerFactory</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:apply-templates select="child::node()"/>
+</xsl:template>
+
+
+
+
+<xsl:template match="analyzer">
+
+  <xsl:if test="@class='solr.ChineseAnalyzer'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SOLR-1410</jira_number>
+      <description>ChineseAnalyzer has been removed</description>
+      <recommendation>Use StandardAnalyzer instead, which has the same functionality.</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.SnowballAnalyzer'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SOLR-1410</jira_number>
+      <description>SnowballAnalyzer has been removed</description>
+      <recommendation>Use the appropriate language-specific analyzer instead.</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:if test="@class='solr.PatternAnalyzer'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SOLR-1410</jira_number>
+      <description>PatternAnalyzer has been removed</description>
+      <recommendation>use the pattern-based analysis in the analysis/pattern package instead.</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:apply-templates select="child::node()"/>
+</xsl:template>
+
+
 
 <xsl:template match="schema">
   <xsl:if test="not(./similarity)">
@@ -141,5 +336,36 @@
       <transform>no</transform>
     </incompatibility>
 </xsl:template>
+
+
+<!-- BAD EXAMPLE:
+  <solrQueryParser defaultOperator="OR"/>
+-->
+<xsl:template match="solrQueryParser">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SOLR-10584</jira_number>
+      <description>Setting solrQueryParser defaultOperator is no longer supported.</description>
+      <recommendation>Please use "q.op" parameter on the request instead.</recommendation>
+      <reindexing>no</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+</xsl:template>
+
+<!-- BAD EXAMPLE:
+  <defaultSearchField>id</defaultSearchField>
+-->
+<xsl:template match="defaultSearchField">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SOLR-10585</jira_number>
+      <description>Setting defaultSearchField in the schema is no longer supported.</description>
+      <recommendation>Please use "df" parameter on the request instead.</recommendation>
+      <reindexing>no</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+</xsl:template>
+
+
 
 </xsl:stylesheet>
