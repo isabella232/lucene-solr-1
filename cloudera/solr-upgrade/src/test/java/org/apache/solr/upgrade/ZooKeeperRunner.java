@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import com.google.common.collect.ImmutableMap;
+import com.spotify.docker.client.LogStream;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
@@ -30,6 +31,9 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 
+import static com.spotify.docker.client.DockerClient.LogsParam.stderr;
+import static com.spotify.docker.client.DockerClient.LogsParam.stdout;
+import static com.spotify.docker.client.DockerClient.LogsParam.tail;
 import static org.apache.solr.upgrade.DockerRunner.DOCKER_LABEL;
 import static org.apache.solr.upgrade.DockerRunner.SOLR_TO;
 import static org.apache.solr.upgrade.DockerRunner.ZK_DIR;
@@ -37,6 +41,7 @@ import static org.apache.solr.upgrade.DockerRunner.ZK_PORT;
 import static org.apache.solr.upgrade.DockerRunner.ZK_PORT_BINDING;
 
 public class ZooKeeperRunner extends AbstractRunner {
+  public static final int MAX_LOG_COUNT = 500;
   private String containerId;
 
   public ZooKeeperRunner(DockerRunner.Context context) {
@@ -75,9 +80,20 @@ public class ZooKeeperRunner extends AbstractRunner {
     final String id = creation.id();
     docker.startContainer(id);
 
-    waitZkUp();
+    waitZkUpWithLogging(id);
     new DockerCommandExecutor(docker, id).execute(SOLR_TO + "/server/scripts/cloud-scripts/zkcli.sh", "-zkhost", "localhost:2182", "-cmd", "makepath", "/solr");
     return id;
+  }
+
+  private void waitZkUpWithLogging(String id) throws DockerException, InterruptedException, IOException {
+    try {
+      waitZkUp();
+    } catch (Exception e) {
+      LOG.error("Emitting zookeeper stdout/err to stdout/err after failing to start up");
+      LogStream logStream = docker.logs(id, stdout(), stderr(), tail(MAX_LOG_COUNT));
+      logStream.attach(System.out, System.err, false);
+      throw e;
+    }
   }
 
   public String[] runZkCommand() {
