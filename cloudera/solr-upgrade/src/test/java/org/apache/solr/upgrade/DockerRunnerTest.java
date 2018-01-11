@@ -57,6 +57,8 @@ import static org.junit.matchers.JUnitMatchers.hasItem;
 public class DockerRunnerTest extends DockerRunnerTestBase {
 
 
+  public static final int THREAD_GRACEFUL_CLOSE_TIMEOUT = 5;
+  public static final int OK_RESPONSE = 0;
   private ExecutorService threadExecutor;
   private ZooKeeperServerMainWithoutExit zooKeeperServer;
 
@@ -248,6 +250,8 @@ public class DockerRunnerTest extends DockerRunnerTestBase {
   @Ignore("Index upgrade is not supported")
   @Test
   public void solr5UpgradeIndexExecutesSuccessfully() throws Exception {
+    dockerRunner.buildImageWithPreviousSolrVersions();
+
     ZooKeeperRunner zooKeeper = dockerRunner.zooKeeperRunner();
     zooKeeper.start();
     Solr4CloudRunner solrCloudRunner = dockerRunner.solr4CloudRunner(zooKeeper);
@@ -299,7 +303,7 @@ public class DockerRunnerTest extends DockerRunnerTestBase {
   }
 
   private void assertConfigUploaded(CollectionAdminResponse response, String configName) throws SolrServerException, IOException {
-    assertEquals(0, response.getStatus());
+    assertEquals(OK_RESPONSE, response.getStatus());
     assertTrue(response.getErrorMessages() == null ? "no error from server" : response.getErrorMessages().toString(),
         response.isSuccess());
     assertThat(new ConfigSetAdminRequest.List().process(cloudClient).getConfigSets(), hasItem(configName));
@@ -315,7 +319,7 @@ public class DockerRunnerTest extends DockerRunnerTestBase {
   @After
   public void closeAll() throws Exception {
     threadExecutor.shutdownNow();
-    threadExecutor.awaitTermination(5, TimeUnit.SECONDS);
+    threadExecutor.awaitTermination(THREAD_GRACEFUL_CLOSE_TIMEOUT, TimeUnit.SECONDS);
     if (zooKeeperServer != null) {
       zooKeeperServer.shutdown();
     }

@@ -54,6 +54,7 @@ public class DockerRunnerTestBase extends SolrTestCaseJ4 {
   public static final String COLLECTION_NAME = "solrj_collection";
   public static final String ID_VALUE = "1000";
   protected static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  public static final int MAX_ROWS = 10;
   protected static DockerClient docker;
   protected DockerRunner dockerRunner;
   protected UpgradeToolFacade upgradeTool;
@@ -94,7 +95,7 @@ public class DockerRunnerTestBase extends SolrTestCaseJ4 {
     }
   }
 
-  private CloudSolrClient localCloudClient() {
+  protected CloudSolrClient localCloudClient() {
     return new CloudSolrClient.Builder()
         .withZkChroot("/solr")
         .withZkHost("localhost" + ":" + DockerRunner.ZK_PORT)
@@ -152,7 +153,7 @@ public class DockerRunnerTestBase extends SolrTestCaseJ4 {
   }
 
   protected SolrDocumentList queryDocuments() throws SolrServerException, IOException {
-    SolrQuery query = new SolrQuery("*:*").setRows(10);
+    SolrQuery query = new SolrQuery("*:*").setRows(MAX_ROWS);
     query.setParam(UpdateParams.COLLECTION, COLLECTION_NAME);
     QueryRequest queryRequest = new QueryRequest(query);
     QueryResponse qRes = queryRequest.process(cloudClient);
@@ -161,8 +162,6 @@ public class DockerRunnerTestBase extends SolrTestCaseJ4 {
 
   protected void addDocument() throws SolrServerException, IOException {
     SolrInputDocument doc = new SolrInputDocument();
-    System.out.print(".");
-    //server.deleteById(String.valueOf(START + i));
     doc.addField("id", DockerRunnerTestBase.ID_VALUE);
     doc.addField("myOwnField", "value1");
     UpdateRequest add = new UpdateRequest()
