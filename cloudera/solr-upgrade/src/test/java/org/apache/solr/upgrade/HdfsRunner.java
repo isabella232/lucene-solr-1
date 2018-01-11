@@ -31,6 +31,21 @@ public class HdfsRunner extends AbstractRunner {
   public static final int SECONDS_TO_WAIT_BEFORE_KILLING_HDFS = 5;
   public static final int HDFS_MAX_STARTUP_SECONDS = 15;
   public static final int HDFS_UP_POLL_DELAY_MILLIS = 500;
+
+  public static final String CURL_SILENT_OPTION = "-s";
+  public static final String CURL_HEADER_OPTION = "-H";
+  public static final String ACCEPT_JSON_HTTP_HEADER = "Accept: application/json";
+  public static final String QUERY_NAMENODE_STATUS_URL = "http://localhost:" + DockerRunner.HDFS_NAMENODE_PORT 
+      + "/jmx?qry=Hadoop:service=NameNode,name=NameNodeStatus";
+  public static final String NAMENODE_JMX_STATUS_ACTIVE = "\"State\" : \"active\"";
+  public static final String NAMENODE_HOST_NAME = "nn";
+  public static final String DATANODE_HOST_NAME = "dn";
+  public static final String NAMENODE_DEFAULT_PORT = "8020";
+  public static final String HDFS_DATA_VOLUME = "hdfs-data";
+  public static final String HDFS_NAME_VOLUME = "hdfs-name";
+  public static final String HDFS_DATA_MOUNT = "/hadoop/dfs/data";
+  public static final String HDFS_NAME_MOUNT = "/hadoop/dfs/name";
+
   private String nameNodeContainerId;
   private String dataNodeContainerId;
 
@@ -59,8 +74,8 @@ public class HdfsRunner extends AbstractRunner {
 
   public void start() {
     try {
-      Volume dataVolume = Volume.builder().driver("local").name("hdfs-data").mountpoint("/hadoop/dfs/data").build();
-      Volume nameVolume = Volume.builder().driver("local").name("hdfs-name").mountpoint("/hadoop/dfs/name").build();
+      Volume dataVolume = Volume.builder().driver("local").name(HDFS_DATA_VOLUME).mountpoint(HDFS_DATA_MOUNT).build();
+      Volume nameVolume = Volume.builder().driver("local").name(HDFS_NAME_VOLUME).mountpoint(HDFS_NAME_MOUNT).build();
       docker.createVolume(dataVolume);
       docker.createVolume(nameVolume);
 
@@ -72,8 +87,8 @@ public class HdfsRunner extends AbstractRunner {
           .image(DockerRunner.NAMENODE_IMAGE_NAME)
           .exposedPorts(DockerRunner.HDFS_NAMENODE_PORT)
           .labels(ImmutableMap.of(DockerRunner.DOCKER_LABEL, ""))
-          .hostname("nn")
-          .addVolume("hdfs-name:/hadoop/dfs/name")
+          .hostname(NAMENODE_HOST_NAME)
+          .addVolume(HDFS_NAME_VOLUME + ":" + HDFS_NAME_MOUNT)
           .exposedPorts(DockerRunner.HDFS_NAMENODE_PORT)
           .env("CLUSTER_NAME=solr")
           .build();
@@ -89,9 +104,9 @@ public class HdfsRunner extends AbstractRunner {
       ContainerConfig dnContainerConfig = baseContainerConfig(dnHostConfig.build())
           .image(DockerRunner.DATANODE_IMAGE_NAME)
           .labels(ImmutableMap.of(DockerRunner.DOCKER_LABEL, ""))
-          .hostname("dn")
-          .addVolume("hdfs-data:/hadoop/dfs/data")
-          .env("CORE_CONF_fs_defaultFS=hdfs://nn:8020")
+          .hostname(DATANODE_HOST_NAME)
+          .addVolume(HDFS_DATA_VOLUME + ":" + HDFS_DATA_MOUNT)
+          .env("CORE_CONF_fs_defaultFS=hdfs://" + NAMENODE_HOST_NAME + ":" + NAMENODE_DEFAULT_PORT) // see: https://hub.docker.com/r/uhopper/hadoop/
           .build();
 
       final ContainerCreation dnCreation = docker.createContainer(dnContainerConfig, namePrefix + "-DN-" + containerCounter++);
@@ -112,9 +127,9 @@ public class HdfsRunner extends AbstractRunner {
     while (!started) {
       DockerCommandExecutor.ExecutionResult result = null;
       try {
-        result = commandExecutor.execute("curl", "-s", "-H", "Accept: application/json", "http://localhost:50070/jmx?qry=Hadoop:service=NameNode,name=NameNodeStatus");
+        result = commandExecutor.execute("curl", CURL_SILENT_OPTION, CURL_HEADER_OPTION, ACCEPT_JSON_HTTP_HEADER, QUERY_NAMENODE_STATUS_URL);
         String stdout = result.getStdout();
-        started = stdout.contains("\"State\" : \"active\"");
+        started = stdout.contains(NAMENODE_JMX_STATUS_ACTIVE);
       } catch (Exception e) {
         LOG.debug("Error: {}", e.getMessage());
       }
