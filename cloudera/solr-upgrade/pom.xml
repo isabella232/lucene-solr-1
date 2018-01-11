@@ -93,7 +93,7 @@
     <dependency>
       <groupId>com.spotify</groupId>
       <artifactId>docker-client</artifactId>
-      <version>8.8.4</version>
+      <version>8.10.0</version>
       <classifier>shaded</classifier>
       <scope>test</scope>
       <exclusions>

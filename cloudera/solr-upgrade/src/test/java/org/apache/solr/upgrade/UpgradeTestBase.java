@@ -46,7 +46,6 @@ public class UpgradeTestBase extends DockerRunnerTestBase {
 
   protected void reCreateCollection(String configName) throws IOException, SolrServerException {
     dockerRunner.uploadConfig(upgradedDir, configName);
-    //cloudClient.uploadConfig(upgradedDir, CONFIG_NAME_4_10_3);
     createCollection(COLLECTION_NAME, configName);
   }
 

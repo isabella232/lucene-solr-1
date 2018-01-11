@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.DockerClient;
@@ -38,6 +37,8 @@ import org.apache.solr.common.SolrException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.solr.upgrade.DockerRunner.CORES_SUB_DIR;
 import static org.apache.solr.upgrade.DockerRunner.SOLR_FROM;
 import static org.apache.solr.upgrade.DockerRunner.SOLR_PORT;
@@ -45,6 +46,11 @@ import static org.apache.solr.upgrade.DockerRunner.SOLR_PORT;
 public abstract class AbstractRunner {
   static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   public static final String WORK_DIR = "/work";
+  public static final String SOLR_URI_INDICATING_AVAILABILITY = "http://localhost:8983/solr/#/~logging";
+  public static final String SOLR_STARTUP_LOG_MESSAGE = "Started Solr server";
+  public static final int REQUIRED_SUCCESSFUL_REQUESTS = 8;
+  public static final int MAX_SOLR_STARTUP_TIME_SEC = 30;
+  public static final int SOLR_POLL_DELAY_MILLIS = 500;
   final String namePrefix;
   DockerClient docker;
   static int containerCounter;
@@ -94,10 +100,9 @@ public abstract class AbstractRunner {
   void doStart(DockerCommandExecutor executor, SolrArgsBuilder baseStartArgs) {
     String[] solrStart = baseStartArgs.build();
     DockerCommandExecutor.ExecutionResult result = executor.execute(solrStart);
-    boolean isHappy = result.getStdout().contains("Started Solr server");
-    sleep(2000);
+    boolean isHappy = result.getStdout().contains(SOLR_STARTUP_LOG_MESSAGE);
     if (!isHappy) {
-      throw new RuntimeException("Started Solr server" + "is not found in standard output");
+      throw new RuntimeException(SOLR_STARTUP_LOG_MESSAGE + "is not found in standard output");
     }
   }
 
@@ -110,30 +115,31 @@ public abstract class AbstractRunner {
   }
 
   public void awaitSolr() {
-    boolean started = false;
+    int countDown = REQUIRED_SUCCESSFUL_REQUESTS;
     long before = System.nanoTime();
-    while (!started) {
+    while (countDown > 0) {
       try {
         CloseableHttpClient httpClient = HttpClientBuilder.create().build();
-        HttpGet pingRequest = new HttpGet("http://localhost:8983/solr/#/~logging");
+        HttpGet pingRequest = new HttpGet(SOLR_URI_INDICATING_AVAILABILITY);
         CloseableHttpResponse res = httpClient.execute(pingRequest);
         int status = res.getStatusLine().getStatusCode();
         if (status == HttpStatus.SC_OK) {
-          return;
-        } else if (elapsedSeconds(before) > 30)
+          LOG.info("Solr is available, successful checks left: " + --countDown);
+        } else if (elapsedSecondsSince(before) > MAX_SOLR_STARTUP_TIME_SEC)
           throw new RuntimeException("Solr cannot be started (status code of start page: " + status + ")");
-        LOG.info("Ping not yet successful, status code: {}", status);
+        LOG.info("Solr ping not yet successful, status code: {}", status);
       } catch (IOException | SolrException e) {
-        if (elapsedSeconds(before) > 30)
+        if (elapsedSecondsSince(before) > MAX_SOLR_STARTUP_TIME_SEC)
           throw new RuntimeException("Solr cannot be started", e);
-        LOG.info("Ping not yet successful: {}", e.getMessage());
+        LOG.info("Solr ping not yet successful: {}", e.getMessage());
       }
-      sleep(500);
+      sleep(SOLR_POLL_DELAY_MILLIS);
     }
+    LOG.info("Solr ping was successful {} times, considered running", REQUIRED_SUCCESSFUL_REQUESTS);
   }
 
-  long elapsedSeconds(long before) {
-    return TimeUnit.SECONDS.convert(System.nanoTime() - before, TimeUnit.NANOSECONDS);
+  long elapsedSecondsSince(long before) {
+    return SECONDS.convert(System.nanoTime() - before, NANOSECONDS);
   }
 
   void sleep(int millis) {

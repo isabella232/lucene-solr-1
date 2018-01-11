@@ -73,6 +73,7 @@ public class DockerRunner {
   public static final String NAMENODE_IMAGE_NAME = "uhopper/hadoop-namenode:2.7.2";
   public static final String DATANODE_IMAGE_NAME = "uhopper/hadoop-datanode:2.7.2";
   public static final String DOCKER_FILES_DIR = "/solr/dockerfiles/";
+  public static final String DEFAULT_DOCKER_DAEMON_PORT = "2375";
   private static Set<DockerClient> allClients = new HashSet<>();
   private final Context context;
 
@@ -102,7 +103,7 @@ public class DockerRunner {
 
   public void uploadConfig(Path configDir, String configName) throws IOException {
     try {
-      ZkCLI.main(new String[]{"-zkhost", "localhost:"+ DockerRunner.ZK_PORT +"/solr" , "-cmd", "upconfig", "-confdir", configDir.toString(), "-confname",configName});
+      ZkCLI.main(new String[]{"-zkhost", "localhost:" + DockerRunner.ZK_PORT + "/solr", "-cmd", "upconfig", "-confdir", configDir.toString(), "-confname", configName});
     } catch (InterruptedException | TimeoutException | SAXException | ParserConfigurationException | KeeperException e) {
       throw new RuntimeException(e);
     }
@@ -110,7 +111,7 @@ public class DockerRunner {
 
   public void downloadConfig(String configName, Path targetDir) throws IOException {
     try {
-      ZkCLI.main(new String[]{"-zkhost", "localhost:"+ DockerRunner.ZK_PORT +"/solr", "-cmd", "downconfig", "-confdir", targetDir.toString(), "-confname", configName});
+      ZkCLI.main(new String[]{"-zkhost", "localhost:" + DockerRunner.ZK_PORT + "/solr", "-cmd", "downconfig", "-confdir", targetDir.toString(), "-confname", configName});
     } catch (InterruptedException | TimeoutException | SAXException | ParserConfigurationException | KeeperException e) {
       throw new RuntimeException(e);
     }
@@ -119,7 +120,7 @@ public class DockerRunner {
   private static void killContainerSync(DockerClient docker, Container c) {
     try {
       LOG.info("Removing container {} having state/status : {}/{}", c.names(), c.state(), c.status());
-      if("running".equals(c.state())) {
+      if ("running".equals(c.state())) {
         docker.killContainer(c.id());
         docker.waitContainer(c.id());
       }
@@ -143,7 +144,7 @@ public class DockerRunner {
   }
 
 
-  private void buildImageWithPreviousSolrVersions() {
+  public void buildImageWithPreviousSolrVersions() {
     String imageDir = System.getProperty("solr.5.docker.image", "solr5");
     buildImage(imageDir, IMAGE_WITH_SOLR5_AND_6);
   }
@@ -200,9 +201,8 @@ public class DockerRunner {
 
   public static DockerClient dockerClient() {
     try {
-      // Create a client based on DOCKER_HOST and DOCKER_CERT_PATH env vars
-      final DockerClient docker = DefaultDockerClient.fromEnv().build();
-      // Pull an image
+      DockerClient docker = createOsDependentDockerClient();
+
       List<Image> alpineJavaImages = docker.listImages(DockerClient.ListImagesParam.byName(LINUX_JAVA_IMAGE_NAME));
       if (alpineJavaImages.isEmpty()) {
         docker.pull(LINUX_JAVA_IMAGE_NAME);
@@ -219,7 +219,19 @@ public class DockerRunner {
       }
       allClients.add(docker);
       return docker;
-    } catch (DockerCertificateException | DockerException | InterruptedException e) {
+    } catch (DockerException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static DockerClient createOsDependentDockerClient() {
+    try {
+      if (!System.getProperty("os.name").contains("Mac")) {
+        return DefaultDockerClient.builder().uri("http://127.0.0.1:"+ DEFAULT_DOCKER_DAEMON_PORT).build();
+      } else {
+        return DefaultDockerClient.fromEnv().build();
+      }
+    } catch (DockerCertificateException e) {
       throw new RuntimeException(e);
     }
   }
@@ -231,7 +243,7 @@ public class DockerRunner {
   private static void closeDockerClientSilently(DockerClient dockerClient) {
     try {
       dockerClient.close();
-    } catch(Exception ignored) {
+    } catch (Exception ignored) {
     }
   }
 
@@ -260,7 +272,6 @@ public class DockerRunner {
 
   public void buildImages() {
     buildImage("solr_all", IMAGE_SOLR_ALL);
-    buildImageWithPreviousSolrVersions();
   }
 
 }

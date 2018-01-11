@@ -28,6 +28,9 @@ import com.spotify.docker.client.messages.PortBinding;
 import com.spotify.docker.client.messages.Volume;
 
 public class HdfsRunner extends AbstractRunner {
+  public static final int SECONDS_TO_WAIT_BEFORE_KILLING_HDFS = 5;
+  public static final int HDFS_MAX_STARTUP_SECONDS = 15;
+  public static final int HDFS_UP_POLL_DELAY_MILLIS = 500;
   private String nameNodeContainerId;
   private String dataNodeContainerId;
 
@@ -46,10 +49,10 @@ public class HdfsRunner extends AbstractRunner {
 
   public void stop() {
     try {
-      docker.stopContainer(dataNodeContainerId, 5);
-      docker.stopContainer(nameNodeContainerId, 5);
+      docker.stopContainer(dataNodeContainerId, SECONDS_TO_WAIT_BEFORE_KILLING_HDFS);
+      docker.stopContainer(nameNodeContainerId, SECONDS_TO_WAIT_BEFORE_KILLING_HDFS);
     } catch (DockerException | InterruptedException e) {
-      e.printStackTrace();
+      LOG.info("Failed to kill container", e);
     }
   }
 
@@ -88,8 +91,6 @@ public class HdfsRunner extends AbstractRunner {
           .labels(ImmutableMap.of(DockerRunner.DOCKER_LABEL, ""))
           .hostname("dn")
           .addVolume("hdfs-data:/hadoop/dfs/data")
-
-//            .env("CORE_CONF_fs_defaultFS=hdfs://"+ nameNodeContainerName + ":8020")
           .env("CORE_CONF_fs_defaultFS=hdfs://nn:8020")
           .build();
 
@@ -118,10 +119,10 @@ public class HdfsRunner extends AbstractRunner {
         LOG.debug("Error: {}", e.getMessage());
       }
 
-      if (elapsedSeconds(before) > 15) {
+      if (elapsedSecondsSince(before) > HDFS_MAX_STARTUP_SECONDS) {
         throw new RuntimeException("HDFS cannot be started");
       }
-      sleep(500);
+      sleep(HDFS_UP_POLL_DELAY_MILLIS);
     }
   }
 

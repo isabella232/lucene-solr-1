@@ -42,6 +42,9 @@ import static org.apache.solr.upgrade.DockerRunner.ZK_PORT_BINDING;
 
 public class ZooKeeperRunner extends AbstractRunner {
   public static final int MAX_LOG_COUNT = 500;
+  public static final int REQUIRED_SUCCESSFUL_CHECKS = 3;
+  public static final int MAX_ZOOKEEPER_STARTUP_SECONDS = 15;
+  public static final int ZOOKEEPER_PING_DELAY = 500;
   private String containerId;
 
   public ZooKeeperRunner(DockerRunner.Context context) {
@@ -102,19 +105,20 @@ public class ZooKeeperRunner extends AbstractRunner {
 
   public void waitZkUp() throws IOException {
     long before = System.nanoTime();
-    while (true) {
+    int countDown = REQUIRED_SUCCESSFUL_CHECKS;
+    while (countDown > 0) {
       Watcher watcher = System.out::println;
       ZooKeeper zk = new ZooKeeper("localhost:" + ZK_PORT, 30000, watcher);
       try {
         if (zk.exists("/", false) != null)
           //if (zk.getState().isConnected())
-          return;
-        else if (elapsedSeconds(before) > 15)
+          LOG.info("Zookeeper is available, number of checks left:" + --countDown);
+        else if (elapsedSecondsSince(before) > MAX_ZOOKEEPER_STARTUP_SECONDS)
           throw new RuntimeException("Zookeeper cannot be connected ");
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       } catch (KeeperException e) {
-        if (elapsedSeconds(before) > 15)
+        if (elapsedSecondsSince(before) > MAX_ZOOKEEPER_STARTUP_SECONDS)
           throw new RuntimeException("Zookeeper cannot be connected ", e);
       } finally {
         try {
@@ -123,8 +127,9 @@ public class ZooKeeperRunner extends AbstractRunner {
           LOG.warn("Unable to close Zookeeper properly", e);
         }
       }
-      sleep(500);
+      sleep(ZOOKEEPER_PING_DELAY);
     }
+    LOG.info("Zookeeper could be connected {} times, considered running", REQUIRED_SUCCESSFUL_CHECKS);
   }
 
   public void stop() {
