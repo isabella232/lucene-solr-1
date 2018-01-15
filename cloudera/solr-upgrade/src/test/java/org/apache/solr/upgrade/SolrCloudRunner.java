@@ -27,6 +27,9 @@ import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.HostConfig;
 
+/**
+ * Start/stop Solr in cloud mode in a docker container (given a ZooKeeper)
+ */
 public class SolrCloudRunner extends AbstractRunner {
   private final DockerCommandExecutor executor;
   private final String zkId;

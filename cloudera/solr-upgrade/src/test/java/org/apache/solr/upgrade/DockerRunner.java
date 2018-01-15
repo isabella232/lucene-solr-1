@@ -55,6 +55,9 @@ import org.xml.sax.SAXException;
 import static com.spotify.docker.client.DockerClient.RemoveContainerParam.forceKill;
 import static java.util.Collections.emptyMap;
 
+/**
+ * Main entry point to start Solr components in docker containers
+ */
 public class DockerRunner {
   public static final int SOLR_PORT_NUMBER = 8983;
   public static final String SOLR_STOP_PORT = String.valueOf(SOLR_PORT_NUMBER - 1000);

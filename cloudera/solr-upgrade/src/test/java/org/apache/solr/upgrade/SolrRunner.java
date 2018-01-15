@@ -23,6 +23,9 @@ import com.spotify.docker.client.messages.HostConfig;
 
 import static org.apache.solr.upgrade.DockerRunner.SOLR_PORT;
 
+/**
+ * Start/stop Solr standalone
+ */
 public class SolrRunner extends AbstractRunner {
 
   private String solrContainer;

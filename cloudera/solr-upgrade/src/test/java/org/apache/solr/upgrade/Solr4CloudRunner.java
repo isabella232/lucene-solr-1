@@ -27,6 +27,9 @@ import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.HostConfig;
 import org.apache.commons.io.FileUtils;
 
+/**
+ * Start/stop CDH5 Solr in cloud mode in a docker container (linked with a ZooKeeper)
+ */
 public class Solr4CloudRunner extends AbstractRunner {
   private final DockerCommandExecutor executor;
   private final String zkId;

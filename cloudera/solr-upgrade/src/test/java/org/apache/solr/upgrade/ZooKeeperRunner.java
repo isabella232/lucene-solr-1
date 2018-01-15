@@ -40,6 +40,9 @@ import static org.apache.solr.upgrade.DockerRunner.ZK_DIR;
 import static org.apache.solr.upgrade.DockerRunner.ZK_PORT;
 import static org.apache.solr.upgrade.DockerRunner.ZK_PORT_BINDING;
 
+/**
+ * Runs ZooKeeper in a Docker image
+ */
 public class ZooKeeperRunner extends AbstractRunner {
   public static final int MAX_LOG_COUNT = 500;
   public static final int REQUIRED_SUCCESSFUL_CHECKS = 3;

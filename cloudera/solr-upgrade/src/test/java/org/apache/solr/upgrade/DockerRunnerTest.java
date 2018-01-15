@@ -43,16 +43,7 @@ import static org.junit.matchers.JUnitMatchers.containsString;
 import static org.junit.matchers.JUnitMatchers.hasItem;
 
 /**
- * Prerequisite: download tarball from
- * https://www.cloudera.com/documentation/enterprise/release-notes/topics/cm_vd_cdh_package_tarball_512.html#cm_vd_cdh_package_tarball_512
- * <p>
- * Useful commands to clean your docker env after failed test attempts:
- * <p>
- * #remove non-existing container from network, that would cause ports to seem already used.
- * docker network disconnect --force bridge runPreviousAndThenCurrentSolr2
- * <p>
- * #list all containters: docker container ls --all
- * #remove all containers: docker container prune -f
+ * Tests the docker testing framework elements
  */
 public class DockerRunnerTest extends DockerRunnerTestBase {
 

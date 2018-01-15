@@ -27,6 +27,9 @@ import com.spotify.docker.client.messages.HostConfig;
 import com.spotify.docker.client.messages.PortBinding;
 import com.spotify.docker.client.messages.Volume;
 
+/**
+ * Start/stop HDFS minicluster
+ */
 public class HdfsRunner extends AbstractRunner {
   public static final int SECONDS_TO_WAIT_BEFORE_KILLING_HDFS = 5;
   public static final int HDFS_MAX_STARTUP_SECONDS = 15;
