@@ -1,3 +1,1 @@
-Copy your locally built solr tgz file here, or modify the Dockerfile to point to the actual file.
-
-The filename is assumed here to correspond to branch_5x snapshot versions.
+Goto <lucene-solr home>/solr and run 'ant package' to make this symlink to be available.
