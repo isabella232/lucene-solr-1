@@ -21,16 +21,21 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.invoke.MethodHandles;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
@@ -48,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
 import static com.spotify.docker.client.DockerClient.RemoveContainerParam.forceKill;
+import static java.util.Collections.emptyMap;
 
 public class DockerRunner {
   public static final int SOLR_PORT_NUMBER = 8983;
@@ -74,6 +80,9 @@ public class DockerRunner {
   public static final String DATANODE_IMAGE_NAME = "uhopper/hadoop-datanode:2.7.2";
   public static final String DOCKER_FILES_DIR = "/solr/dockerfiles/";
   public static final String DEFAULT_DOCKER_DAEMON_PORT = "2375";
+  public static final String SOLR_CDH_VERSION_PREFIX = "solr-4.10.3-cdh";
+  public static final String DEFAULT_SOLR_CDH_FROM_VERSION = "5.12.1";
+  public static final String SOLR_SOURCE_VERSION_PROPERTY = "docker_source_version";
   private static Set<DockerClient> allClients = new HashSet<>();
   private final Context context;
 
@@ -149,19 +158,33 @@ public class DockerRunner {
     buildImage(imageDir, IMAGE_WITH_SOLR5_AND_6);
   }
 
-  public void buildImage(String imageDir, String imageName) {
+  private void buildImage(String imageDir, String imageName) {
+    buildImage(imageDir, imageName, emptyMap());
+  }
+
+  public void buildImage(String imageDir, String imageName, Map<String, String> args) {
     DockerClient docker = dockerClient();
     try {
       String resource = DOCKER_FILES_DIR + imageDir;
       String pathString = DockerRunner.class.getResource(resource).getPath();
       LOG.debug("dockerfile directory: {}", pathString);
       Path path = Paths.get(pathString);
-      docker.build(path, imageName);
+      if(args.isEmpty()) {
+        docker.build(path, imageName);
+      } else {
+        DockerClient.BuildParam sourceParam = toDockerBuildArgs(args);
+        docker.build(path, imageName, sourceParam);
+      }
     } catch (DockerException | InterruptedException | IOException e) {
       throw new RuntimeException(e);
     } finally {
       closeClient(docker);
     }
+  }
+
+  private DockerClient.BuildParam toDockerBuildArgs(Map<String, String> args) throws UnsupportedEncodingException, JsonProcessingException {
+    String encodedArgJson = URLEncoder.encode(new ObjectMapper().writeValueAsString(args), "UTF-8");
+    return DockerClient.BuildParam.create("buildargs", encodedArgJson);
   }
 
   public SolrCloudRunner solrCloudRunner(ZooKeeperRunner zooKeeper) {
@@ -271,7 +294,7 @@ public class DockerRunner {
   }
 
   public void buildImages() {
-    buildImage("solr_all", IMAGE_SOLR_ALL);
+    buildImage("solr_all", IMAGE_SOLR_ALL, ImmutableMap.of(SOLR_SOURCE_VERSION_PROPERTY, SOLR_CDH_VERSION_PREFIX + System.getProperty(SOLR_SOURCE_VERSION_PROPERTY, DEFAULT_SOLR_CDH_FROM_VERSION)));
   }
 
 }

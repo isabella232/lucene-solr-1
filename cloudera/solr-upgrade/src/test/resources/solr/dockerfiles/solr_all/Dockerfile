@@ -1,7 +1,10 @@
 FROM anapsix/alpine-java:latest
 
+ARG docker_source_version
+
 ENV target_version solr-7.0.0-SNAPSHOT
-ENV source_version solr-4.10.3-cdh5.12.1
+ENV source_version ${docker_source_version}
+
 
 #You need to build this tgz using 'ant package' in solr/ directory.
 COPY ${target_version}.tgz /
