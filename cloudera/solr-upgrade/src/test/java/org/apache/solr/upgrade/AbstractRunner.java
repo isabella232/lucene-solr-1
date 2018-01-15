@@ -43,6 +43,9 @@ import static org.apache.solr.upgrade.DockerRunner.CORES_SUB_DIR;
 import static org.apache.solr.upgrade.DockerRunner.SOLR_FROM;
 import static org.apache.solr.upgrade.DockerRunner.SOLR_PORT;
 
+/**
+ * Infrastructure functions to start Solr components in a docker container
+ */
 public abstract class AbstractRunner {
   static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   public static final String WORK_DIR = "/work";

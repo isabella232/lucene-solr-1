@@ -43,6 +43,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.matchers.JUnitMatchers.containsString;
 
+/**
+ * Upgrade tool calling wrapper class, runs upgrade tool in a docker container
+ */
 public class UpgradeToolFacade extends AbstractRunner {
   public UpgradeToolFacade(DockerRunner.Context context) {
     super(context);

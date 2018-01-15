@@ -43,6 +43,9 @@ import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Unpacks Solr given a solr*.tgz file
+ */
 public class SolrUnpacker {
   private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 

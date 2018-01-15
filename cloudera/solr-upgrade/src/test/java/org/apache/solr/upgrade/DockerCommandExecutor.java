@@ -34,6 +34,9 @@ import static com.spotify.docker.client.DockerClient.ExecCreateParam.attachStder
 import static com.spotify.docker.client.DockerClient.ExecCreateParam.attachStdout;
 import static com.spotify.docker.client.DockerClient.ExecCreateParam.detach;
 
+/**
+ * Execute a command in an already existing docker container
+ */
 public class DockerCommandExecutor {
   private static Logger log = LoggerFactory.getLogger(DockerCommandExecutor.class);
   private DockerClient docker;

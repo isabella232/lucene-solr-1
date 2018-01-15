@@ -23,6 +23,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Helper class to build up a CLI argument list for a docker command
+ */
 public class DockerCommandBuilder {
   private List<String> commands = new LinkedList<>();
   private Map<String, String> volumes = new HashMap<>();

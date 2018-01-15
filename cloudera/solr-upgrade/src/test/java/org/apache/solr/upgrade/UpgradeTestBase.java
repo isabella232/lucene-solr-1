@@ -28,6 +28,9 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.config.upgrade.ConfigUpgradeTool;
 import org.junit.Before;
 
+/**
+ * Base class to subclass when adding Docker based Solr tests
+ */
 public class UpgradeTestBase extends DockerRunnerTestBase {
 
   protected Solr4CloudRunner solr4;

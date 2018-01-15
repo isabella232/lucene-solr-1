@@ -25,6 +25,9 @@ import org.apache.solr.config.upgrade.ConfigType;
 import org.apache.solr.config.upgrade.ConfigUpgradeTool;
 import org.apache.solr.config.upgrade.ToolParams;
 
+/**
+ * Upgrade tool calling wrapper class, calling through local java interface
+ */
 public class UpgradeToolUtil {
   private static Integer returnValue = 0;
 

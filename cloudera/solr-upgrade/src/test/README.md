@@ -7,6 +7,7 @@ At first run it will build a docker image that will take long. Later on this can
 ## Dependencies
 - Docker installed and running
 	> On Linux docker daemon needs to be opened on 2375 port. This can be achieved by the following command before the docker daemon startup.
+	
 	>	`echo '{ "hosts":["tcp://0.0.0.0:2375"] }' >>/etc/docker/daemon.json`
 - Get solr...tar.gz built using ant package from the lucene-solr/solr directory
 
@@ -18,3 +19,6 @@ At first run it will build a docker image that will take long. Later on this can
 - Unfortunately at the moment there is some instability in the docker framework that we could not yet eliminate.
   > Typical error is `org.apache.http.conn.UnsupportedSchemeException: http protocol is not supported`
   > In such cases kill and remove remaining docker containers and restart your tests.
+  
+  > Other error may be the network interface to stuck. In such cases you may forcefully clean up network interface.
+  > `docker network disconnect --force bridge runPreviousAndThenCurrentSolr2`

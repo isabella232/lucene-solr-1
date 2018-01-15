@@ -24,6 +24,9 @@ import com.spotify.docker.client.messages.ContainerConfig;
 import com.spotify.docker.client.messages.ContainerCreation;
 import com.spotify.docker.client.messages.HostConfig;
 
+/**
+ * Start/stop CDH5 Solr standalone
+ */
 public class Solr4Runner extends AbstractRunner {
   private final DockerCommandExecutor executor;
   private Path coresDir = createTempDirQuick("cores.dir");

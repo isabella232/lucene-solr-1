@@ -48,6 +48,9 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.junit.matchers.JUnitMatchers.containsString;
 
 
+/**
+ * Base class for docker based infrastructure
+ */
 public class DockerRunnerTestBase extends SolrTestCaseJ4 {
   public static final String CONFIG_NAME_4_10_3 = "cloud-plain-4-10-3";
   public static final String CONFIG_NAME = "cloud-plain";

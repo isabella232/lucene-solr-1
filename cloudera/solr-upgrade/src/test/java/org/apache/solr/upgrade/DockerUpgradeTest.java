@@ -21,6 +21,9 @@ import org.junit.Test;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 
+/**
+ * Actual upgrade tests
+ */
 public class DockerUpgradeTest extends UpgradeTestBase {
 
   @Test
