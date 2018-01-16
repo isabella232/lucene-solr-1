@@ -34,6 +34,13 @@
   <xsl:copy/>
 </xsl:template>
 
+<xsl:template match="schema">
+  <xsl:text>&#10;</xsl:text>
+  <xsl:copy>
+    <xsl:apply-templates select="child::node()"/>
+  </xsl:copy>
+</xsl:template>
+
 <xsl:template match="similarity/@class">
   <xsl:message>* Replacing usage of DefaultSimilarityFactory with ClassicSimilarityFactory</xsl:message>
   <xsl:attribute name="class">

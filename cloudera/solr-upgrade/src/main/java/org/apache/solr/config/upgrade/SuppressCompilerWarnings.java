@@ -24,10 +24,10 @@ import javax.xml.transform.TransformerException;
  * the transformation. This class allows the upgrade tool to suppress such warnings. During the development
  * of the upgrade rules, display of such warnings can be enabled by providing "-v" command line parameter.
  */
-class SuppressXSLTCompilerWarnings implements ErrorListener {
+class SuppressCompilerWarnings implements ErrorListener {
   private final boolean verbose;
 
-  public SuppressXSLTCompilerWarnings(boolean verbose) {
+  public SuppressCompilerWarnings(boolean verbose) {
     this.verbose = verbose;
   }
 
