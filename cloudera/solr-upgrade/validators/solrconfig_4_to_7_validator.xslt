@@ -80,6 +80,18 @@
   <xsl:apply-templates select="child::node()"/>
 </xsl:template>
 
+<xsl:template match="jmx">
+  <incompatibility>
+    <level>warning</level>
+    <jira_number>SOLR-9959</jira_number>
+    <description>&lt;jmx&gt; element in solrconfig.xml is no longer supported.</description>
+    <recommendation>Equivalent functionality can be configured in solr.xml using &lt;metrics&gt;&lt;reporter ...&gt; element and SolrJmxReporter implementation.</recommendation>
+    <reindexing>no</reindexing>
+    <transform>no</transform>
+  </incompatibility>
+  <xsl:apply-templates select="child::node()"/>
+</xsl:template>
+
 <xsl:template match="infoStream">
   <xsl:if test="@file">
     <incompatibility>
