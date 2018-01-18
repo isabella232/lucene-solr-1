@@ -7,5 +7,7 @@
              validatorPath="solrconfig_4_to_7_validator.xslt"
              transformerPath="solrconfig_4_to_7_transformer.xslt" />
   <processor configType="solrxml"
-             validatorPath="solrxml_4_to_7_validator.xslt" />
+             validatorPath="solrxml_4_to_7_validator.xslt"
+             transformerPath="solrxml_4_to_7_transformer.xslt" />
+             
 </upgradeProcessors>

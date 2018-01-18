@@ -32,6 +32,30 @@
   <xsl:apply-templates select="node() | @*"/>
 </xsl:template>
 
+<xsl:template match="solr">
+  <xsl:if test="./cores">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>TBD</jira_number>
+      <description>Solr no longers supports solr.xml files with a cores element. Cores are now auto discovered instead.</description>
+      <recommendation>Update your solr.xml file to the new format: https://cwiki.apache.org/confluence/display/solr/Moving+to+the+New+solr.xml+Format</recommendation>
+      <reindexing>no</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+  <xsl:if test="./solrcloud/str[@name='zkCredientialsProvider']">
+    <incompatibility>
+      <level>info</level>
+      <jira_number>SOLR-7624</jira_number>
+      <description>The deprecated zkCredientialsProvider element in solrcloud section of solr.xml is now removed.</description>
+      <recommendation>Use the correct spelling (zkCredentialsProvider) instead.</recommendation>
+      <reindexing>no</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+  <xsl:apply-templates select="child::node()"/>
+</xsl:template>
+
 <xsl:template match="str[@name='adminHandler'][text()='org.apache.solr.handler.admin.SecureAdminHandlers']">
   <incompatibility>
     <level>error</level>
