@@ -18,5 +18,7 @@ ADD http://archive.cloudera.com/cdh5/cdh/5/${source_version}.tar.gz /
 RUN cd / && \
   tar xvf ${source_version}.tar.gz && \
   rm -f ${source_version}.tar.gz && \
-  mv ${source_version} solr-from
+  mv ${source_version} solr-from && \
+  cp /solr-from/contrib/depends-sentry-libs/lib/*  /solr-from/example/lib/ext
+
 

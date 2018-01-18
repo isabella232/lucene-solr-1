@@ -226,6 +226,17 @@ public class DockerRunner {
     try {
       DockerClient docker = createOsDependentDockerClient();
 
+      LOG.info("Client to docker created, docker daemon version: {}", docker.info().serverVersion());
+      allClients.add(docker);
+      return docker;
+    } catch (DockerException | InterruptedException e) {
+      String linuxMessage = isLinux() ? DOCKER_HTTP_ADDRESS : "default unix socket.";
+      throw new RuntimeException("Docker is not accessible. Make sure docker is running on " + linuxMessage, e);
+    }
+  }
+
+  private static void pullDependentImages() {
+    try (DockerClient docker = dockerClient()) {
       List<Image> alpineJavaImages = docker.listImages(DockerClient.ListImagesParam.byName(LINUX_JAVA_IMAGE_NAME));
       if (alpineJavaImages.isEmpty()) {
         docker.pull(LINUX_JAVA_IMAGE_NAME);
@@ -240,12 +251,8 @@ public class DockerRunner {
       if (dataNodeImage.isEmpty()) {
         docker.pull(DATANODE_IMAGE_NAME);
       }
-      LOG.info("Client to docker created, docker daemon version: {}", docker.info().serverVersion());
-      allClients.add(docker);
-      return docker;
-    } catch (DockerException | InterruptedException e) {
-      String linuxMessage = isLinux() ? DOCKER_HTTP_ADDRESS : "default unix socket.";
-      throw new RuntimeException("Docker is not accessible. Make sure docker is running on " + linuxMessage, e);
+    } catch (InterruptedException | DockerException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -306,6 +313,7 @@ public class DockerRunner {
   private void buildSolrAll() {
     String cdhVersion = System.getProperty(SOLR_SOURCE_VERSION_PROPERTY, DEFAULT_SOLR_CDH_FROM_VERSION);
     try {
+      pullDependentImages();
       buildImage("solr_all", IMAGE_SOLR_ALL,
           ImmutableMap.of(SOLR_SOURCE_VERSION_PROPERTY, SOLR_CDH_VERSION_PREFIX + cdhVersion));
     } catch (RuntimeException e) {
