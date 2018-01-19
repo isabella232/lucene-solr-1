@@ -601,7 +601,9 @@
       <arg line="${mvn.settings.line}" />
       <arg value="clean" />
       <arg value="package" />
-      <arg value="-DskipTests" />
+      <arg value="-Dmaven.test.skip" />
+      <arg value="-P" />
+      <arg value="!solr-dependencies-available-in-maven" />
     </exec>
 
     <mkdir dir="${dest}/${fullnamever}"/>
