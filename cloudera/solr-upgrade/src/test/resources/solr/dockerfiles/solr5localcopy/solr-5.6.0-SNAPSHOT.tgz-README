@@ -1,0 +1,1 @@
+Goto <lucene-solr home>/solr and run 'ant package' to make this symlink to be available.
