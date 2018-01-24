@@ -58,7 +58,7 @@
   <xsl:if test="(@class='solr.SpatialRecursivePrefixTreeFieldType'
                  or @class='solr.SpatialPointVectorFieldType'
                  or @class='solr.BBoxField') and @units">
-    <warning>
+    <incompatibility>
       <level>error</level>
       <jira_number>SOLR-6797</jira_number>
       <description>'units' attribute for spatial field type (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select
@@ -72,7 +72,7 @@
       </recommendation>
       <reindexing>Required</reindexing>
       <transform>no</transform>
-    </warning>
+    </incompatibility>
   </xsl:if>
 
   <xsl:apply-templates select="child::node()"/>
@@ -101,6 +101,19 @@
   <xsl:apply-templates select="child::node()"/>
 </xsl:template>
 
+<xsl:template match="charFilter">
+  <xsl:if test="@class='solr.LegacyHTMLStripCharFilterFactory'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>TODO</jira_number>
+      <description>LegacyHTMLStripCharFilterFactory has been removed</description>
+      <recommendation>TBD</recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+  <xsl:apply-templates select="child::node()"/>
+</xsl:template>
 
 <xsl:template match="filter">
   <xsl:if test="@class='solr.BeiderMorseFilterFactory' and //field/@type=../../@name">
@@ -116,34 +129,12 @@
     </incompatibility>
   </xsl:if>
 
-  <xsl:if test="@class='solr.LegacyHTMLStripCharFilter'">
-    <incompatibility>
-      <level>error</level>
-      <jira_number>TODO</jira_number>
-      <description>LegacyHTMLStripCharFilter has been removed</description>
-      <recommendation>TBD</recommendation>
-      <reindexing>Required</reindexing>
-      <transform>no</transform>
-    </incompatibility>
-  </xsl:if>
-
   <xsl:if test="@class='solr.ThaiWordFilterFactory'">
     <incompatibility>
       <level>error</level>
       <jira_number>LUCENE-4984</jira_number>
       <description>ThaiWordFilterFactory has been removed</description>
       <recommendation>Replace with ThaiTokenizerFactory</recommendation>
-      <reindexing>Required</reindexing>
-      <transform>no</transform>
-    </incompatibility>
-  </xsl:if>
-
-  <xsl:if test="@class='solr.SmartChineseWordTokenFilterFactory'">
-    <incompatibility>
-      <level>error</level>
-      <jira_number>LUCENE-4984</jira_number>
-      <description>SmartChineseWordTokenFilterFactory has been removed</description>
-      <recommendation>Replace with HMMChineseTokenizerFactory</recommendation>
       <reindexing>Required</reindexing>
       <transform>no</transform>
     </incompatibility>
@@ -287,7 +278,7 @@
 
 <xsl:template match="analyzer">
 
-  <xsl:if test="@class='solr.ChineseAnalyzer'">
+  <xsl:if test="@class='org.apache.lucene.analysis.cn.ChineseAnalyzer'">
     <incompatibility>
       <level>error</level>
       <jira_number>SOLR-1410</jira_number>
@@ -298,7 +289,7 @@
     </incompatibility>
   </xsl:if>
 
-  <xsl:if test="@class='solr.SnowballAnalyzer'">
+  <xsl:if test="@class='org.apache.lucene.analysis.snowball.SnowballAnalyzer'">
     <incompatibility>
       <level>error</level>
       <jira_number>SOLR-1410</jira_number>
@@ -309,7 +300,7 @@
     </incompatibility>
   </xsl:if>
 
-  <xsl:if test="@class='solr.PatternAnalyzer'">
+  <xsl:if test="@class='org.apache.lucene.analysis.miscellaneous.PatternAnalyzer'">
     <incompatibility>
       <level>error</level>
       <jira_number>SOLR-1410</jira_number>
@@ -354,7 +345,7 @@
     <incompatibility>
       <level>info</level>
       <jira_number>SOLR-8261, SOLR-8329</jira_number>
-      <description>SchemaSimilarityFactory has been modified to use BM25Similarity as the default for fieldTypes that do not explicitly declare a Similarity</description>
+      <description>SchemaSimilarityFactory has been modified to use BM25SimilarityFactory as the default for fieldTypes that do not explicitly declare a Similarity</description>
       <recommendation>The legacy behavior of using ClassicSimilarity as the default will occur if the luceneMatchVersion for the collection is less then 6.0, or the 'defaultSimFromFieldType' configuration option may be used to specify any default of your choosing</recommendation>
       <reindexing>TBD</reindexing>
       <transform>no</transform>

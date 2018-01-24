@@ -226,7 +226,7 @@ public class DockerRunner {
     try {
       DockerClient docker = createOsDependentDockerClient();
 
-      LOG.info("Client to docker created, docker daemon version: {}", docker.info().serverVersion());
+      LOG.info("Client to docker created", docker.version());
       allClients.add(docker);
       return docker;
     } catch (DockerException | InterruptedException e) {
