@@ -21,6 +21,7 @@
 
 <config>
 
+  <lib dir="/solr-from/example/solr/lib" regex=".*jar" />
   <dataDir>${solr.data.dir:}</dataDir>
 
   <directoryFactory name="DirectoryFactory"
@@ -28,6 +29,10 @@
   <schemaFactory class="ClassicIndexSchemaFactory"/>
 
   <luceneMatchVersion>${tests.luceneMatchVersion:LATEST}</luceneMatchVersion>
+  <requestDispatcher >
+    <requestParsers enableRemoteStreaming="true" multipartUploadLimitInKB="2048" />
+    <httpCaching never304="true" />
+  </requestDispatcher>
 
   <updateHandler class="solr.DirectUpdateHandler2">
     <commitWithin>
@@ -44,21 +49,28 @@
     </lst>
 
   </requestHandler>
+  <requestHandler name="/get" class="solr.SecureRealTimeGetHandler">
+  </requestHandler>
+  <requestHandler name="/analysis/field"
+                  startup="lazy"
+                  class="solr.SecureFieldAnalysisRequestHandler" />
+  <requestHandler name="/analysis/document"
+                  class="solr.SecureDocumentAnalysisRequestHandler"
+                  startup="lazy" />
+  <requestHandler name="/replication" class="solr.SecureReplicationHandler" >
+  </requestHandler>
+  <searchComponent class="solr.HighlightComponent" name="highlight">
+    <highlighting class="org.apache.solr.highlight.PostingsSolrHighlighter"/>
+  </searchComponent>
+  <searchComponent name="queryIndexAuthorization"
+                   class="org.apache.solr.handler.component.QueryIndexAuthorizationComponent"/>
+  <searchComponent name="secureGet" class="org.apache.solr.handler.component.SecureRealTimeGetComponent">
+  </searchComponent>
   <indexConfig>
     <termIndexInterval>128</termIndexInterval>
     <infoStream file="infostream.txt">true</infoStream>
     <mergeFactor>10</mergeFactor>
-    <searchComponent class="solr.HighlightComponent" name="highlight">
-      <highlighting class="org.apache.solr.highlight.PostingsSolrHighlighter"/>
-    </searchComponent>
-    <searchComponent name="queryIndexAuthorization"
-                     class="org.apache.solr.handler.component.QueryIndexAuthorizationComponent"/>
-    <searchComponent name="secureGet" class="org.apache.solr.handler.component.SecureRealTimeGetComponent"/>
-
-
-
   </indexConfig>
-
 
   <updateRequestProcessorChain name="default-chain">
     <!--Already missing from CDH5-->

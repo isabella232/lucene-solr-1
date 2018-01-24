@@ -16,13 +16,58 @@
  limitations under the License.
 -->
 <schema name="minimal" version="1.1">
+  <!--<luceneMatchVersion>3.3</luceneMatchVersion>-->
   <fieldType name="string" class="solr.StrField"/>
   <fieldType name="int" class="solr.TrieIntField" precisionStep="0" omitNorms="true" positionIncrementGap="0"/>
   <fieldType name="long" class="solr.TrieLongField" precisionStep="0" omitNorms="true" positionIncrementGap="0"/>
   <dynamicField name="*" type="string" indexed="true" stored="true"/>
+  <fieldType name="string2" class="solr.TextField">
+    <analyzer type="index">
+      <tokenizer class="solr.CJKTokenizerFactory"/>
+      <filter class="solr.BeiderMorseFilterFactory"/>
+      <filter class="solr.ThaiWordFilterFactory"/>
+      <filter class="solr.SmartChineseWordTokenFilterFactory"/>
+      <filter class="solr.ICUCollationKeyFilterFactory" locale="de"/>
+      <filter class="solr.CollationKeyFilterFactory" language="de"/>
+      <!-- <filter class="solr.PositionFilterFactory"/> -->
+      <!-- <filter class="org.apache.lucene.analysis.synonym.SlowSynonymFilterFactory"/> -->
+      <!--<filter class="solr.FSTSynonymFilterFactory"/>-->
+      <filter class="solr.ChineseFilterFactory"/>
+      <charFilter class="solr.LegacyHTMLStripCharFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.SmartChineseSentenceTokenizerFactory"/>
+    </analyzer>
+  </fieldType>
+  <fieldType name="string3" class="solr.TextField">
+    <analyzer type="query">
+      <tokenizer class="solr.ArabicLetterTokenizerFactory"/>
+    </analyzer>
+    <analyzer type="index">
+      <tokenizer class="solr.CJKTokenizerFactory"/>
+    </analyzer>
+  </fieldType>
+  <fieldType name="string4" class="solr.TextField">
+    <analyzer type="query">
+      <tokenizer class="solr.RussianLetterTokenizerFactory"/>
+    </analyzer>
+    <analyzer type="index" class="org.apache.lucene.analysis.cn.ChineseAnalyzer">
+    </analyzer>
+  </fieldType>
+  <!--<fieldType name="string5" class="solr.TextField">-->
+    <!--<analyzer type="index" class="org.apache.lucene.analysis.snowball.SnowballAnalyzer">-->
+    <!--</analyzer>-->
+  <!--</fieldType>-->
+  <fieldType name="location_rpt" class="solr.SpatialRecursivePrefixTreeFieldType"
+             geo="true" distErrPct="0.025" maxDistErr="0.000009" units="degrees" />
+
   <!-- for versioning -->
   <field name="_version_" type="long" indexed="true" stored="true"/>
   <field name="_root_" type="string" indexed="true" stored="true" multiValued="false" required="false"/>
   <field name="id" type="string" indexed="true" stored="true"/>
+  <field name="t123" type="string2" indexed="true" stored="true"/>
   <uniqueKey>id</uniqueKey>
+  <similarity class="solr.SchemaSimilarityFactory"/>
+  <solrQueryParser defaultOperator="OR"/>
+  <defaultSearchField>id</defaultSearchField>
 </schema>

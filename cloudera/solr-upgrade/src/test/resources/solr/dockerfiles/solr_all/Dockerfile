@@ -1,4 +1,4 @@
-FROM anapsix/alpine-java:latest
+FROM anapsix/alpine-java:8_jdk_unlimited
 
 ARG docker_source_version
 
@@ -18,7 +18,11 @@ ADD http://archive.cloudera.com/cdh5/cdh/5/${source_version}.tar.gz /
 RUN cd / && \
   tar xvf ${source_version}.tar.gz && \
   rm -f ${source_version}.tar.gz && \
-  mv ${source_version} solr-from && \
-  cp /solr-from/contrib/depends-sentry-libs/lib/*  /solr-from/example/lib/ext
+  mv ${source_version} solr-from
 
-
+RUN mkdir /solr-from/example/solr/lib && \
+  cp /solr-from/contrib/depends-sentry-libs/lib/* /solr-from/example/solr/lib && \
+  cp /solr-from/contrib/analysis-extras/lib/*.jar /solr-from/example/solr/lib && \
+  cp /solr-from/contrib/analysis-extras/lucene-libs/*.jar /solr-from/example/solr/lib && \
+  jar tf /solr-from/example/webapps/solr.war | grep analyzers-common |xargs jar xvf /solr-from/example/webapps/solr.war && \
+  cp WEB-INF/lib/lucene-analyzers-common* /solr-from/example/solr/lib

@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.solr.config.upgrade.UpgradeConfigException;
+import org.hamcrest.Matcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.junit.After;
 import org.junit.Test;
@@ -36,9 +37,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
+import static org.apache.solr.util.RegexMatcher.matchesPattern;
 import static org.hamcrest.CoreMatchers.allOf;
-import static org.junit.internal.matchers.IsCollectionContaining.hasItems;
 import static org.junit.matchers.JUnitMatchers.containsString;
+import static org.junit.matchers.JUnitMatchers.hasItem;
 
 public class UpgradeValidatorTest extends UpgradeTestBase {
   @After
@@ -68,28 +70,68 @@ public class UpgradeValidatorTest extends UpgradeTestBase {
     } catch (UpgradeConfigException e) {
     }
 
-    assertThat(configIncompatibilities("error"), hasItems(
+    assertMatchesAll(configIncompatibilities("error"),
         containsString("infoStream"),
         allOf(containsString("queryIndexAuthorization"), containsString("QueryIndexAuthorizationComponent")),
-        allOf(containsString("secureGet"), containsString("SecureRealTimeGetComponent"))
-
-    ));
-    assertThat(configIncompatibilities("info"), hasItems(
+        allOf(containsString("secureGet"), containsString("SecureRealTimeGetComponent")),
+        allOf(containsString("/analysis/field"), containsString("SecureFieldAnalysisRequestHandler")),
+        allOf(containsString("/analysis/document"), containsString("SecureDocumentAnalysisRequestHandler")),
+        allOf(containsString("replication"), containsString("SecureReplicationHandler")),
+        allOf(containsString("/get"), containsString("SecureRealTimeGetHandler"))
+    );
+    assertMatchesAll(configIncompatibilities("info"),
         containsString("mergeFactor"),
         containsString("UniqFieldsUpdateProcessorFactory"),
-        allOf(containsString("default response type"), containsString("JSON"))
-    ));
-    assertThat(configIncompatibilities("warn"), hasItems(
+        allOf(containsString("default response type"), containsString("JSON")),
+        allOf(containsString("handleSelect"), containsString("defaults to false"))
+    );
+    assertMatchesAll(configIncompatibilities("warn"),
         allOf(containsString("PostingsSolrHighlighter"), containsString("UnifiedSolrHighlighter"))
-    ));
-    //upgradeSchema();
+    );
+    try {
+      upgradeSchema();
+      fail();
+    } catch (UpgradeConfigException e) {
 
+    }
+    assertMatchesAll(schemaIncompatibilities("info"),
+      containsString("SchemaSimilarityFactory"),
+      matchesPattern("BeiderMorseFilterFactory.*rebuild"),
+      matchesPattern("SchemaSimilarityFactory.*BM25SimilarityFactory")
+    );
+    assertMatchesAll(schemaIncompatibilities("error"),
+      containsString("CJKTokenizerFactory"),
+      allOf(containsString("SpatialRecursivePrefixTreeFieldType"), containsString("deprecated")),
+      matchesPattern("LegacyHTMLStripCharFilterFactory.*removed"),
+      matchesPattern("ThaiWordFilterFactory.*removed"),
+      matchesPattern("ICUCollationKeyFilterFactory.*removed"),
+      matchesPattern("CollationKeyFilterFactory.*removed"),
+      matchesPattern("ChineseFilterFactory.*removed"),
+      matchesPattern("SmartChineseSentenceTokenizerFactory.*removed"),
+      matchesPattern("ArabicLetterTokenizerFactory.*removed"),
+      matchesPattern("CJKTokenizerFactory.*removed"),
+      matchesPattern("RussianLetterTokenizerFactory.*removed"),
+      matchesPattern("ChineseAnalyzer.*removed"),
+      matchesPattern("solrQueryParser.*no.*supported."),
+      matchesPattern("defaultSearchField.*no.*supported.")
+
+    );
     stopSolr4();
 
   }
 
+  private void assertMatchesAll(Set<String> findings, Matcher<String> ... matchers) {
+    for (Matcher<String> m: matchers){
+      assertThat(findings, hasItem(m));
+    }
+  }
+
   private Set<String> configIncompatibilities(String level) throws XPathExpressionException, FileNotFoundException {
-    return asSet(String.format(INCOMPATIBILITY_DESCRIPTIONS, level), configValidationResult());
+    return asSet(String.format(INCOMPATIBILITY_DESCRIPTIONS, level), validationResult("solrconfig_validation.xml"));
+  }
+
+  private Set<String> schemaIncompatibilities(String level) throws XPathExpressionException, FileNotFoundException {
+    return asSet(String.format(INCOMPATIBILITY_DESCRIPTIONS, level), validationResult("schema_validation.xml"));
   }
 
   private Set<String> asSet(String xpath, Path input) throws XPathExpressionException, FileNotFoundException {
@@ -102,8 +144,8 @@ public class UpgradeValidatorTest extends UpgradeTestBase {
     return incompatibilityList;
   }
 
-  private Path configValidationResult() {
-    return upgradedDir.resolve("solrconfig_validation.xml");
+  private Path validationResult(String fileName) {
+    return upgradedDir.resolve(fileName);
   }
 
 }
