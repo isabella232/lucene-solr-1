@@ -118,14 +118,17 @@ public class DockerRunnerTestBase extends SolrTestCaseJ4 {
     return System.getProperties().containsKey("skipCleanup");
   }
 
-  protected CollectionAdminResponse createCollectionBasedOnConfig(String collectionName, String configName) throws IOException, SolrServerException {
-    dockerRunner.uploadConfig(configset(configName), configName);
+  protected CollectionAdminResponse createCollectionBasedOnConfig(String collectionName, String configName, Path configDir) throws IOException, SolrServerException {
+    dockerRunner.uploadConfig(configDir, configName);
     return createCollection(collectionName, configName);
+  }
+  
+  protected CollectionAdminResponse createCollectionBasedOnConfig(String collectionName, String configName) throws IOException, SolrServerException {
+    return createCollectionBasedOnConfig(collectionName, configName, configset(configName));
   }
 
   protected CollectionAdminResponse createLegacyCollectionBasedOnConfig(String collectionName, String configName) throws IOException, SolrServerException {
-    dockerRunner.uploadConfig(TEST_PATH().resolve("configsets").resolve("legacy4_10_3").resolve(configName).resolve("conf"), configName);
-    return createCollection(collectionName, configName);
+    return createCollectionBasedOnConfig(collectionName, configName, TEST_PATH().resolve("configsets").resolve("legacy4_10_3").resolve(configName).resolve("conf"));
   }
 
   protected CollectionAdminResponse createCollection(String collectionName, String configName) throws SolrServerException, IOException {
