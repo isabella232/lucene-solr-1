@@ -48,6 +48,14 @@ public class UpgradeToolUtil {
     doUpgradeFile(configPath, targetDir, ConfigType.SOLRCONFIG_XML, dryRun);
   }
 
+  public static void doUpgradeSolrXml(Path solrXmlPath, Path targetDir) {
+    doUpgradeFile(solrXmlPath, targetDir, ConfigType.SOLR_XML, false);
+  }
+
+  public static void doUpgradeSolrXml(Path solrXmlPath, Path targetDir, boolean dryRun) {
+    doUpgradeFile(solrXmlPath, targetDir, ConfigType.SOLR_XML, dryRun);
+  }
+
   private static void doUpgradeFile(Path schemaPath, Path targetSchemaDir, ConfigType confType, boolean dryRun) {
     URL url = DockerRunner.class.getResource("/solr_4_to_7_processors.xml");
     Path processorXmlPath = Paths.get(url.getPath());
