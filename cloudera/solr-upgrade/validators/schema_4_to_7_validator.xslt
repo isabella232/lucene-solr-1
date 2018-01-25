@@ -78,6 +78,30 @@
   <xsl:apply-templates select="child::node()"/>
 </xsl:template>
 
+
+<xsl:template match="field">
+
+<!-- BAD EXAMPLE:
+  <field name="id" type="string" indexed="true" stored="true"/>
+  <field name="_root_" type="int" indexed="true" stored="false"/>
+-->
+  <xsl:if test="@name='_root_' and //field[@name='id']/@type != @type">
+      <incompatibility>
+      <level>error</level>
+      <jira_number></jira_number>
+      <description>_root_ field must be defined using the exact same type as the uniqueKey field</description>
+      <recommendation>
+        Change the schema so that the "type" attribute of the _root_ field matches the "type" attribute of the "id" field.
+      </recommendation>
+      <reindexing>Required</reindexing>
+      <transform>no</transform>
+    </incompatibility>
+  </xsl:if>
+
+  <xsl:apply-templates select="child::node()"/>
+</xsl:template>
+
+
 <xsl:template match="filter">
   <xsl:if test="@class='solr.BeiderMorseFilterFactory' and //field/@type=../../@name">
     <incompatibility>
