@@ -106,8 +106,12 @@ public class DockerRunner {
   }
 
   public void copy4_10_3SolrXml(File dstRoot) throws IOException {
-    File xmlF = new File(SolrTestCaseJ4.TEST_HOME(), "solr-4.10.3-compat.xml");
-    FileUtils.copyFile(xmlF, new File(dstRoot, "solr.xml"));
+    copySolrXml(dstRoot, SolrTestCaseJ4.TEST_HOME(), "solr-4.10.3-compat.xml");
+  }
+
+  public void copySolrXml(File destDir, String sourceDir, String sourceFileName) throws IOException {
+    File xmlF = new File(sourceDir, sourceFileName);
+    FileUtils.copyFile(xmlF, new File(destDir, "solr.xml"));
   }
 
 

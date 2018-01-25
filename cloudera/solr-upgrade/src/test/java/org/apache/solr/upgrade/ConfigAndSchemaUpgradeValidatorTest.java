@@ -29,11 +29,9 @@ import java.util.Set;
 
 import org.apache.solr.config.upgrade.UpgradeConfigException;
 import org.hamcrest.Matcher;
-import org.apache.zookeeper.ZooKeeper;
 import org.junit.After;
 import org.junit.Test;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
@@ -42,7 +40,7 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.junit.matchers.JUnitMatchers.containsString;
 import static org.junit.matchers.JUnitMatchers.hasItem;
 
-public class UpgradeValidatorTest extends UpgradeTestBase {
+public class ConfigAndSchemaUpgradeValidatorTest extends UpgradeTestBase {
   @After
   public void dumpSolrLogFileIfTestFailed() {
     if(solr4 != null) {
