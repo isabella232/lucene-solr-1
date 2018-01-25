@@ -51,14 +51,21 @@
 <xsl:template match="indexConfig/nrtMode">
   <xsl:message>* Removed "nrtMode" configuration from "indexConfig" section</xsl:message>
 </xsl:template>
+<xsl:template match="indexConfig/mergeFactor">
+  <xsl:message>* Removed "mergeFactor" configuration from "indexConfig" section</xsl:message>
+</xsl:template>
+<xsl:template match="indexConfig/mergePolicy">
+  <xsl:message>* Removed "mergeFactor" configuration from "indexConfig" section</xsl:message>
+</xsl:template>
+<xsl:template match="indexConfig/maxMergeDocs">
+  <xsl:message>* Removed "mergeFactor" configuration from "indexConfig" section</xsl:message>
+</xsl:template>
 
 <!-- Update UniqFieldsUpdateProcessorFactory config section to use correct param name -->
 <xsl:template match="updateRequestProcessorChain/processor[@class='org.apache.solr.update.processor.UniqFieldsUpdateProcessorFactory']/lst[@name='fields']">
   <xsl:message>* Using &lt;arr name="fieldName"&gt; init param style for UniqFieldsUpdateProcessorFactory</xsl:message>
   <arr name="fieldName">
-    <xsl:copy>
-      <xsl:apply-templates select="child::node()"/>
-    </xsl:copy>
+    <xsl:apply-templates select="child::node()"/>
   </arr>
 </xsl:template>
 

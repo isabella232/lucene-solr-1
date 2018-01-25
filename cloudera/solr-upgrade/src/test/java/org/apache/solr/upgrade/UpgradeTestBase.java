@@ -62,6 +62,12 @@ public class UpgradeTestBase extends DockerRunnerTestBase {
     zooKeeper = dockerRunner.zooKeeperRunner();
     zooKeeper.start();
     solr = dockerRunner.solrCloudRunner(zooKeeper);
+    try {
+      copyMinFullSetup(new File(solr.getNodeDir()));
+    } catch (IOException e) {
+      new RuntimeException(e);
+     }
+
   }
 
 
@@ -77,19 +83,27 @@ public class UpgradeTestBase extends DockerRunnerTestBase {
   }
 
   public void upgradeConfig(String configName) throws IOException {
+    upgradeConfig(configName, false);
+  }
+
+  public void upgradeConfig(String configName, boolean dryRun) throws IOException {
     Path solrConfig = downLoadConfig(configName);
-    UpgradeToolUtil.doUpgradeConfig(solrConfig, upgradedDir);
+    UpgradeToolUtil.doUpgradeConfig(solrConfig, upgradedDir, dryRun);
     LOG.info("converted solrconfig.xml:");
     LOG.info(new String(Files.readAllBytes(upgradedDir.resolve("solrconfig.xml"))));
     Files.delete(upgradedDir.resolve("solrconfig_validation.xml"));
   }
 
-  public void upgradeSchema() throws IOException {
-    Path schemaPath = solr4.getSchemaCopy(COLLECTION_NAME);
-    UpgradeToolUtil.doUpgradeSchema(schemaPath, upgradedDir);
+  public void upgradeSchema(String configName, boolean dryRun) throws IOException {
+    Path schemaPath = solr4.getSchemaCopy(configName);
+    UpgradeToolUtil.doUpgradeSchema(schemaPath, upgradedDir, dryRun);
     LOG.info("converted schema.xml:");
     LOG.info(new String(Files.readAllBytes(upgradedDir.resolve("schema.xml"))));
     Files.delete(upgradedDir.resolve("schema_validation.xml"));
+  }
+
+  public void upgradeSchema() throws IOException {
+    upgradeSchema(COLLECTION_NAME, false);
   }
 
   protected void createSolr4Cluster() {

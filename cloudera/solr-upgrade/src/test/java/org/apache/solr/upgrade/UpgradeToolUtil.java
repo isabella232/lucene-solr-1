@@ -33,20 +33,26 @@ public class UpgradeToolUtil {
   private static Integer returnValue = 0;
 
   public static void doUpgradeSchema(Path schemaPath, Path targetSchemaDir) {
-    doUpgradeFile(schemaPath, targetSchemaDir, ConfigType.SCHEMA_XML);
+    doUpgradeFile(schemaPath, targetSchemaDir, ConfigType.SCHEMA_XML, false);
+  }
 
+  public static void doUpgradeSchema(Path schemaPath, Path targetSchemaDir, boolean dryRun) {
+    doUpgradeFile(schemaPath, targetSchemaDir, ConfigType.SCHEMA_XML, dryRun);
   }
 
   public static void doUpgradeConfig(Path configPath, Path targetDir) {
-    doUpgradeFile(configPath, targetDir, ConfigType.SOLRCONFIG_XML);
-
+    doUpgradeFile(configPath, targetDir, ConfigType.SOLRCONFIG_XML, false);
   }
 
-  private static void doUpgradeFile(Path schemaPath, Path targetSchemaDir, ConfigType confType) {
+  public static void doUpgradeConfig(Path configPath, Path targetDir, boolean dryRun) {
+    doUpgradeFile(configPath, targetDir, ConfigType.SOLRCONFIG_XML, dryRun);
+  }
+
+  private static void doUpgradeFile(Path schemaPath, Path targetSchemaDir, ConfigType confType, boolean dryRun) {
     URL url = DockerRunner.class.getResource("/solr_4_to_7_processors.xml");
     Path processorXmlPath = Paths.get(url.getPath());
     try {
-      ToolParams params = new ToolParams(confType, schemaPath, processorXmlPath, targetSchemaDir, false, false);
+      ToolParams params = new ToolParams(confType, schemaPath, processorXmlPath, targetSchemaDir, dryRun, false);
       int res = new ConfigUpgradeTool().runTool(params);
       validateReturnCodes(schemaPath, res);
     } catch (Exception e) {
