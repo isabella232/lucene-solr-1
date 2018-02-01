@@ -24,7 +24,13 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
@@ -100,7 +106,19 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   
   public static Metrics metrics;
   private static Boolean kerberosInit;
-  
+
+  // we use this cache for FileSystem instances when we don't have access to a long lived instance
+  private com.google.common.cache.Cache<String,FileSystem> tmpFsCache = CacheBuilder.newBuilder()
+          .concurrencyLevel(10)
+          .maximumSize(1000)
+          .expireAfterAccess(5, TimeUnit.MINUTES).removalListener(new RemovalListener<String,FileSystem>() {
+            @Override
+            public void onRemoval(RemovalNotification<String,FileSystem> rn) {
+              IOUtils.closeQuietly(rn.getValue());
+            }
+          })
+          .build();
+
   private final static class MetricsHolder {
     // [JCIP SE, Goetz, 16.6] Lazy initialization
     // Won't load until MetricsHolder is referenced
@@ -130,7 +148,19 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
       initKerberos();
     }
   }
-  
+
+
+  @Override
+  public void close() throws IOException {
+    super.close();
+    Collection<FileSystem> values = tmpFsCache.asMap().values();
+    for (FileSystem fs : values) {
+      IOUtils.closeQuietly(fs);
+    }
+    tmpFsCache.invalidateAll();
+    tmpFsCache.cleanUp();
+  }
+
   @Override
   protected Directory create(String path, DirContext dirContext)
       throws IOException {
@@ -145,7 +175,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
     boolean blockCacheGlobal = params.getBool(BLOCKCACHE_GLOBAL, false); // default to false for back compat
     boolean blockCacheReadEnabled = params.getBool(BLOCKCACHE_READ_ENABLED, true);
     boolean blockCacheWriteEnabled = params.getBool(BLOCKCACHE_WRITE_ENABLED, true);
-    
+
     if (blockCacheWriteEnabled) {
       LOG.warn("Using " + BLOCKCACHE_WRITE_ENABLED
           + " is currently buggy and can result in readers seeing a corrupted view of the index - this option is enabled but will not be used.");
@@ -245,17 +275,14 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   
   @Override
   public boolean exists(String path) {
-    Path hdfsDirPath = new Path(path);
-    Configuration conf = getConf();
-    FileSystem fileSystem = null;
+    final Path hdfsDirPath = new Path(path);
+    FileSystem fileSystem = getCachedFileSystem(path);
+
     try {
-      fileSystem = FileSystem.get(hdfsDirPath.toUri(), conf);
       return fileSystem.exists(hdfsDirPath);
     } catch (IOException e) {
       LOG.error("Error checking if hdfs path exists", e);
       throw new RuntimeException("Error checking if hdfs path exists", e);
-    } finally {
-      IOUtils.closeQuietly(fileSystem);
     }
   }
   
@@ -269,10 +296,9 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   
   protected synchronized void removeDirectory(CacheValue cacheValue)
       throws IOException {
-    Configuration conf = getConf();
-    FileSystem fileSystem = null;
+    FileSystem fileSystem = getCachedFileSystem(cacheValue.path);
+
     try {
-      fileSystem = FileSystem.get(new URI(cacheValue.path), conf);
       boolean success = fileSystem.delete(new Path(cacheValue.path), true);
       if (!success) {
         throw new RuntimeException("Could not remove directory");
@@ -281,8 +307,6 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
       LOG.error("Could not remove directory", e);
       throw new SolrException(ErrorCode.SERVER_ERROR,
           "Could not remove directory", e);
-    } finally {
-      IOUtils.closeQuietly(fileSystem);
     }
   }
   
@@ -353,19 +377,29 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   @Override
   public long size(String path) throws IOException {
     Path hdfsDirPath = new Path(path);
-    FileSystem fileSystem = null;
+    FileSystem fileSystem = getCachedFileSystem(path);
     try {
-      fileSystem = FileSystem.get(hdfsDirPath.toUri(), getConf());
-      long size = fileSystem.getContentSummary(hdfsDirPath).getLength();
-      return size;
+      return fileSystem.getContentSummary(hdfsDirPath).getLength();
     } catch (IOException e) {
       LOG.error("Error checking if hdfs path exists", e);
       throw new SolrException(ErrorCode.SERVER_ERROR, "Error checking if hdfs path exists", e);
-    } finally {
-      IOUtils.closeQuietly(fileSystem);
     }
   }
-  
+
+  private FileSystem getCachedFileSystem(final String path) {
+    try {
+      // no need to close the fs, the cache will do it
+      return tmpFsCache.get(path, new Callable<FileSystem>() {
+        @Override
+        public FileSystem call() throws Exception {
+          return FileSystem.get(new Path(path).toUri(), HdfsDirectoryFactory.this.getConf());
+        }
+      });
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   public String getConfDir() {
     return confDir;
   }
