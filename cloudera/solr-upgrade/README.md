@@ -161,4 +161,47 @@ Once the CDH upgrade is complete, global metadata (e.g. solr.xml) compatible wit
 Restart SOLR service so that SOLR can start using latest configuration metadata uploaded as part of the last step.
 
 ### Recreate collections in SOLR
-TBD
+Once the upgraded SOLR service is available, the migrated metadata folder can be used to recreate collections with empty index. Note, that this command uses HDFS, so the executer user must have permission for the given folder.
+
+The command requires three options:
+* `-c metadata_folder_path`: the metadata folder that was downloaded and migrated earlier
+* `-d local_work_dir`: a temporal folder used by the script
+* `-h hdfs_work_dir`: a work folder on HDFS that can be accessed by SOLR service 
+ 
+
+```bash
+./solr-upgrade.sh  bootstrap-collections -c /backups/solr -d /tmp/reinit" -h /solr-reinit/
+Cleaning up /tmp/reinit
+---------- Generating backup-formatted directories... ----------
+Generating backup-format for collection collection1
+Copy config named myschemaless for collection collection1
+Generating backup.properties for collection collection1
+Generating collection_state.json for collection collection1
+Generating backup-format for collection collection2
+Copy config named myschemaless for collection collection2
+Generating backup.properties for collection collection2
+Generating collection_state.json for collection collection2
+Generating backup-format for collection collection3
+Copy config named myschemaless for collection collection3
+Generating backup.properties for collection collection3
+Generating collection_state.json for collection collection3
+---------- Successfully built backup-formatted directories ----------
+---------- Uploading backup directories to /solr/_reinit/ ----------
+---------- Re-initializing collection1 ----------
+initializing...
+initializing...
+---------- Re-initialization of collection1 completed successfully. ----------
+---------- Re-initializing collection2 ----------
+initializing...
+initializing...
+initializing...
+initializing...
+---------- Re-initialization of collection2 completed successfully. ----------
+---------- Re-initializing collection3 ----------
+initializing...
+initializing...
+initializing...
+initializing...
+initializing...
+---------- Re-initialization of collection3 completed successfully. ----------
+```

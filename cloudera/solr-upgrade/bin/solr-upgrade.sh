@@ -58,12 +58,15 @@ Commands:
   validate-metadata -c metadata_dir
   bootstrap-config -c metadata_dir
   config-upgrade [--dry-run] -c conf_path -t conf_type -u upgrade_processor_conf -d result_dir [-v]
+  bootstrap-collections -c metadata_folder_path -d local_work_dir -h hdfs_work_dir
 Parameters:
   -c <arg>     This parameter specifies the path of Solr configuration to be operated upon.
   -t <arg>     This parameter specifies the type of Solr configuration to be validated and
                transformed.The tool currently supports schema.xml, solrconfig.xml and solr.xml
   -d <arg>     This parameter specifies the directory path where the result of the command
                should be stored.
+  -h <arg>     This parameter specifies the HDFS directory path where the result of the command
+               should be stored on HDFS. Eg. /solr-backup
   -u <arg>     This parameter specifies the path of the Solr upgrade processor configuration.
   --dry-run    This command will perform compatibility checks for the specified Solr configuration.
   -v           This parameter enables printing XSLT compiler warnings on the command output.
@@ -211,6 +214,82 @@ bootstrap_config() {
   echo "Re-initialized Solr metadata using the configuration available at $1"
 }
 
+bootstrap_collections() {
+  SOURCEDIR=$1
+  WORKDIR=$2
+  HDFS_WORKDIR=$3
+  DT=`date`
+  echo "Cleaning up ${WORKDIR}"
+  rm -rf "${WORKDIR}/*"
+
+  echo "---------- Generating backup-formatted directories... ----------"
+  for c in $(run_config_parser_tool --list-collections -i "${SOURCEDIR}"/clusterstate.json); do
+    echo "Generating backup-format for collection ${c}"
+    coll_conf=$(run_config_parser_tool --get-config-name -i "${SOURCEDIR}/collections/${c}_config.json")
+    mkdir -p "${WORKDIR}/${c}/zk_backup/configs"
+    echo "Copy config named ${coll_conf} for collection ${c}"
+    cp -R "${SOURCEDIR}/configs/${coll_conf}/conf" "${WORKDIR}/${c}/zk_backup/configs/${coll_conf}"
+    echo "Generating backup.properties for collection ${c}"
+    cat > "${WORKDIR}/${c}/backup.properties" <<__EOT__
+backupName=${c}
+index.version=4.10.3
+collection.configName=${coll_conf}
+startTime=${DT}
+collection=${c}
+__EOT__
+    echo "Generating collection_state.json for collection ${c}"
+    run_config_parser_tool --get-collection-state -i "${SOURCEDIR}"/clusterstate.json -c "${c}" \
+     |sed 's/"router"/"__router"/g' \
+     |sed 's/"routerSpec"/"router"/g' \
+     > "${WORKDIR}/${c}/zk_backup/collection_state.json"
+  done
+  echo "---------- Successfully built backup-formatted directories ----------"
+
+  echo "---------- Uploading backup directories to ${HDFS_WORKDIR} ----------"
+
+  hdfs_cmd -mkdir -p "${HDFS_WORKDIR}/"
+  hdfs_cmd -put -f $WORKDIR/* "${HDFS_WORKDIR}/"
+
+  SUFFIX=$(random_string)
+
+  set +e
+  for c in $(run_config_parser_tool --list-collections -i "${SOURCEDIR}"/clusterstate.json); do
+    echo "---------- Re-initializing ${c} ----------"
+    # Starting restore command
+    solrctl collection --restore "${c}" -b "${c}" -l "${HDFS_WORKDIR}/" -i "restore-${c}-${SUFFIX}"
+    if [ $? != 0 ]; then
+       echo "Re-initialization of ${c} FAILED."
+       continue
+    fi
+    # Waiting for async restore to finish
+    while true;
+    do
+        solrctl collection --request-status "restore-${c}-${SUFFIX}" | egrep -q '"state":"running"' || break
+        sleep 1
+        echo "initializing..."
+    done
+    # Checking final status
+    $(solrctl collection --request-status "restore-${c}-${SUFFIX}"| egrep -q '"STATUS":"completed"')
+    if [ $? != 0 ]; then
+      echo "Re-initialization of ${c} FAILED. Run the following for details: solrctl collection --request-status restore-${c}-${SUFFIX}"
+      continue
+    fi
+    # If all went well
+    echo "---------- Re-initialization of ${c} completed successfully. ----------"
+  done
+  set -e
+
+  #TODO Should we clean up?
+}
+
+hdfs_cmd(){
+  hdfs dfs "$@"
+}
+
+random_string(){
+  head -c 64 /dev/urandom|shasum|head -c 8
+}
+
 # First eat up all the global options
 while test $# != 0 ; do
   case "$1" in
@@ -308,6 +387,52 @@ while test $# != 0 ; do
       fi
 
       bootstrap_config "${metadataDir}"
+      ;;
+    bootstrap-collections)
+      metadataDir=
+      workDir=
+      hdfsDir=
+      shift 1
+      while test $# -gt 0 ; do
+        case "$1" in
+          -c)
+            [ $# -gt 1 ] || usage "Error:  bootstrap-collections command parameter $1 requires an argument"
+            metadataDir="$2"
+            shift 2
+            ;;
+          -d)
+            [ $# -gt 1 ] || usage "Error:  bootstrap-collections command parameter $1 requires an argument"
+            workDir="$2"
+            shift 2
+            ;;
+          -h)
+            [ $# -gt 1 ] || usage "Error:  bootstrap-collections command parameter $1 requires an argument"
+            hdfsDir="$2"
+            shift 2
+            ;;
+          *)
+            break
+            ;;
+        esac
+      done
+
+      if [ -z "${metadataDir}" ]; then
+        echo "Please specify metadata directory using -c option"
+        usage
+        exit 1
+      fi
+      if [ -z "${workDir}" ]; then
+        echo "Please specify a working directory using -d option"
+        usage
+        exit 1
+      fi
+      if [ -z "${hdfsDir}" ]; then
+        echo "Please specify an HDFS working directory using -h option"
+        usage
+        exit 1
+      fi
+
+      bootstrap_collections "${metadataDir}" "${workDir}" "${hdfsDir}"
       ;;
     config-upgrade)
       shift 1
