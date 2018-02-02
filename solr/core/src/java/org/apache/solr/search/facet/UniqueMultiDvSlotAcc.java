@@ -39,8 +39,7 @@ class UniqueMultiDvSlotAcc extends UniqueSlotAcc {
   }
 
   @Override
-  public void reset() throws IOException {
-    super.reset();
+  public void resetIterators() throws IOException {
     topLevel = FieldUtil.getSortedSetDocValues(fcontext.qcontext, field, null);
     nTerms = (int) topLevel.getValueCount();
     if (topLevel instanceof MultiDocValues.MultiSortedSetDocValues) {
@@ -59,9 +58,6 @@ class UniqueMultiDvSlotAcc extends UniqueSlotAcc {
 
   @Override
   public void setNextReader(LeafReaderContext readerContext) throws IOException {
-    if (topLevel == null) {
-      reset();
-    }
     super.setNextReader(readerContext);
     if (subDvs != null) {
       subDv = subDvs[readerContext.ord];
