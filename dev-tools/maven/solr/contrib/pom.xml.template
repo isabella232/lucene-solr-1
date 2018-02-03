@@ -33,6 +33,7 @@
   <modules>
     <module>analysis-extras</module>
     <module>analytics</module>
+    <module>sentry-audit-logging</module>
     <module>clustering</module>
     <module>dataimporthandler</module>
     <module>dataimporthandler-extras</module>
