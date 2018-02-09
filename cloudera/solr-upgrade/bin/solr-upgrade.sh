@@ -19,6 +19,8 @@ exec 3>/dev/null
 
 set -e
 
+SOLRCTL_OPTS=""
+
 VALIDATION_PROCESSOR=${VALIDATION_PROCESSOR:-$(dirname "$0")/validators/solr_4_to_7_processors.xml}
 SOLR_CONF_DIR=${SOLR_CONF_DIR:-/etc/solr/conf}
 SOLR_DEFAULTS=${SOLR_DEFAULTS:-/etc/default/solr}
@@ -50,6 +52,7 @@ usage() {
 Usage: $0 command [command-arg]
 Options:
     --zk   zk_ensemble
+    --jaas jaas.conf
     --debug Prints error output of calls
     --trace Prints executed commands
 Commands:
@@ -73,6 +76,10 @@ Parameters:
 "
 }
 
+run_solrctl() {
+  solrctl ${SOLRCTL_OPTS} "$@"
+}
+
 run_zk_cli() {
   if [ -n "$solrZkEnsemble" ]; then
     export SOLR_ZK_ENSEMBLE="$solrZkEnsemble"
@@ -80,7 +87,7 @@ run_zk_cli() {
 
   : ${CDH_SOLR_HOME:?"Please configure CDH_SOLR_HOME environment variable"}
   : ${SOLR_ZK_ENSEMBLE:?"Please configure Solr Zookeeper ensemble via -z parameter"}
-  "${CDH_SOLR_HOME}"/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE "$@" 2>&3
+  ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} "${CDH_SOLR_HOME}"/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE "$@" 2>&3
 }
 
 run_config_parser_tool() {
@@ -196,7 +203,7 @@ validate_metadata() {
 
 bootstrap_config() {
   echo "Re-initializing the Solr metadata in Zookeeper"
-  solrctl init --force
+  run_solrctl init --force
 
   echo "Copying solr.xml"
   run_zk_cli -cmd clear /solr.xml
@@ -256,7 +263,7 @@ __EOT__
   for c in $(run_config_parser_tool --list-collections -i "${SOURCEDIR}"/clusterstate.json); do
     echo "---------- Re-initializing ${c} ----------"
     # Starting restore command
-    solrctl collection --restore "${c}" -b "${c}" -l "${HDFS_WORKDIR}/" -i "restore-${c}-${SUFFIX}"
+    run_solrctl collection --restore "${c}" -b "${c}" -l "${HDFS_WORKDIR}/" -i "restore-${c}-${SUFFIX}"
     if [ $? != 0 ]; then
        echo "Re-initialization of ${c} FAILED."
        continue
@@ -264,12 +271,12 @@ __EOT__
     # Waiting for async restore to finish
     while true;
     do
-        solrctl collection --request-status "restore-${c}-${SUFFIX}" | egrep -q '"state":"running"' || break
+        run_solrctl collection --request-status "restore-${c}-${SUFFIX}" | egrep -q '"state":"running"' || break
         sleep 1
         echo "initializing..."
     done
     # Checking final status
-    $(solrctl collection --request-status "restore-${c}-${SUFFIX}"| egrep -q '"STATUS":"completed"')
+    $(run_solrctl collection --request-status "restore-${c}-${SUFFIX}"| egrep -q '"STATUS":"completed"')
     if [ $? != 0 ]; then
       echo "Re-initialization of ${c} FAILED. Run the following for details: solrctl collection --request-status restore-${c}-${SUFFIX}"
       continue
@@ -296,14 +303,23 @@ while test $# != 0 ; do
     --debug)
       exec 3>&1
       shift 1
+      SOLRCTL_OPTS="${SOLRCTL_OPTS} --debug"
       ;;
     --trace)
       set -x
       shift 1
+      SOLRCTL_OPTS="${SOLRCTL_OPTS} --trace"
       ;;
     --zk)
       [ $# -gt 1 ] || usage "Error: $1 requires an argument"
       SOLR_ZK_ENSEMBLE="$2"
+      shift 2
+      ;;
+    --jaas)
+      [ $# -gt 1 ] || usage "Error: $1 requires an argument"
+      [ -e "$2" ] || usage "Error: $2 must be a file"
+      ZKCLI_JVM_FLAGS="-Djava.security.auth.login.config=$2 -DzkACLProvider=org.apache.solr.common.cloud.SaslZkACLProvider -Dsolr.httpclient.builder.factory=org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder ${ZKCLI_JVM_FLAGS}"
+      SOLRCTL_OPTS="${SOLRCTL_OPTS} --jaas ${2}"
       shift 2
       ;;
     *)

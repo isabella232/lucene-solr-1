@@ -205,3 +205,12 @@ initializing...
 initializing...
 ---------- Re-initialization of collection3 completed successfully. ----------
 ```
+
+# Security configuration #
+
+The script (depending on the command) may access Zookeeper, Solr Admin APIs, and HDFS. In secure cluster environment, the script requires the following configuration to proceed:
+
+* Kerberos authentication and the definition of the `jaas.conf` file using the `--jaas` option:
+  * `./solr-upgrade.sh --jaas ~/jaas.conf bootstrap-config -c /backups/solr` 
+* `bootstrap-collections` command requires access to an HDFS directory that Solr service is able to read, therefore, it is advisable to run the script with `solr` user.
+  * `sudo -u solr ./solr-upgrade.sh --jaas ~/jaas.conf bootstrap-collections -c /backups/solr -d /tmp/reinit" -h /solr-reinit/` 
