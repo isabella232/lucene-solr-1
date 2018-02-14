@@ -276,7 +276,7 @@ __EOT__
         echo "initializing..."
     done
     # Checking final status
-    $(run_solrctl collection --request-status "restore-${c}-${SUFFIX}"| egrep -q '"STATUS":"completed"')
+    $(run_solrctl collection --request-status "restore-${c}-${SUFFIX}"| egrep -q '"state":"completed"')
     if [ $? != 0 ]; then
       echo "Re-initialization of ${c} FAILED. Run the following for details: solrctl collection --request-status restore-${c}-${SUFFIX}"
       continue
