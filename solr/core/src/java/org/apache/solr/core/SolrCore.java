@@ -75,6 +75,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.solr.client.solrj.impl.BinaryResponseParser;
 import org.apache.solr.cloud.CloudDescriptor;
+import org.apache.solr.cloud.Overseer;
 import org.apache.solr.cloud.RecoveryStrategy;
 import org.apache.solr.cloud.ZkSolrResourceLoader;
 import org.apache.solr.common.SolrException;
@@ -867,6 +868,14 @@ public final class SolrCore implements SolrInfoBean, SolrMetricProducer, Closeab
                   CoreDescriptor coreDescriptor, UpdateHandler updateHandler,
                   IndexDeletionPolicyWrapper delPolicy, SolrCore prev, boolean reload) {
 
+    if (coreContainer.isZooKeeperAware()) {
+      boolean isLegacyCloud = Overseer.isLegacy(coreContainer.zkSys.zkController.getZkStateReader());
+      boolean isAutoAddReplicas = coreContainer.zkSys.zkController.getZkStateReader().getClusterState().getCollection(coreDescriptor.getCollectionName()).getAutoAddReplicas();
+      if (isLegacyCloud && isAutoAddReplicas) {
+        throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "AutoAddReplicas cannot be used with the deprecated legacyCloud=true mode.");
+      }
+    }
+    
     this.coreContainer = coreContainer;
     
     assert ObjectReleaseTracker.track(searcherExecutor); // ensure that in unclean shutdown tests we still close this

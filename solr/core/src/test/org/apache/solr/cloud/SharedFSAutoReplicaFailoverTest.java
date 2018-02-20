@@ -19,9 +19,13 @@ package org.apache.solr.cloud;
 import static org.apache.solr.common.util.Utils.makeMap;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionService;
@@ -37,6 +41,7 @@ import org.apache.solr.SolrTestCaseJ4.SuppressSSL;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.embedded.JettySolrRunner;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest.Create;
 import org.apache.solr.client.solrj.request.QueryRequest;
@@ -59,8 +64,9 @@ import org.apache.solr.util.BadHdfsThreadsFilter;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
@@ -69,10 +75,11 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 @ThreadLeakFilters(defaultFilters = true, filters = {
     BadHdfsThreadsFilter.class // hdfs currently leaks thread(s)
 })
-@Ignore("CDH-61529")
 public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBase {
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   
   private static final boolean DEBUG = true;
+  public static final int FULL_RELOAD_TIME = 320000;
   private static MiniDFSCluster dfsCluster;
 
   ThreadPoolExecutor executor = new ExecutorUtil.MDCAwareThreadPoolExecutor(0,
@@ -90,6 +97,8 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
     dfsCluster = HdfsTestUtil.setupClass(createTempDir().toFile().getAbsolutePath());
     System.setProperty("solr.hdfs.blockcache.global", "true"); // always use global cache, this test can create a lot of directories
     schemaString = "schema15.xml"; 
+    System.setProperty("autoReplicaFailoverWorkLoopDelay", "500");
+    System.setProperty("autoReplicaFailoverWaitAfterExpiration", "15000");
   }
   
   @AfterClass
@@ -97,6 +106,8 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
     HdfsTestUtil.teardownClass(dfsCluster);
     System.clearProperty("solr.hdfs.blockcache.blocksperbank");
     dfsCluster = null;
+    System.clearProperty("autoReplicaFailoverWorkLoopDelay");
+    System.clearProperty("autoReplicaFailoverWaitAfterExpiration");
   }
 
   @Before
@@ -104,11 +115,8 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
   public void setUp() throws Exception {
     super.setUp();
     collectionUlogDirMap.clear();
-    if (random().nextBoolean()) {
-      CollectionAdminRequest.setClusterProperty("legacyCloud", "false").process(cloudClient);
-    } else {
-      CollectionAdminRequest.setClusterProperty("legacyCloud", "true").process(cloudClient);
-    }
+    // AutoAddRepliacs only works with legacyCloud=false
+    CollectionAdminRequest.setClusterProperty("legacyCloud", "false").process(cloudClient);
   }
   
   @Override
@@ -145,16 +153,19 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
   // very slow tests, especially since jetty is started and stopped
   // serially
   private void testBasics() throws Exception {
+    int highShards = 10;
+    
     String collection1 = "solrj_collection";
     Create createCollectionRequest = CollectionAdminRequest.createCollection(collection1,"conf1",2,2)
-            .setMaxShardsPerNode(2)
+            .setMaxShardsPerNode(15)
             .setRouterField("myOwnField")
             .setAutoAddReplicas(true);
     CollectionAdminResponse response = createCollectionRequest.process(cloudClient);
 
     assertEquals(0, response.getStatus());
     assertTrue(response.isSuccess());
-    waitForRecoveriesToFinish(collection1, false);
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection1, 4, FULL_RELOAD_TIME);
     
     String collection2 = "solrj_collection2";
     createCollectionRequest = CollectionAdminRequest.createCollection(collection2,"conf1",2,2)
@@ -166,11 +177,12 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
     assertEquals(0, response2.getStatus());
     assertTrue(response2.isSuccess());
     
-    waitForRecoveriesToFinish(collection2, false);
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection2, 4, FULL_RELOAD_TIME);
     
     String collection3 = "solrj_collection3";
-    createCollectionRequest = CollectionAdminRequest.createCollection(collection3,"conf1",5,1)
-            .setMaxShardsPerNode(1)
+    createCollectionRequest = CollectionAdminRequest.createCollection(collection3, "conf1", highShards, 1)
+            .setMaxShardsPerNode(15)
             .setRouterField("myOwnField")
             .setAutoAddReplicas(true);
     CollectionAdminResponse response3 = createCollectionRequest.process(getCommonCloudSolrClient());
@@ -178,12 +190,13 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
     assertEquals(0, response3.getStatus());
     assertTrue(response3.isSuccess());
     
-    waitForRecoveriesToFinish(collection3, false);
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection3, highShards, FULL_RELOAD_TIME);
 
     // a collection has only 1 replica per a shard
     String collection4 = "solrj_collection4";
-    createCollectionRequest = CollectionAdminRequest.createCollection(collection4,"conf1",5,1)
-        .setMaxShardsPerNode(5)
+    createCollectionRequest = CollectionAdminRequest.createCollection(collection4, "conf1", highShards, 1)
+        .setMaxShardsPerNode(100)
         .setRouterField("text")
         .setAutoAddReplicas(true);
     CollectionAdminResponse response4 = createCollectionRequest.process(getCommonCloudSolrClient());
@@ -191,7 +204,8 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
     assertEquals(0, response4.getStatus());
     assertTrue(response4.isSuccess());
 
-    waitForRecoveriesToFinish(collection4, false);
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection4, highShards, FULL_RELOAD_TIME);
 
     // all collections
     String[] collections = {collection1, collection2, collection3, collection4};
@@ -205,70 +219,98 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
 
     assertUlogDir(collections);
 
-    ChaosMonkey.stop(jettys.get(1));
-    ChaosMonkey.stop(jettys.get(2));
+    cloudClient.setDefaultCollection(collection4);
+    cloudClient.commit(); // to query all docs
+
+    killJetty(1);
+    killJetty(2);
 
     Thread.sleep(5000);
 
-    assertTrue("Timeout waiting for all live and active", ClusterStateUtil.waitForAllActiveAndLiveReplicas(cloudClient.getZkStateReader(), collection1, 120000));
-
-    assertSliceAndReplicaCount(collection1);
+    ClusterStateUtil.waitAllReplicasUp(cloudClient.getZkStateReader(), collection1, FULL_RELOAD_TIME);
+    
+    assertSliceAndReplicaCount(collection1, 2);
 
     assertEquals(4, ClusterStateUtil.getLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection1));
     assertTrue(ClusterStateUtil.getLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection2) < 4);
 
     // collection3 has maxShardsPerNode=1, there are 4 standard jetties and one control jetty and 2 nodes stopped
-    ClusterStateUtil.waitForLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection3, 3, 30000);
+    ClusterStateUtil.waitForReplicasUp(cloudClient.getZkStateReader(), collection3, highShards, FULL_RELOAD_TIME);
 
     // collection4 has maxShardsPerNode=5 and setMaxShardsPerNode=5
-    ClusterStateUtil.waitForLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection4, 5, 30000);
+    ClusterStateUtil.waitForReplicasUp(cloudClient.getZkStateReader(), collection4, highShards, FULL_RELOAD_TIME);
 
     // all docs should be queried after failover
-    cloudClient.commit(); // to query all docs
-    assertSingleReplicationAndShardSize(collection4, 5);
-    queryAndAssertResultSize(collection4, numDocs, 10000);
 
-    // collection1 should still be at 4
-    assertEquals(4, ClusterStateUtil.getLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection1));
+    Thread.sleep(2000);
+
+    ClusterStateUtil.waitForReplicasUp(
+        cloudClient.getZkStateReader(), collection4, highShards, 30000);
+
+    assertSingleReplicationAndShardSize(collection4, highShards);
+    queryAndAssertResultSize(collection4, numDocs, 10000);
+    
+    ClusterStateUtil.waitAllReplicasUp(cloudClient.getZkStateReader(), collection1, FULL_RELOAD_TIME);
+
+    Thread.sleep(2000);
+    
+    assertEquals(4, ClusterStateUtil.getLiveAndActiveReplicaCount(
+            cloudClient.getZkStateReader(), collection1));
     // and collection2 less than 4
-    assertTrue(ClusterStateUtil.getLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection2) < 4);
+    assertTrue(ClusterStateUtil.getLiveAndActiveReplicaCount(
+            cloudClient.getZkStateReader(), collection2) < 4);
 
     assertUlogDir(collections);
 
-    ChaosMonkey.stop(jettys);
-    ChaosMonkey.stop(controlJetty);
+    killAllJettys(jettys);
+    killControlJetty();
 
-    assertTrue("Timeout waiting for all not live", ClusterStateUtil.waitForAllReplicasNotLive(cloudClient.getZkStateReader(), 45000));
+    assertTrue("Timeout waiting for all not live", ClusterStateUtil
+        .waitForAllReplicasNotLive(cloudClient.getZkStateReader(), 45000));
 
-    ChaosMonkey.start(jettys);
-    ChaosMonkey.start(controlJetty);
+    Thread.sleep(2000);
 
-    assertTrue("Timeout waiting for all live and active", ClusterStateUtil.waitForAllActiveAndLiveReplicas(cloudClient.getZkStateReader(), collection1, 120000));
+    startAllJettys();
 
-    assertSliceAndReplicaCount(collection1);
-    assertSingleReplicationAndShardSize(collection3, 5);
-
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection1, 4, FULL_RELOAD_TIME);
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection3, highShards, FULL_RELOAD_TIME);
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection4, highShards, FULL_RELOAD_TIME);
+    
     // all docs should be queried
-    assertSingleReplicationAndShardSize(collection4, 5);
+    assertSingleReplicationAndShardSize(collection4, highShards);
     queryAndAssertResultSize(collection4, numDocs, 10000);
+
+    assertSliceAndReplicaCount(collection1, 2);
+    assertSingleReplicationAndShardSize(collection3, highShards);
 
     assertUlogDir(collections);
 
     int jettyIndex = random().nextInt(jettys.size());
-    ChaosMonkey.stop(jettys.get(jettyIndex));
-    ChaosMonkey.start(jettys.get(jettyIndex));
-    
-    assertTrue("Timeout waiting for all live and active", ClusterStateUtil.waitForAllActiveAndLiveReplicas(cloudClient.getZkStateReader(), collection1, 60000));
-    
-    assertSliceAndReplicaCount(collection1);
+    killJetty(jettyIndex);
+
+    Thread.sleep(2000);
+
+    startJetty(jettyIndex);
+
+    ClusterStateUtil.waitAllReplicasUp(cloudClient.getZkStateReader(), collection1, FULL_RELOAD_TIME);
+    ClusterStateUtil.waitForReplicasUp(
+        cloudClient.getZkStateReader(), collection3, highShards, FULL_RELOAD_TIME);
+    ClusterStateUtil.waitForReplicasUp(
+        cloudClient.getZkStateReader(), collection4, highShards, FULL_RELOAD_TIME);
+
+    assertSliceAndReplicaCount(collection1, 2);
 
     assertUlogDir(collections);
-    
-    assertSingleReplicationAndShardSize(collection3, 5);
-    ClusterStateUtil.waitForLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection3, 5, 30000);
 
-    assertSingleReplicationAndShardSize(collection4, 5);
-    ClusterStateUtil.waitForLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection4, 5, 30000);
+    assertSingleReplicationAndShardSize(collection3, highShards);
+
+
+    assertSingleReplicationAndShardSize(collection4, highShards);
+
+    Thread.sleep(2000);
 
     //disable autoAddReplicas
     Map m = makeMap(
@@ -280,15 +322,20 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
     request.setPath("/admin/collections");
     cloudClient.request(request);
 
-    int currentCount = ClusterStateUtil.getLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection1);
+    int currentCount = ClusterStateUtil.getLiveAndActiveReplicaCount(
+        cloudClient.getZkStateReader(), collection1);
 
-    ChaosMonkey.stop(jettys.get(3));
 
-    //solr.xml has defined workLoopDelay=10s and waitAfterExpiration=10s
-    //Hence waiting for 30 seconds to be on the safe side.
-    Thread.sleep(30000);
-    //Ensures that autoAddReplicas has not kicked in.
-    assertTrue(currentCount > ClusterStateUtil.getLiveAndActiveReplicaCount(cloudClient.getZkStateReader(), collection1));
+    killJetty(3);
+
+    // workLoopDelay=3s and waitAfterExpiration=2s
+    Thread.sleep(15000);
+    // Ensures that autoAddReplicas has not kicked in.
+    assertTrue(currentCount > ClusterStateUtil.getLiveAndActiveReplicaCount(
+        cloudClient.getZkStateReader(), collection1));
+
+
+    Thread.sleep(2000);
 
     //enable autoAddReplicas
     m = makeMap(
@@ -299,33 +346,56 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
     request.setPath("/admin/collections");
     cloudClient.request(request);
 
-    assertTrue("Timeout waiting for all live and active", ClusterStateUtil.waitForAllActiveAndLiveReplicas(cloudClient.getZkStateReader(), collection1, 90000));
-    assertSliceAndReplicaCount(collection1);
+
+    ClusterStateUtil.waitAllReplicasUp(cloudClient.getZkStateReader(), collection1, FULL_RELOAD_TIME);
+    assertSliceAndReplicaCount(collection1, 2);
 
     assertUlogDir(collections);
-    
+
+    killJetty(random().nextInt(4));
+
+    Thread.sleep(5000);
+
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection1, 4, FULL_RELOAD_TIME);
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection3, highShards, FULL_RELOAD_TIME);
+    ClusterStateUtil.waitForReplicasUp(
+            cloudClient.getZkStateReader(), collection4, highShards, FULL_RELOAD_TIME);
+
     // restart all to test core saved state
-    
-    ChaosMonkey.stop(jettys);
-    ChaosMonkey.stop(controlJetty);
 
-    assertTrue("Timeout waiting for all not live", ClusterStateUtil.waitForAllReplicasNotLive(cloudClient.getZkStateReader(), 45000));
+    List<JettySolrRunner> sJettys = new ArrayList<>(jettys);
+    Collections.shuffle(sJettys, r);
 
-    ChaosMonkey.start(jettys);
+    killAllJettys(sJettys);
+    killControlJetty();
+
+    assertTrue("Timeout waiting for all not live", ClusterStateUtil
+        .waitForAllReplicasNotLive(cloudClient.getZkStateReader(), 45000));
+
+    Collections.shuffle(sJettys, r);
+
+    Thread.sleep(2000);
+
+    ChaosMonkey.start(sJettys);
     ChaosMonkey.start(controlJetty);
 
-    assertTrue("Timeout waiting for all live and active", ClusterStateUtil.waitForAllActiveAndLiveReplicas(cloudClient.getZkStateReader(), collection1, 120000));
-    
-    assertSliceAndReplicaCount(collection1);
+    ClusterStateUtil.waitAllReplicasUp(cloudClient.getZkStateReader(), collection1, FULL_RELOAD_TIME);
 
-    assertUlogDir(collections);
-    
-    assertSliceAndReplicaCount(collection1);
-    assertSingleReplicationAndShardSize(collection3, 5);
+    ClusterStateUtil.waitAllReplicasUp(cloudClient.getZkStateReader(), collection3, FULL_RELOAD_TIME);
+
+    ClusterStateUtil.waitAllReplicasUp(cloudClient.getZkStateReader(), collection4, FULL_RELOAD_TIME);
+
+    assertSliceAndReplicaCount(collection1, 2);
+
+
+    assertSingleReplicationAndShardSize(collection3, highShards);
 
     // all docs should be queried
-    assertSingleReplicationAndShardSize(collection4, 5);
+    assertSingleReplicationAndShardSize(collection4, highShards);
     queryAndAssertResultSize(collection4, numDocs, 10000);
+    assertUlogDir(collections);
   }
 
   private void queryAndAssertResultSize(String collection, int expectedResultSize, int timeoutMS)
@@ -395,17 +465,44 @@ public class SharedFSAutoReplicaFailoverTest extends AbstractFullDistribZkTestBa
     }
   }
 
-  private void assertSliceAndReplicaCount(String collection) {
-    Collection<Slice> slices;
-    slices = cloudClient.getZkStateReader().getClusterState().getCollection(collection).getActiveSlices();
-    assertEquals(2, slices.size());
+  private void assertSliceAndReplicaCount(String collection, int sliceAndReplicaCount) {
+    Collection<Slice> slices = cloudClient.getZkStateReader().getClusterState().getCollection(collection).getActiveSlices();
+
+    assertEquals(sliceAndReplicaCount, slices.size());
     for (Slice slice : slices) {
-      assertEquals(2, slice.getReplicas().size());
+      assertEquals(sliceAndReplicaCount, slice.getReplicas().size());
     }
   }
   
   @Override
   public void distribTearDown() throws Exception {
     super.distribTearDown();
+  }
+  
+  private void startJetty(int jettyIndex) throws Exception {
+    log.info("Starting jetty: " + jettyIndex);
+    ChaosMonkey.start(jettys.get(jettyIndex));
+  }
+  
+  private void startAllJettys() throws Exception {
+    log.info("Starting jetty: all");
+    ChaosMonkey.start(jettys);
+    ChaosMonkey.start(controlJetty);
+  }
+
+  private void killControlJetty() throws Exception {
+    log.info("Killing jetty: control");
+    ChaosMonkey.stop(controlJetty);
+  }
+
+  private void killAllJettys(List<JettySolrRunner> sJettys) throws Exception {
+    log.info("Killing jetty: all");
+    ChaosMonkey.stop(sJettys);
+  }
+
+  
+  private void killJetty(int jettyIndex) throws Exception {
+    log.info("Killing jetty: " + jettyIndex);
+    ChaosMonkey.stop(jettys.get(jettyIndex));
   }
 }

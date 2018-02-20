@@ -61,12 +61,15 @@ import org.apache.solr.client.solrj.impl.SolrHttpClientContextBuilder.AuthScheme
 import org.apache.solr.client.solrj.impl.SolrHttpClientContextBuilder.CredentialsProviderProvider;
 import org.apache.solr.client.solrj.util.SolrIdentifierValidator;
 import org.apache.solr.cloud.autoscaling.AutoScalingHandler;
+import org.apache.solr.cloud.overseer.OverseerAction;
 import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.cloud.Overseer;
 import org.apache.solr.cloud.ZkController;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.Replica;
+import org.apache.solr.common.cloud.ZkNodeProps;
+import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.cloud.Replica.State;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.util.ExecutorUtil;
@@ -992,11 +995,13 @@ public class CoreContainer {
     }
 
     SolrCore core = null;
+    Map<String,Object> prevProps = null;
     try {
       MDCLoggingContext.setCoreDescriptor(this, dcore);
       SolrIdentifierValidator.validateCoreName(dcore.getName());
+
       if (zkSys.getZkController() != null) {
-        zkSys.getZkController().preRegister(dcore);
+        prevProps = zkSys.getZkController().preRegister(dcore);
       }
 
       ConfigSet coreConfig = coreConfigService.getConfig(dcore);
@@ -1017,6 +1022,23 @@ public class CoreContainer {
 
       return core;
     } catch (Exception e) {
+
+      if (isZooKeeperAware() && prevProps == null) {
+        try {
+          ZkNodeProps m = new ZkNodeProps(Overseer.QUEUE_OPERATION,
+                  OverseerAction.DELETECORE.toLower(), ZkStateReader.CORE_NAME_PROP, dcore.getName(),
+                  ZkStateReader.NODE_NAME_PROP, zkSys.zkController.getNodeName(),
+                  ZkStateReader.CORE_NAME_PROP, dcore.getName(),
+                  ZkStateReader.COLLECTION_PROP, dcore.getCloudDescriptor().getCollectionName(),
+                  ZkStateReader.CORE_NODE_NAME_PROP, dcore.getCloudDescriptor().getCoreNodeName(), 
+                  ZkStateReader.BASE_URL_PROP, zkSys.zkController.getBaseUrl());
+          zkSys.zkController.getOverseerJobQueue().offer(Utils.toJSON(m));
+        } catch (InterruptedException e1) {
+          Thread.currentThread().interrupt();
+        } catch (Exception e1) {
+          SolrException.log(log, e1);
+        } 
+      }
       coreInitFailures.put(dcore.getName(), new CoreLoadFailure(dcore, e));
       solrCores.removeCoreDescriptor(dcore);
       final SolrException solrException = new SolrException(ErrorCode.SERVER_ERROR, "Unable to create core [" + dcore.getName() + "]", e);

@@ -1229,11 +1229,14 @@ public class ZkController {
   public void publish(final CoreDescriptor cd, final Replica.State state, boolean updateLastState) throws KeeperException, InterruptedException {
     publish(cd, state, updateLastState, false);
   }
-
+  
+  public void publish(final CoreDescriptor cd, final Replica.State state, boolean updateLastState, boolean forcePublish) throws KeeperException, InterruptedException {
+    publish(cd, state, updateLastState, false, null);
+  }
   /**
    * Publish core state to overseer.
    */
-  public void publish(final CoreDescriptor cd, final Replica.State state, boolean updateLastState, boolean forcePublish) throws KeeperException, InterruptedException {
+  public void publish(final CoreDescriptor cd, final Replica.State state, boolean updateLastState, boolean forcePublish,  Map<String,Object> prevProps) throws KeeperException, InterruptedException {
     if (!forcePublish) {
       try (SolrCore core = cc.getCore(cd.getName())) {
         if (core == null || core.isClosed()) {
@@ -1283,7 +1286,12 @@ public class ZkController {
         }
       }
       
-      Map<String,Object> props = new HashMap<>();
+
+      HashMap props = new HashMap<>();
+      if (prevProps != null) {
+        props.putAll(prevProps);
+      }
+      
       props.put(Overseer.QUEUE_OPERATION, "state");
       props.put(ZkStateReader.STATE_PROP, state.toString());
       props.put(ZkStateReader.BASE_URL_PROP, getBaseUrl());
@@ -1464,9 +1472,19 @@ public class ZkController {
     return coreNodeName;
   }
 
-  public void preRegister(CoreDescriptor cd) {
-
+  public Map<String,Object> preRegister(CoreDescriptor cd) {
     String coreNodeName = getCoreNodeName(cd);
+    Map<String,Object> prevProps = null;
+    
+    try {
+      Replica replica = zkStateReader.getClusterState().getCollection(cd.getCollectionName()).getSlice(
+          cd.getCloudDescriptor().getShardId()).getReplica(coreNodeName);
+      if (replica != null) {
+        prevProps = replica.getProperties();
+      }
+    } catch (Exception e) {
+      log.info("Could not find previous replica props.");
+    }
 
     // before becoming available, make sure we are not live and active
     // this also gets us our assigned shard id if it was not specified
@@ -1480,7 +1498,7 @@ public class ZkController {
         cloudDesc.setCoreNodeName(coreNodeName);
       }
 
-      publish(cd, Replica.State.DOWN, false, true);
+      publish(cd, Replica.State.DOWN, false, true, prevProps);
       String collectionName = cd.getCloudDescriptor().getCollectionName();
       DocCollection collection = zkStateReader.getClusterState().getCollectionOrNull(collectionName);
       log.debug(collection == null ?
@@ -1504,6 +1522,7 @@ public class ZkController {
       doGetShardIdAndNodeNameProcess(cd);
     }
 
+    return prevProps;
   }
 
   private void checkStateInZk(CoreDescriptor cd) throws InterruptedException {

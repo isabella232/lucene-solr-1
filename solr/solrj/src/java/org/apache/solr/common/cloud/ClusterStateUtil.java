@@ -20,11 +20,15 @@ import java.lang.invoke.MethodHandles;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.cloud.Slice.State;
+import org.apache.solr.common.util.StrUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +49,17 @@ public class ClusterStateUtil {
   public static boolean waitForAllActiveAndLiveReplicas(ZkStateReader zkStateReader, int timeoutInMs) {
     return waitForAllActiveAndLiveReplicas(zkStateReader, null, timeoutInMs);
   }
-  
+
+
+  public static class ReplicaInitializationTimedOutException extends RuntimeException {
+    public ReplicaInitializationTimedOutException(String message) {
+      super(message);
+    }
+
+    public ReplicaInitializationTimedOutException(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
   /**
    * Wait to see *all* cores live and active.
    * 
@@ -58,50 +72,12 @@ public class ClusterStateUtil {
    */
   public static boolean waitForAllActiveAndLiveReplicas(ZkStateReader zkStateReader, String collection,
       int timeoutInMs) {
-    long timeout = System.nanoTime()
-        + TimeUnit.NANOSECONDS.convert(timeoutInMs, TimeUnit.MILLISECONDS);
-    boolean success = false;
-    while (!success && System.nanoTime() < timeout) {
-      success = true;
-      ClusterState clusterState = zkStateReader.getClusterState();
-      if (clusterState != null) {
-        Map<String, DocCollection> collections = null;
-        if (collection != null) {
-          collections = Collections.singletonMap(collection, clusterState.getCollection(collection));
-        } else {
-          collections = clusterState.getCollectionsMap();
-        }
-        for (Map.Entry<String, DocCollection> entry : collections.entrySet()) {
-          DocCollection docCollection = entry.getValue();
-          Collection<Slice> slices = docCollection.getSlices();
-          for (Slice slice : slices) {
-            // only look at active shards
-            if (slice.getState() == Slice.State.ACTIVE) {
-              Collection<Replica> replicas = slice.getReplicas();
-              for (Replica replica : replicas) {
-                // on a live node?
-                final boolean live = clusterState.liveNodesContain(replica.getNodeName());
-                final boolean isActive = replica.getState() == Replica.State.ACTIVE;
-                if (!live || !isActive) {
-                  // fail
-                  success = false;
-                }
-              }
-            }
-          }
-        }
-        if (!success) {
-          try {
-            Thread.sleep(TIMEOUT_POLL_MS);
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new SolrException(ErrorCode.SERVER_ERROR, "Interrupted");
-          }
-        }
-      }
+    try {
+      waitAllReplicasUp(zkStateReader, collection, timeoutInMs);
+      return true;
+    } catch (ReplicaInitializationTimedOutException e) {
+      return false;
     }
-    
-    return success;
   }
   
   /**
@@ -234,24 +210,13 @@ public class ClusterStateUtil {
   
   public static boolean waitForLiveAndActiveReplicaCount(ZkStateReader zkStateReader,
       String collection, int replicaCount, int timeoutInMs) {
-    long timeout = System.nanoTime()
-        + TimeUnit.NANOSECONDS.convert(timeoutInMs, TimeUnit.MILLISECONDS);
-    boolean success = false;
-    while (!success && System.nanoTime() < timeout) {
-      success = getLiveAndActiveReplicaCount(zkStateReader, collection) == replicaCount;
-      
-      if (!success) {
-        try {
-          Thread.sleep(TIMEOUT_POLL_MS);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new SolrException(ErrorCode.SERVER_ERROR, "Interrupted");
-        }
-      }
-      
+    try {
+      waitForReplicasUp(zkStateReader, collection, replicaCount, timeoutInMs);
+      return true;
+    } catch (ReplicaInitializationTimedOutException e) {
+      return false;
     }
-    
-    return success;
+
   }
   
   public static boolean isAutoAddReplicas(ZkStateReader reader, String collection) {
@@ -264,5 +229,82 @@ public class ClusterStateUtil {
     }
     return false;
   }
+  
+  public static void waitAllReplicasUp(ZkStateReader zkStateReader, String collection, int timeoutInMs) {
+    long timeout = System.nanoTime()
+        + TimeUnit.NANOSECONDS.convert(timeoutInMs, TimeUnit.MILLISECONDS);
+    boolean success = false;
+    String  exceptionMessage = ""; 
+    while (!success && System.nanoTime() < timeout) {
+      ClusterState clusterState = zkStateReader.getClusterState();
+      if (clusterState != null) {
+        success = true;
+        Set<String> collections;
+        if (collection != null) {
+          collections = Collections.singleton(collection);
+        } else {
+          collections = clusterState.getCollectionsMap().keySet();
+        }
+        for (String coll : collections) {
+          DocCollection docCollection = clusterState.getCollection(coll);
+          Collection<Slice> slices = docCollection.getSlices();
+          for (Slice slice : slices) {
+            // only look at active shards
+            if (slice.getState() == State.ACTIVE) {
+              Collection<Replica> replicas = slice.getReplicas();
+              for (Replica replica : replicas) {
+                // on a live node?
+                boolean live = clusterState.liveNodesContain(replica
+                        .getNodeName());
+                Replica.State state = replica.getState();
+                if (!live || state != Replica.State.ACTIVE) {
+                  // fail
+                  success = false;
+                  exceptionMessage = String.format(Locale.ENGLISH, "Live: %s, State: %s, replica: %s", live, state, replica);
+                }
+              }
+            }
+          }
+        }
+      }
+      if (!success) {
+        try {
+          log.info("Waiting millis: " + TIMEOUT_POLL_MS);
+          Thread.sleep(TIMEOUT_POLL_MS);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new SolrException(ErrorCode.SERVER_ERROR, "Interrupted");
+        }
+      }
+    }
+    if(!success) {
+      throw new ReplicaInitializationTimedOutException(exceptionMessage);
+    }
+  }
+  
+  public static void waitForReplicasUp(ZkStateReader zkStateReader, String collection, int replicaCount, int timeoutInMs) {
+    long timeout = System.nanoTime()
+        + TimeUnit.NANOSECONDS.convert(timeoutInMs, TimeUnit.MILLISECONDS);
+    boolean success = false;
+    int actualReplicaCount = 0;
+    while (!success && System.nanoTime() < timeout) {
+      success = (actualReplicaCount = getLiveAndActiveReplicaCount(zkStateReader, collection)) == replicaCount;
+
+      if (!success) {
+        try {
+          Thread.sleep(TIMEOUT_POLL_MS);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new SolrException(ErrorCode.SERVER_ERROR, "Interrupted");
+        }
+      }
+
+    }
+    if(!success)
+      throw new ReplicaInitializationTimedOutException(String.format(Locale.ENGLISH, "Expected replica count is %d, actual: %d,  whereas active slices: [%s], live nodes: [%s]", 
+              replicaCount, actualReplicaCount, StrUtils.join(zkStateReader.getClusterState().getCollection(collection).getActiveSlices(), ','),
+              StrUtils.join(zkStateReader.getClusterState().getLiveNodes(), ',')));
+  }
+
   
 }

@@ -90,6 +90,8 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
   private final int workLoopDelay;
   private final int waitAfterExpiration;
 
+  private Set<DownReplica> failedCoreCreates = new HashSet<>();
+  
   private volatile Thread thread;
   
   public OverseerAutoReplicaFailoverThread(CloudConfig config, ZkStateReader zkStateReader,
@@ -100,7 +102,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
     this.waitAfterExpiration = config.getAutoReplicaFailoverWaitAfterExpiration();
     int badNodeExpiration = config.getAutoReplicaFailoverBadNodeExpiration();
     
-    log.debug(
+    log.info(
         "Starting "
             + this.getClass().getSimpleName()
             + " autoReplicaFailoverWorkLoopDelay={} autoReplicaFailoverWaitAfterExpiration={} autoReplicaFailoverBadNodeExpiration={}",
@@ -123,7 +125,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
     this.thread = Thread.currentThread();
     while (!this.isClosed) {
       // work loop
-      log.debug("do " + this.getClass().getSimpleName() + " work loop");
+      log.info("do " + this.getClass().getSimpleName() + " work loop");
 
       // every n, look at state and make add / remove calls
 
@@ -165,17 +167,17 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
       lastClusterStateVersion = clusterState.getZkClusterStateVersion();
       Map<String, DocCollection> collections = clusterState.getCollectionsMap();
       for (Map.Entry<String, DocCollection> entry : collections.entrySet()) {
-        log.debug("look at collection={}", entry.getKey());
+        log.info("look at collection={}", entry.getKey());
         DocCollection docCollection = entry.getValue();
         if (!docCollection.getAutoAddReplicas()) {
-          log.debug("Collection {} is not setup to use autoAddReplicas, skipping..", docCollection.getName());
+          log.info("Collection {} is not setup to use autoAddReplicas, skipping..", docCollection.getName());
           continue;
         }
         if (docCollection.getReplicationFactor() == null) {
-          log.debug("Skipping collection because it has no defined replicationFactor, name={}", docCollection.getName());
+          log.info("Skipping collection because it has no defined replicationFactor, name={}", docCollection.getName());
           continue;
         }
-        log.debug("Found collection, name={} replicationFactor={}", entry.getKey(), docCollection.getReplicationFactor());
+        log.info("Found collection, name={} replicationFactor={}", entry.getKey(), docCollection.getReplicationFactor());
         
         Collection<Slice> slices = docCollection.getSlices();
         for (Slice slice : slices) {
@@ -183,15 +185,15 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
             
             final Collection<DownReplica> downReplicas = new ArrayList<DownReplica>();
             
-            int goodReplicas = findDownReplicasInSlice(clusterState, docCollection, slice, downReplicas);
+            int goodReplicas = findDownReplicasInSlice(clusterState, docCollection, slice, downReplicas, failedCoreCreates);
             
-            log.debug("collection={} replicationFactor={} goodReplicaCount={}", docCollection.getName(), docCollection.getReplicationFactor(), goodReplicas);
+            log.info("collection={} replicationFactor={} goodReplicaCount={}", docCollection.getName(), docCollection.getReplicationFactor(), goodReplicas);
             
             if (downReplicas.size() > 0 && goodReplicas < docCollection.getReplicationFactor()) {
               // badReplicaMap.put(collection, badReplicas);
               processBadReplicas(entry.getKey(), downReplicas);
             } else if (goodReplicas > docCollection.getReplicationFactor()) {
-              log.debug("There are too many replicas");
+              log.info("There are too many replicas");
             }
           }
         }
@@ -202,7 +204,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
 
   private void processBadReplicas(final String collection, final Collection<DownReplica> badReplicas) {
     for (DownReplica badReplica : badReplicas) {
-      log.debug("process down replica={} from collection={}", badReplica.replica.getName(), collection);
+      log.info("process down replica={} from collection={}", badReplica.replica.getName(), collection);
       String baseUrl = badReplica.replica.getStr(ZkStateReader.BASE_URL_PROP);
       Long wentBadAtNS = baseUrlForBadNodes.getIfPresent(baseUrl);
       if (wentBadAtNS == null) {
@@ -215,9 +217,9 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
         long elasped = System.nanoTime() - wentBadAtNS;
         if (elasped < TimeUnit.NANOSECONDS.convert(waitAfterExpiration, TimeUnit.MILLISECONDS)) {
           // protect against ZK 'flapping', startup and shutdown
-          log.debug("Looks troublesome...continue. Elapsed={}", elasped + "ns");
+          log.info("Looks troublesome...continue. Elapsed={}", elasped + "ns");
         } else {
-          log.debug("We need to add a replica. Elapsed={}", elasped + "ns");
+          log.info("We need to add a replica. Elapsed={}", elasped + "ns");
           
           if (addReplica(collection, badReplica)) {
             baseUrlForBadNodes.invalidate(baseUrl);
@@ -247,7 +249,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
     if (dataDir != null) {
       // need an async request - full shard goes down leader election
       final String coreName = badReplica.replica.getStr(ZkStateReader.CORE_NAME_PROP);
-      log.debug("submit call to {}", createUrl);
+      log.info("submit call to {}", createUrl);
       MDC.put("OverseerAutoReplicaFailoverThread.createUrl", createUrl);
       try {
         updateExecutor.submit(() -> createSolrCore(collection, createUrl, dataDir, ulogDir, coreNodeName, coreName, shardId));
@@ -258,10 +260,18 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
       // wait to see state for core we just created
       boolean success = ClusterStateUtil.waitToSeeLiveReplica(zkStateReader, collection, coreNodeName, createUrl, 30000);
       if (!success) {
-        log.error("Creating new replica appears to have failed, timed out waiting to see created SolrCore register in the clusterstate.");
-        return false;
+        failedCoreCreates.add(badReplica);
       }
-      return true;
+      
+      boolean coreInState = false;
+      if(success) {
+        // wait to see state for core we just created
+        coreInState = ClusterStateUtil.waitToSeeLiveReplica(zkStateReader, collection, coreNodeName, createUrl, 30000);
+        if (!coreInState) {
+          log.error("Creating new replica appears to have failed, timed out waiting to see created SolrCore register in the clusterstate.");
+        }
+      }
+      return success && coreInState;
     }
     
     log.warn("Could not find dataDir or ulogDir in cluster state.");
@@ -269,7 +279,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
     return false;
   }
 
-  private static int findDownReplicasInSlice(ClusterState clusterState, DocCollection collection, Slice slice, final Collection<DownReplica> badReplicas) {
+  private static int findDownReplicasInSlice(ClusterState clusterState, DocCollection collection, Slice slice, final Collection<DownReplica> badReplicas, final Collection<DownReplica> failedReplicas) {
     int goodReplicas = 0;
     Collection<Replica> replicas = slice.getReplicas();
     if (replicas != null) {
@@ -282,9 +292,21 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
             || state == Replica.State.RECOVERING
             || state == Replica.State.ACTIVE;
         
-        log.debug("Process replica name={} live={} state={}", replica.getName(), live, state.toString());
+        DownReplica removeReplica = null;
+        for (DownReplica dreplica : failedReplicas){
+          if (dreplica.collection.getName().equals(collection.getName()) && dreplica.replica.getName().equals(replica.getName())) {
+            removeReplica = dreplica;
+          }
+        }
+
+        if (removeReplica != null) {
+          failedReplicas.remove(removeReplica);
+        }
+
+
+        log.info("Process replica name={} live={} state={}", replica.getName(), live, state);
         
-        if (live && okayState) {
+        if ((live || removeReplica != null ) && okayState) {
           goodReplicas++;
         } else {
           DownReplica badReplica = new DownReplica();
@@ -295,7 +317,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
         }
       }
     }
-    log.debug("bad replicas for slice {}", badReplicas);
+    log.info("bad replicas for slice {}", badReplicas);
     return goodReplicas;
   }
   
@@ -308,7 +330,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
     assert badReplica != null;
     assert badReplica.collection != null;
     assert badReplica.slice != null;
-    log.debug("getBestCreateUrl for " + badReplica.replica);
+    log.info("getBestCreateUrl for " + badReplica.replica);
     Map<String,Counts> counts = new HashMap<>();
     Set<String> unsuitableHosts = new HashSet<>();
     
@@ -320,14 +342,14 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
       Map<String, DocCollection> collections = clusterState.getCollectionsMap();
       for (Map.Entry<String, DocCollection> entry : collections.entrySet()) {
         String collection = entry.getKey();
-        log.debug("look at collection {} as possible create candidate", collection);
+        log.info("look at collection {} as possible create candidate", collection);
         DocCollection docCollection = entry.getValue();
         // TODO - only operate on collections with sharedfs failover = true ??
         Collection<Slice> slices = docCollection.getSlices();
         for (Slice slice : slices) {
           // only look at active shards
           if (slice.getState() == Slice.State.ACTIVE) {
-            log.debug("look at slice {} for collection {} as possible create candidate", slice.getName(), collection); 
+            log.info("look at slice {} for collection {} as possible create candidate", slice.getName(), collection); 
             Collection<Replica> replicas = slice.getReplicas();
 
             for (Replica replica : replicas) {
@@ -366,7 +388,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
                   log.warn("maxShardsPerNode is not defined for collection, name=" + badReplica.collection.getName());
                   maxShardsPerNode = Integer.MAX_VALUE;
                 }
-                log.debug("collection={} node={} maxShardsPerNode={} maxCoresPerNode={} potential hosts={}",
+                log.info("collection={} node={} maxShardsPerNode={} maxCoresPerNode={} potential hosts={}",
                     collection, baseUrl, maxShardsPerNode, maxCoreCount, cnt);
 
                 Collection<Replica> badSliceReplicas = null;
@@ -382,10 +404,10 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
                     || (maxCoreCount != null && coresPerNode.get(baseUrl) >= maxCoreCount) ) {
                   counts.remove(baseUrl);
                   unsuitableHosts.add(baseUrl);
-                  log.debug("not a candidate node, collection={} node={} max shards per node={} good replicas={}", collection, baseUrl, maxShardsPerNode, cnt);
+                  log.info("not a candidate node, collection={} node={} max shards per node={} good replicas={}", collection, baseUrl, maxShardsPerNode, cnt);
                 } else {
                   counts.put(baseUrl, cnt);
-                  log.debug("is a candidate node, collection={} node={} max shards per node={} good replicas={}", collection, baseUrl, maxShardsPerNode, cnt);
+                  log.info("is a candidate node, collection={} node={} max shards per node={} good replicas={}", collection, baseUrl, maxShardsPerNode, cnt);
                 }
               }
             }
@@ -399,7 +421,7 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
     }
     
     if (counts.size() == 0) {
-      log.debug("no suitable hosts found for getBestCreateUrl for collection={}", badReplica.collection.getName());
+      log.info("no suitable hosts found for getBestCreateUrl for collection={}", badReplica.collection.getName());
       return null;
     }
     
@@ -416,18 +438,18 @@ public class OverseerAutoReplicaFailoverThread implements Runnable, Closeable {
   
   private static boolean replicaAlreadyExistsOnNode(ClusterState clusterState, Collection<Replica> replicas, DownReplica badReplica, String baseUrl) {
     if (replicas != null) {
-      log.debug("collection={} check if replica already exists on node using replicas {}", badReplica.collection.getName(), getNames(replicas));
+      log.info("collection={} check if replica already exists on node using replicas {}", badReplica.collection.getName(), getNames(replicas));
       for (Replica replica : replicas) {
         final Replica.State state = replica.getState();
         if (!replica.getName().equals(badReplica.replica.getName()) && replica.getStr(ZkStateReader.BASE_URL_PROP).equals(baseUrl)
             && clusterState.liveNodesContain(replica.getNodeName())
             && (state == Replica.State.ACTIVE || state == Replica.State.DOWN || state == Replica.State.RECOVERING)) {
-          log.debug("collection={} replica already exists on node, bad replica={}, existing replica={}, node name={}",  badReplica.collection.getName(), badReplica.replica.getName(), replica.getName(), replica.getNodeName());
+          log.info("collection={} replica already exists on node, bad replica={}, existing replica={}, node name={}",  badReplica.collection.getName(), badReplica.replica.getName(), replica.getName(), replica.getNodeName());
           return true;
         }
       }
     }
-    log.debug("collection={} replica does not yet exist on node: {}",  badReplica.collection.getName(), baseUrl);
+    log.info("collection={} replica does not yet exist on node: {}",  badReplica.collection.getName(), baseUrl);
     return false;
   }
   
