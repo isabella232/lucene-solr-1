@@ -111,5 +111,17 @@
   </incompatibility>
 </xsl:template>
 
+<xsl:template match="solr/solrcloud/int[@name='hostPort']/text()">
+  <xsl:if test="contains(.,'solr.port')">
+    <incompatibility>
+      <level>info</level>
+      <jira_number>TBD</jira_number>
+      <description>System property used to define SOLR server port has changed from solr.port to jetty.port</description>
+      <recommendation>Replace the usage of solr.port system property with jetty.port</recommendation>
+      <reindexing>no</reindexing>
+      <transform>yes</transform>
+    </incompatibility>
+  </xsl:if>
+</xsl:template>
 
 </xsl:stylesheet>
