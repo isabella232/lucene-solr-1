@@ -1,5 +1,6 @@
 <xsl:stylesheet version="2.0"
-                xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:java="java">
 
 <!--
  Licensed to the Apache Software Foundation (ASF) under one or more
@@ -51,6 +52,17 @@
       <xsl:otherwise><xsl:value-of select="."/></xsl:otherwise>
     </xsl:choose>
   </xsl:attribute>
+</xsl:template>
+
+<xsl:template match="solr/solrcloud/int[@name='hostPort']/text()">
+  <xsl:choose>
+    <xsl:when test="contains(.,'solr.port')"><xsl:message>* Replacing the name of system property for port configuration from solr.port to jetty.port</xsl:message></xsl:when>
+    <xsl:otherwise></xsl:otherwise>
+  </xsl:choose>
+  <xsl:variable name="portStr" select="java:lang.String.new(string(.))"/>
+  <xsl:variable name="targetStr" select="java:lang.String.new('solr.port')"/>
+  <xsl:variable name="replaceStr" select="java:lang.String.new('jetty.port')"/>
+  <xsl:value-of select="java:replaceFirst($portStr, $targetStr, $replaceStr)"/>
 </xsl:template>
 
 </xsl:stylesheet>
