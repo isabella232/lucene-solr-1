@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
 import java.lang.invoke.MethodHandles;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -192,9 +193,17 @@ public class Utils {
     }
   }
 
-  public static Object fromJSONResource(String resourceName){
-   return fromJSON(Utils.class.getClassLoader().getResourceAsStream(resourceName));
-
+  public static Object fromJSONResource(String resourceName) {
+    final URL resource = Utils.class.getClassLoader().getResource(resourceName);
+    if (null == resource) {
+      throw new IllegalArgumentException("invalid resource name: " + resourceName);
+    }
+    try (InputStream stream = resource.openStream()) {
+      return fromJSON(stream);
+    } catch (IOException e) {
+      throw new SolrException(SolrException.ErrorCode.SERVER_ERROR,
+                              "Resource error: " + e.getMessage(), e);
+    }
   }
   public static JSONParser getJSONParser(Reader reader){
     JSONParser parser = new JSONParser(reader);
