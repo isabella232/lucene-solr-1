@@ -259,12 +259,14 @@ __EOT__
 
   SUFFIX=$(random_string)
 
+  allSuccess=true
   set +e
   for c in $(run_config_parser_tool --list-collections -i "${SOURCEDIR}"/clusterstate.json); do
     echo "---------- Re-initializing ${c} ----------"
     # Starting restore command
     run_solrctl collection --restore "${c}" -b "${c}" -l "${HDFS_WORKDIR}/" -i "restore-${c}-${SUFFIX}"
     if [ $? != 0 ]; then
+       allSuccess=false
        echo "Re-initialization of ${c} FAILED."
        continue
     fi
@@ -278,6 +280,7 @@ __EOT__
     # Checking final status
     $(run_solrctl collection --request-status "restore-${c}-${SUFFIX}"| egrep -q '"state":"completed"')
     if [ $? != 0 ]; then
+      allSuccess=false
       echo "Re-initialization of ${c} FAILED. Run the following for details: solrctl collection --request-status restore-${c}-${SUFFIX}"
       continue
     fi
@@ -285,6 +288,11 @@ __EOT__
     echo "---------- Re-initialization of ${c} completed successfully. ----------"
   done
   set -e
+
+  if [ $allSuccess != true ]; then
+    echo "FAILURE: Not all of the collections were successfully restored."
+    exit -1
+  fi
 
   #TODO Should we clean up?
 }
