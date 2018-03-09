@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.lucene.util.LuceneTestCase.BadApple;
 import org.apache.lucene.util.LuceneTestCase.Nightly;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.SolrTestCaseJ4.SuppressObjectReleaseTracker;
@@ -33,6 +34,7 @@ import org.junit.Test;
 @Slow
 @Nightly
 @SuppressObjectReleaseTracker(bugUrl="this is a purposely leaky test")
+@BadApple(bugUrl="https://jira.cloudera.com/browse/CDH-55533")
 public class RestartWhileUpdatingTest extends AbstractFullDistribZkTestBase {
 
   //private static final String DISTRIB_UPDATE_CHAIN = "distrib-update-chain";

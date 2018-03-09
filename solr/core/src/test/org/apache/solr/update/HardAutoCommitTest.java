@@ -18,6 +18,7 @@ package org.apache.solr.update;
 
 import java.util.HashMap;
 
+import org.apache.lucene.util.LuceneTestCase.BadApple;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.common.params.MapSolrParams;
 import org.apache.solr.core.SolrCore;
@@ -29,6 +30,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 @Slow
+@BadApple(bugUrl="https://jira.cloudera.com/browse/CDH-55533")
 public class HardAutoCommitTest extends AbstractSolrTestCase {
 
   @BeforeClass

@@ -37,7 +37,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.lucene.util.LuceneTestCase.Slow;
-import org.apache.lucene.util.LuceneTestCase.BadApple;
+import org.apache.lucene.util.LuceneTestCase.AwaitsFix;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.UpdateRequest;
@@ -63,7 +63,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
  * This test is modeled after SyncSliceTest
  */
 @Slow
-@BadApple(bugUrl = "https://issues.apache.org/jira/browse/SOLR-10126")
+@AwaitsFix(bugUrl = "https://issues.apache.org/jira/browse/SOLR-10126")
 public class PeerSyncReplicationTest extends AbstractFullDistribZkTestBase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());

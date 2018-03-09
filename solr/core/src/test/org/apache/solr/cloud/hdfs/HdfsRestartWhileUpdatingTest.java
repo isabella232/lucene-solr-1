@@ -19,6 +19,7 @@ package org.apache.solr.cloud.hdfs;
 import java.io.IOException;
 
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.lucene.util.LuceneTestCase.Nightly;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.cloud.RestartWhileUpdatingTest;
 import org.apache.solr.util.BadHdfsThreadsFilter;
@@ -27,6 +28,7 @@ import org.junit.BeforeClass;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
+@Nightly
 @Slow
 @ThreadLeakFilters(defaultFilters = true, filters = {
     BadHdfsThreadsFilter.class // hdfs currently leaks thread(s)

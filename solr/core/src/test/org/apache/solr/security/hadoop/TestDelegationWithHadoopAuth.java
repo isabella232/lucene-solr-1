@@ -23,6 +23,7 @@ import org.apache.hadoop.security.authentication.client.PseudoAuthenticator;
 import org.apache.hadoop.util.Time;
 import org.apache.http.HttpStatus;
 import org.apache.lucene.util.Constants;
+import org.apache.lucene.util.LuceneTestCase.BadApple;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.embedded.JettySolrRunner;
@@ -43,6 +44,7 @@ import org.junit.Test;
 
 import junit.framework.Assert;
 
+@BadApple(bugUrl="https://jira.cloudera.com/browse/CDH-55533")
 public class TestDelegationWithHadoopAuth extends SolrCloudTestCase {
   protected static final int NUM_SERVERS = 2;
   protected static final String USER_1 = "foo";

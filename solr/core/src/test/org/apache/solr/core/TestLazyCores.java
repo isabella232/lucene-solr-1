@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 import com.google.common.collect.ImmutableList;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.lucene.util.LuceneTestCase.BadApple;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.CoreAdminParams;
@@ -47,6 +48,7 @@ import org.apache.solr.util.ReadOnlyCoresLocator;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+@BadApple(bugUrl="https://jira.cloudera.com/browse/CDH-55533")
 public class TestLazyCores extends SolrTestCaseJ4 {
 
   private File solrHomeDirectory;
