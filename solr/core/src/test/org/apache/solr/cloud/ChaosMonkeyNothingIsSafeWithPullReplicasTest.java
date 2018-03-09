@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.lucene.util.LuceneTestCase.BadApple;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.SolrTestCaseJ4.SuppressObjectReleaseTracker;
 import org.apache.solr.SolrTestCaseJ4.SuppressSSL;
@@ -48,6 +49,7 @@ import com.carrotsearch.randomizedtesting.annotations.ThreadLeakLingering;
 @SuppressSSL(bugUrl = "https://issues.apache.org/jira/browse/SOLR-5776")
 @ThreadLeakLingering(linger = 60000)
 @SuppressObjectReleaseTracker(bugUrl="Testing purposes")
+@BadApple(bugUrl="https://jira.cloudera.com/browse/CDH-55533")
 public class ChaosMonkeyNothingIsSafeWithPullReplicasTest extends AbstractFullDistribZkTestBase {
   private static final int FAIL_TOLERANCE = 100;
 

@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.lucene.util.LuceneTestCase.BadApple;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.CloudSolrClient;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
@@ -37,6 +38,7 @@ import org.apache.zookeeper.KeeperException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+@BadApple(bugUrl="https://jira.cloudera.com/browse/CDH-55533")
 public class DeleteShardTest extends SolrCloudTestCase {
 
   // TODO: Custom hash slice deletion test

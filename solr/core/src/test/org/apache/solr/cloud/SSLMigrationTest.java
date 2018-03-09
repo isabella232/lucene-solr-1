@@ -17,7 +17,7 @@
 package org.apache.solr.cloud;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.lucene.util.LuceneTestCase.BadApple;
+import org.apache.lucene.util.LuceneTestCase.AwaitsFix;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.SolrTestCaseJ4.SuppressSSL;
 import org.apache.solr.client.solrj.SolrRequest;
@@ -50,7 +50,7 @@ import static org.apache.solr.common.util.Utils.makeMap;
  */
 @Slow
 @SuppressSSL
-@BadApple(bugUrl = "https://issues.apache.org/jira/browse/SOLR-6213")
+@AwaitsFix(bugUrl = "https://issues.apache.org/jira/browse/SOLR-6213")
 public class SSLMigrationTest extends AbstractFullDistribZkTestBase {
 
   @Test

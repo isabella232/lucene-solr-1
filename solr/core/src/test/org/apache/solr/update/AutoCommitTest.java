@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.lucene.util.LuceneTestCase.BadApple;
 import org.apache.lucene.util.LuceneTestCase.Slow;
 import org.apache.solr.common.params.MapSolrParams;
 import org.apache.solr.common.util.ContentStream;
@@ -138,6 +139,7 @@ class NewSearcherListener implements SolrEventListener {
 }
 
 @Slow
+@BadApple(bugUrl="https://jira.cloudera.com/browse/CDH-55533")
 public class AutoCommitTest extends AbstractSolrTestCase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());

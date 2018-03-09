@@ -20,6 +20,7 @@ import java.io.IOException;
 
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.lucene.util.LuceneTestCase.Slow;
+import org.apache.lucene.util.LuceneTestCase.BadApple;
 import org.apache.solr.cloud.BasicDistributedZkTest;
 import org.apache.solr.util.BadHdfsThreadsFilter;
 import org.junit.AfterClass;
@@ -28,6 +29,7 @@ import org.junit.BeforeClass;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakFilters;
 
 
+@BadApple(bugUrl="https://jira.cloudera.com/browse/CDH-55533")
 @Slow
 @ThreadLeakFilters(defaultFilters = true, filters = {
     BadHdfsThreadsFilter.class // hdfs currently leaks thread(s)
