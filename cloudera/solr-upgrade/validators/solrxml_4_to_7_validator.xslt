@@ -53,6 +53,17 @@
       <transform>no</transform>
     </incompatibility>
   </xsl:if>
+
+  <xsl:if test="not(./backup)">
+    <incompatibility>
+      <level>info</level>
+      <jira_number>TBD</jira_number>
+      <description>solr.xml must contain HDFS backup repository definition for upgrade.</description>
+      <recommendation>Define backup configuration.</recommendation>
+      <reindexing>no</reindexing>
+      <transform>yes</transform>
+    </incompatibility>
+  </xsl:if>
   <xsl:apply-templates select="child::node()"/>
 </xsl:template>
 
