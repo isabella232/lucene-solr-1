@@ -1,6 +1,5 @@
 <xsl:stylesheet version="2.0"
-                xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-                xmlns:java="java">
+            xmlns:java="java" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" exclude-result-prefixes="java">
 
 <!--
  Licensed to the Apache Software Foundation (ASF) under one or more
@@ -18,11 +17,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
-
 <xsl:output method="xml" version="1.0" encoding="UTF-8" indent="true" standalone="yes" />
 <xsl:strip-space elements="*"/>
 
-<!-- identity transform -->
+  <!-- identity transform -->
 <xsl:template match="@* | node()">
   <xsl:copy>
     <xsl:apply-templates select="node() | @*"/>
@@ -39,6 +37,19 @@
   <xsl:text>&#10;</xsl:text>
   <xsl:copy>
     <xsl:apply-templates select="child::node()"/>
+    <xsl:if test="not(./backup)">
+  <backup>
+    <repository name="hdfs" class="org.apache.solr.core.backup.repository.HdfsBackupRepository" default="true">
+      <str name="solr.hdfs.home">${solr.hdfs.home:}</str>
+      <str name="solr.hdfs.confdir">${solr.hdfs.confdir:}</str>
+      <str name="solr.hdfs.security.kerberos.enabled">${solr.hdfs.security.kerberos.enabled:false}</str>
+      <str name="solr.hdfs.security.kerberos.keytabfile">${solr.hdfs.security.kerberos.keytabfile:}</str>
+      <str name="solr.hdfs.security.kerberos.principal">${solr.hdfs.security.kerberos.principal:}</str>
+      <str name="solr.hdfs.permissions.umask-mode">${solr.hdfs.permissions.umask-mode:000}</str>
+    </repository>
+  </backup>
+    </xsl:if>
+
   </xsl:copy>
 </xsl:template>
 

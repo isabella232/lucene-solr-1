@@ -24,11 +24,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.google.common.io.Files;
 import org.apache.solr.config.upgrade.UpgradeConfigException;
 import org.hamcrest.Matcher;
 import org.junit.After;
@@ -38,7 +40,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 import static org.apache.solr.util.RegexMatcher.matchesPattern;
-import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.core.IsNot.not;
+import static org.junit.matchers.JUnitMatchers.everyItem;
 import static org.junit.matchers.JUnitMatchers.hasItem;
 
 public class SolrXmlUpgradeValidatorTest extends UpgradeTestBase {
@@ -80,6 +83,30 @@ public class SolrXmlUpgradeValidatorTest extends UpgradeTestBase {
         matchesPattern("SecureConfigSetsHandler.*removed"),
         matchesPattern("SecureInfoHandler.*removed")
     );
+  }
+
+  @Test
+  public void verifyMissingBackupTag() throws Exception {
+    String solrXmlFilename = "solr-4.10.3-compat.xml";
+    startSolrWithXml(solrXmlFilename);
+    Path solrXml = Paths.get(TEST_HOME(), solrXmlFilename);
+    UpgradeToolUtil.doUpgradeSolrXml(solrXml, upgradedDir, false);
+    LOG.info(Files.toString(upgradedDir.resolve(solrXmlFilename).toFile(), Charset.forName("UTF-8")));
+    assertMatchesAll(solrXmlIncompatibilities("info"),
+        matchesPattern("must contain HDFS repository definition")
+    );
+  }
+
+  @Test
+  public void verifyExistingBackupTag() throws Exception {
+    String solrXmlFilename = "solr-4.10.3-compat-hasbackup.xml";
+    startSolrWithXml(solrXmlFilename);
+    Path solrXml = Paths.get(TEST_HOME(), solrXmlFilename);
+    UpgradeToolUtil.doUpgradeSolrXml(solrXml, upgradedDir, false);
+    LOG.info(Files.toString(upgradedDir.resolve(solrXmlFilename).toFile(), Charset.forName("UTF-8")));
+    LOG.info(Files.toString(upgradedDir.resolve("solrxml_validation.xml").toFile(), Charset.forName("UTF-8")));
+
+    assertThat(solrXmlIncompatibilities("info"), everyItem(not(matchesPattern("must contain HDFS backup repository definition"))));
   }
 
   private void generateSolrXmlUpgradeFailures(Path solrXml) {
