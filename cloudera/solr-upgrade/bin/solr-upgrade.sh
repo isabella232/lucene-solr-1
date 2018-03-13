@@ -21,6 +21,8 @@ set -e
 
 SOLRCTL_OPTS=""
 
+JAAS_PARAM=""
+
 VALIDATION_PROCESSOR=${VALIDATION_PROCESSOR:-$(dirname "$0")/validators/solr_4_to_7_processors.xml}
 SOLR_CONF_DIR=${SOLR_CONF_DIR:-/etc/solr/conf}
 SOLR_DEFAULTS=${SOLR_DEFAULTS:-/etc/default/solr}
@@ -81,13 +83,16 @@ run_solrctl() {
 }
 
 run_zk_cli() {
+  ZKCLI_JVM_FLAGS_CDH="$(jaas_zkcli_flags ${1})"
+  shift;
+
   if [ -n "$solrZkEnsemble" ]; then
     export SOLR_ZK_ENSEMBLE="$solrZkEnsemble"
   fi
 
   : ${CDH_SOLR_HOME:?"Please configure CDH_SOLR_HOME environment variable"}
   : ${SOLR_ZK_ENSEMBLE:?"Please configure Solr Zookeeper ensemble via -z parameter"}
-  ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} "${CDH_SOLR_HOME}"/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE "$@" 2>&3
+  ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS_CDH} "${CDH_SOLR_HOME}"/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE "$@" 2>&3
 }
 
 run_config_parser_tool() {
@@ -112,26 +117,26 @@ download_zk_metadata() {
   mkdir -p "$1/configs"
 
   echo "Copying clusterstate.json"
-  run_zk_cli -cmd get /clusterstate.json > "$1"/clusterstate.json
+  run_zk_cli C5 -cmd get /clusterstate.json > "$1"/clusterstate.json
 
   echo "Copying clusterprops.json"
-  run_zk_cli -cmd get /clusterprops.json > "$1"/clusterprops.json
+  run_zk_cli C5 -cmd get /clusterprops.json > "$1"/clusterprops.json
 
   echo "Copying solr.xml"
-  run_zk_cli -cmd get /solr.xml > "$1"/solr.xml
+  run_zk_cli C5 -cmd get /solr.xml > "$1"/solr.xml
 
   echo "Copying aliases.json"
-  if ! run_zk_cli -cmd get /aliases.json > "$1"/aliases.json ; then
+  if ! run_zk_cli C5 -cmd get /aliases.json > "$1"/aliases.json ; then
     echo "Unable to copy aliases.json. Please check if it contains any data ?"
     echo "Continuing with the download..."
   fi
 
   for c in $(run_config_parser_tool --list-collections -i "$1"/clusterstate.json); do
     echo "Downloading configuration for collection ${c}"
-    run_zk_cli -cmd get /collections/"$c" > "$1/collections/${c}_config.json"
+    run_zk_cli C5 -cmd get /collections/"$c" > "$1/collections/${c}_config.json"
     coll_conf=$(run_config_parser_tool --get-config-name -i "$1/collections/${c}_config.json")
     echo "Downloading config named ${coll_conf} for collection ${c}"
-    run_zk_cli -cmd downconfig -confdir "$1/configs/${coll_conf}/conf" -confname "${coll_conf}"
+    run_zk_cli C5 -cmd downconfig -confdir "$1/configs/${coll_conf}/conf" -confname "${coll_conf}"
   done
 
   echo "Successfully downloaded SOLR metadata in Zookeeper"
@@ -206,16 +211,16 @@ bootstrap_config() {
   run_solrctl init --force
 
   echo "Copying solr.xml"
-  run_zk_cli -cmd clear /solr.xml
-  run_zk_cli -cmd putfile /solr.xml "$1/solr.xml"
+  run_zk_cli C6 -cmd clear /solr.xml
+  run_zk_cli C6 -cmd putfile /solr.xml "$1/solr.xml"
 
   echo "Copying clusterprops.json"
-  run_zk_cli -cmd putfile /clusterprops.json "$1/clusterprops.json"
+  run_zk_cli C6 -cmd putfile /clusterprops.json "$1/clusterprops.json"
 
   for config in "$1"/configs/*; do
     c="${config##*/}"
     echo "Uploading config $c"
-    run_zk_cli -cmd upconfig --confdir "$1/configs/$c/conf" --confname "$c"
+    run_zk_cli C6 -cmd upconfig --confdir "$1/configs/$c/conf" --confname "$c"
   done
 
   echo "Re-initialized Solr metadata using the configuration available at $1"
@@ -305,6 +310,25 @@ random_string(){
   head -c 64 /dev/urandom|shasum|head -c 8
 }
 
+jaas_zkcli_flags(){
+  if [ -z $JAAS_PARAM ]; then
+    return
+  fi
+  case "$1" in
+    C5)
+      ZK_ACL_PROVIDER=${ZK_ACL_PROVIDER:-"org.apache.solr.common.cloud.ConfigAwareSaslZkACLProvider"}
+      ;;
+    C6)
+      ZK_ACL_PROVIDER=${ZK_ACL_PROVIDER:-"org.apache.solr.common.cloud.SaslZkACLProvider"}
+      ;;
+    *)
+      echo "Invalid version ${1}"
+      exit 1;
+      ;;
+  esac
+  echo "-Djava.security.auth.login.config=${JAAS_PARAM} -DzkACLProvider=${ZK_ACL_PROVIDER} ${ZKCLI_JVM_FLAGS}"
+}
+
 # First eat up all the global options
 while test $# != 0 ; do
   case "$1" in
@@ -326,7 +350,7 @@ while test $# != 0 ; do
     --jaas)
       [ $# -gt 1 ] || usage "Error: $1 requires an argument"
       [ -e "$2" ] || usage "Error: $2 must be a file"
-      ZKCLI_JVM_FLAGS="-Djava.security.auth.login.config=$2 -DzkACLProvider=org.apache.solr.common.cloud.SaslZkACLProvider -Dsolr.httpclient.builder.factory=org.apache.solr.client.solrj.impl.Krb5HttpClientBuilder ${ZKCLI_JVM_FLAGS}"
+      JAAS_PARAM="${2}"
       SOLRCTL_OPTS="${SOLRCTL_OPTS} --jaas ${2}"
       shift 2
       ;;
