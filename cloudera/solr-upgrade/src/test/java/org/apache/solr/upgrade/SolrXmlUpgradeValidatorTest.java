@@ -93,7 +93,7 @@ public class SolrXmlUpgradeValidatorTest extends UpgradeTestBase {
     UpgradeToolUtil.doUpgradeSolrXml(solrXml, upgradedDir, false);
     LOG.info(Files.toString(upgradedDir.resolve(solrXmlFilename).toFile(), Charset.forName("UTF-8")));
     assertMatchesAll(solrXmlIncompatibilities("info"),
-        matchesPattern("must contain HDFS repository definition")
+        matchesPattern("must contain HDFS backup repository definition")
     );
   }
 
