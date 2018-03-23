@@ -44,6 +44,7 @@
     <module>security-util</module>
     <module>uima</module>
     <module>velocity</module>
+    <module>solr-jetty-customizations</module>
   </modules>
   <build>
     <plugins>
