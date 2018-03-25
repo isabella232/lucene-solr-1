@@ -312,21 +312,22 @@ random_string(){
 
 jaas_zkcli_flags(){
   if [ -z $JAAS_PARAM ]; then
-    return
+    echo "${ZKCLI_JVM_FLAGS}"
+  else
+    case "$1" in
+      C5)
+        ZK_ACL_PROVIDER=${ZK_ACL_PROVIDER:-"org.apache.solr.common.cloud.ConfigAwareSaslZkACLProvider"}
+        ;;
+      C6)
+        ZK_ACL_PROVIDER=${ZK_ACL_PROVIDER:-"org.apache.solr.common.cloud.SaslZkACLProvider"}
+        ;;
+      *)
+        echo "Invalid version ${1}"
+        exit 1;
+        ;;
+    esac
+    echo "-Djava.security.auth.login.config=${JAAS_PARAM} -DzkACLProvider=${ZK_ACL_PROVIDER} ${ZKCLI_JVM_FLAGS}"
   fi
-  case "$1" in
-    C5)
-      ZK_ACL_PROVIDER=${ZK_ACL_PROVIDER:-"org.apache.solr.common.cloud.ConfigAwareSaslZkACLProvider"}
-      ;;
-    C6)
-      ZK_ACL_PROVIDER=${ZK_ACL_PROVIDER:-"org.apache.solr.common.cloud.SaslZkACLProvider"}
-      ;;
-    *)
-      echo "Invalid version ${1}"
-      exit 1;
-      ;;
-  esac
-  echo "-Djava.security.auth.login.config=${JAAS_PARAM} -DzkACLProvider=${ZK_ACL_PROVIDER} ${ZKCLI_JVM_FLAGS}"
 }
 
 # First eat up all the global options
