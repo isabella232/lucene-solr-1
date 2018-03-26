@@ -36,7 +36,12 @@
     <dependency org="org.slf4j" name="jcl-over-slf4j" rev="${/org.slf4j/jcl-over-slf4j}" conf="logging"/>
     <dependency org="org.slf4j" name="jul-to-slf4j" rev="${/org.slf4j/jul-to-slf4j}" conf="logging"/>
     <dependency org="org.slf4j" name="slf4j-log4j12" rev="${/org.slf4j/slf4j-log4j12}" conf="logging"/>
+    <!-- CLOUDERA-BUILD - support log redaction -->
     <dependency org="org.cloudera.logredactor" name="logredactor" rev="${/org.cloudera.logredactor/logredactor}" conf="logging"/>
+    <dependency org="com.fasterxml.jackson.core" name="jackson-core" rev="${/com.fasterxml.jackson.core/jackson-core}" conf="logging"/>
+    <dependency org="com.fasterxml.jackson.core" name="jackson-databind" rev="${/com.fasterxml.jackson.core/jackson-databind}" conf="logging"/>
+    <dependency org="com.fasterxml.jackson.core" name="jackson-annotations" rev="${/com.fasterxml.jackson.core/jackson-annotations}" conf="logging"/>
+    <dependency org="org.apache.commons" name="commons-text" rev="${/org.apache.commons/commons-text}" conf="logging"/>
 
     <dependency org="io.dropwizard.metrics" name="metrics-core" rev="${/io.dropwizard.metrics/metrics-core}" conf="metrics" />
     <dependency org="io.dropwizard.metrics" name="metrics-jetty9" rev="${/io.dropwizard.metrics/metrics-jetty9}" conf="metrics" />
