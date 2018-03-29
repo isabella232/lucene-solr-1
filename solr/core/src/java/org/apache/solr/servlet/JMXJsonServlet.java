@@ -48,8 +48,8 @@ import java.util.Set;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.util.RedactionUtils;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerator;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
