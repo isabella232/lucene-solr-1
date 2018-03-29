@@ -26,8 +26,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.solr.util.RedactionUtils;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerator;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import org.junit.Assert;
 import org.junit.Test;
 
