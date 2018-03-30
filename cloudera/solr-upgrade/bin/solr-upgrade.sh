@@ -387,6 +387,7 @@ while test $# != 0 ; do
         exit 1
       fi
 
+      check_dir_present "${destDir}" "Specified output directory path ${destDir} does not exist!"
       download_zk_metadata "${destDir}"
       ;;
     validate-metadata)
@@ -411,6 +412,7 @@ while test $# != 0 ; do
         exit 1
       fi
 
+      check_dir_present "${metadataDir}" "Specified metadata directory path ${metadataDir} does not exist!"
       validate_metadata "${metadataDir}"
       ;;
     bootstrap-config)
@@ -434,6 +436,8 @@ while test $# != 0 ; do
         usage
         exit 1
       fi
+
+      check_dir_present "${metadataDir}" "Specified metadata directory path ${metadataDir} does not exist!"
 
       bootstrap_config "${metadataDir}"
       ;;
@@ -480,6 +484,9 @@ while test $# != 0 ; do
         usage
         exit 1
       fi
+
+      check_dir_present "${metadataDir}" "Specified metadata directory path ${metadataDir} does not exist!"
+      check_dir_present "${workDir}" "Specified work directory path ${workDir} does not exist!"
 
       bootstrap_collections "${metadataDir}" "${workDir}" "${hdfsDir}"
       ;;
