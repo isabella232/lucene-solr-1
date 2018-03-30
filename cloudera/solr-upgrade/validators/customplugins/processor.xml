@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<upgradeProcessors inputVersion="4" outputVersion="7">
+  <processor configType="solrconfig"
+             validatorPath="solrconfig_validator.xslt"
+             transformerPath="solrconfig_transformer.xslt" />
+</upgradeProcessors>
+
