@@ -252,6 +252,9 @@ if [ -n "$ZK_SASL_CLIENT_USERNAME" ] ; then
   export JAVA_OPTS="${JAVA_OPTS} -Dzookeeper.sasl.client.username=${ZK_SASL_CLIENT_USERNAME}"
 fi
 
+if [[ -n "$SOLR_SENTRY_ENABLED" || -n "$SOLR_SENTRY_SERVICE_ENABLED" ]] ; then
+  export JAVA_OPTS="${JAVA_OPTS} -Dsolr.sentry.override.plugins=true"
+fi
 
 if [ -x /usr/lib/bigtop-utils/bigtop-monitor-service ]; then
 if ([ "$1" = "start" -o "$1" = "run" ]) && [ -n "$SOLRD_WATCHDOG_TIMEOUT" ] ; then

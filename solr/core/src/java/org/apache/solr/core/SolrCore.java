@@ -3100,7 +3100,16 @@ public final class SolrCore implements SolrInfoBean, SolrMetricProducer, Closeab
     }
   }
 
-  private static final Map implicitPluginsInfo = (Map) Utils.fromJSONResource("ImplicitPlugins.json");
+  // CLOUDERA-BUILD - CDH-66345 Disable graph/sql/stream handlers when doc-level security is enabled.
+  private static final Map implicitPluginsInfo = loadImplicitPluginInfo();
+
+  private static Map loadImplicitPluginInfo() {
+    Map result = (Map) Utils.fromJSONResource("ImplicitPlugins.json");
+    if (Boolean.getBoolean("solr.sentry.override.plugins")) {
+      result.putAll((Map) Utils.fromJSONResource("SentryOverrides.json"));
+    }
+    return result;
+  }
 
   public List<PluginInfo> getImplicitHandlers() {
     List<PluginInfo> implicits = new ArrayList<>();

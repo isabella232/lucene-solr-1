@@ -1,0 +1,32 @@
+{
+  "requestHandler": {
+    "/graph": {
+      "class": "org.apache.solr.handler.SentryGraphHandler",
+      "useParams":"_ADMIN_GRAPH",
+      "invariants": {
+        "wt": "graphml",
+        "distrib": false
+      }
+    },
+    "/stream": {
+      "class": "org.apache.solr.handler.SentryStreamHandler",
+      "useParams":"_STREAM",
+      "defaults": {
+        "wt": "json"
+      },
+      "invariants": {
+        "distrib": false
+      }
+    },
+    "/sql": {
+      "class": "org.apache.solr.handler.SentrySQLHandler",
+      "useParams":"_SQL",
+      "defaults": {
+        "wt": "json"
+      },
+      "invariants": {
+        "distrib": false
+      }
+    }
+  }
+}
