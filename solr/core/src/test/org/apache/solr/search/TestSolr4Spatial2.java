@@ -102,6 +102,25 @@ public class TestSolr4Spatial2 extends SolrTestCaseJ4 {
   }
 
   @Test
+  public void testLatLonRetrieval() throws Exception {
+    assertU(adoc("id", "0",
+        "llp_1_dv_st", "-75,41",
+        "llp_1_dv", "-80,20",
+        "llp_1_dv_dvasst", "10,-30"));
+    assertU(commit());
+    assertJQ(req("q","*:*", "fl","*"),
+        "response/docs/[0]/llp_1_dv_st=='-75,41'",
+        // Right now we do not support decoding point value from dv field
+        "!response/docs/[0]/llp_1_dv=='-80,20'",
+        "!response/docs/[0]/llp_1_dv_dvasst=='10,-30'");
+    assertJQ(req("q","*:*", "fl","llp_1_dv_st, llp_1_dv, llp_1_dv_dvasst"),
+        "response/docs/[0]/llp_1_dv_st=='-75,41'",
+        // Even when these fields are specified, we won't return them
+        "!response/docs/[0]/llp_1_dv=='-80,20'",
+        "!response/docs/[0]/llp_1_dv_dvasst=='10,-30'");
+  }
+  
+  @Test
   public void testRptWithGeometryField() throws Exception {
     String fieldName = "srptgeom"; //note: fails with "srpt_geohash" because it's not as precise
     assertU(adoc("id", "0", fieldName, "ENVELOPE(-10, 20, 15, 10)"));
