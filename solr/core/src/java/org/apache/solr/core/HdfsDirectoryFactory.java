@@ -323,7 +323,14 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   @Override
   public boolean exists(String path) {
     final Path hdfsDirPath = new Path(path);
-    FileSystem fileSystem = getCachedFileSystem(path);
+    final Configuration conf = getConf();
+    FileSystem fileSystem = null;
+    try {
+      // no need to close the fs, the cache will do it
+      fileSystem = tmpFsCache.get(path, () -> FileSystem.get(hdfsDirPath.toUri(), conf));
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
 
     try {
       return fileSystem.exists(hdfsDirPath);
@@ -343,8 +350,16 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   
   protected synchronized void removeDirectory(final CacheValue cacheValue)
       throws IOException {
-    FileSystem fileSystem = getCachedFileSystem(cacheValue.path);
-
+    final Configuration conf = getConf();
+    FileSystem fileSystem = null;
+    
+    try {
+      // no need to close the fs, the cache will do it
+      fileSystem = tmpFsCache.get(cacheValue.path, () -> FileSystem.get(new Path(cacheValue.path).toUri(), conf));
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
+    
     try {
       boolean success = fileSystem.delete(new Path(cacheValue.path), true);
       if (!success) {
@@ -424,9 +439,11 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
   @Override
   public long size(String path) throws IOException {
     Path hdfsDirPath = new Path(path);
-    FileSystem fileSystem = getCachedFileSystem(path);
+    FileSystem fileSystem = null;
     try {
-      return fileSystem.getContentSummary(hdfsDirPath).getLength();
+      fileSystem = FileSystem.newInstance(hdfsDirPath.toUri(), getConf());
+      long size = fileSystem.getContentSummary(hdfsDirPath).getLength();
+      return size;
     } catch (IOException e) {
       LOG.error("Error checking if hdfs path exists", e);
       throw new SolrException(ErrorCode.SERVER_ERROR, "Error checking if hdfs path exists", e);
@@ -434,16 +451,7 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
       IOUtils.closeQuietly(fileSystem);
     }
   }
-
-  private FileSystem getCachedFileSystem(String path) {
-    try {
-      // no need to close the fs, the cache will do it
-      return tmpFsCache.get(path, () -> FileSystem.get(new Path(path).toUri(), getConf()));
-    } catch (ExecutionException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
+  
   public String getConfDir() {
     return confDir;
   }
@@ -508,7 +516,13 @@ public class HdfsDirectoryFactory extends CachingDirectoryFactory implements Sol
 
     // Get the FileSystem object
     final Path dataDirPath = new Path(dataDir);
-    FileSystem fileSystem = getCachedFileSystem(dataDir);
+    final Configuration conf = getConf();
+    FileSystem fileSystem = null;
+    try {
+      fileSystem = tmpFsCache.get(dataDir, () -> FileSystem.get(dataDirPath.toUri(), conf));
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
 
     boolean pathExists = false;
     try {
