@@ -3026,8 +3026,11 @@ public final class SolrCore implements SolrInfoBean, SolrMetricProducer, Closeab
   private static Map loadImplicitPluginInfo() {
     Map result = (Map) Utils.fromJSONResource("ImplicitPlugins.json");
     if (Boolean.getBoolean("solr.sentry.override.plugins")) {
-      result.putAll((Map) Utils.fromJSONResource("SentryOverrides.json"));
+      Map requestHandlers = (Map) result.get(SolrRequestHandler.TYPE);
+      Map overrides = (Map)((Map) Utils.fromJSONResource("SentryOverrides.json")).get(SolrRequestHandler.TYPE);
+      requestHandlers.putAll(overrides);
     }
+    log.info ("Implicit plugins configuration is {}", result);
     return result;
   }
 
