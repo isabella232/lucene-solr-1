@@ -243,12 +243,6 @@ if [[ -n "$SOLR_SENTRY_ENABLED" || -n "$SOLR_SENTRY_SERVICE_ENABLED" ]] ; then
   export JAVA_OPTS="${JAVA_OPTS} -Dsolr.sentry.override.plugins=true"
 fi
 
-if [ -x /usr/lib/bigtop-utils/bigtop-monitor-service ]; then
-if ([ "$1" = "start" -o "$1" = "run" ]) && [ -n "$SOLRD_WATCHDOG_TIMEOUT" ] ; then
-  /usr/lib/bigtop-utils/bigtop-monitor-service $SOLRD_WATCHDOG_TIMEOUT $$
-fi
-fi
-
 if [ "$1" = "stop" ] ; then
   exec $(dirname "$BASH_SOURCE")/solr stop -d $(dirname "$BASH_SOURCE")/../server -k csearch -p $SOLR_PORT
 else
