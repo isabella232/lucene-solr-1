@@ -140,6 +140,8 @@ public class TestInjection {
 
   private static AtomicInteger countPrepRecoveryOpPauseForever = new AtomicInteger(0);
 
+  public static boolean uifOutOfMemoryError = false;
+
   public static void reset() {
     nonGracefullClose = null;
     failReplicaRequests = null;
@@ -417,6 +419,13 @@ public class TestInjection {
       percent = m.group(2);
     }
     return new Pair<>(Boolean.parseBoolean(val), Integer.parseInt(percent));
+  }
+
+  public static boolean injectUIFOutOfMemoryError() {
+    if (uifOutOfMemoryError ) {
+      throw new OutOfMemoryError("Test Injection");
+    }
+    return true;
   }
 
 }
