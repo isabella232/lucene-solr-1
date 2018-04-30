@@ -3117,8 +3117,10 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
                                           info.info.getDiagnostics(), info.info.getId(), info.info.getAttributes(), info.info.getIndexSort());
     SegmentCommitInfo newInfoPerCommit = new SegmentCommitInfo(newInfo, info.getDelCount(), info.getDelGen(), 
                                                                info.getFieldInfosGen(), info.getDocValuesGen());
-    
-    newInfo.setFiles(info.files());
+
+    newInfo.setFiles(info.info.files());
+    newInfoPerCommit.setFieldInfosFiles(info.getFieldInfosFiles());
+    newInfoPerCommit.setDocValuesUpdatesFiles(info.getDocValuesUpdatesFiles());
 
     boolean success = false;
 
@@ -3138,7 +3140,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
       }
     }
 
-    assert copiedFiles.equals(newInfoPerCommit.files());
+    assert copiedFiles.equals(newInfoPerCommit.files()): "copiedFiles=" + copiedFiles + " vs " + newInfoPerCommit.files();
     
     return newInfoPerCommit;
   }
@@ -3449,6 +3451,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     return seqNo;
   }
 
+  @SuppressWarnings("try")
   private final void finishCommit() throws IOException {
 
     boolean commitCompleted = false;
