@@ -231,6 +231,16 @@
       <transform>no</transform>
     </incompatibility>
   </xsl:if>
+  <xsl:if test="@class='org.apache.solr.handler.dataimport.DataImportHandler'">
+    <incompatibility>
+      <level>info</level>
+      <jira_number>CDH-26966</jira_number>
+      <description>Request handler (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select="attribute::class"/>) is removed as it is not supported in Cloudera Search</description>
+      <recommendation>Remove this request handler configuration. Refer to Cloudera Search docs for the alternatives</recommendation>
+      <reindexing>no</reindexing>
+      <transform>yes</transform>
+    </incompatibility>
+  </xsl:if>
 </xsl:template>
 
 <xsl:template match="requestDispatcher">
