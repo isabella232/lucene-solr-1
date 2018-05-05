@@ -33,6 +33,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -42,6 +43,7 @@ import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.ZkStateReader;
+import org.apache.solr.common.util.Utils;
 import org.apache.solr.handler.admin.CollectionsHandler;
 import org.apache.solr.util.SimplePostTool;
 import org.apache.zookeeper.server.ByteBufferInputStream;
@@ -155,16 +157,19 @@ public class BlobRepository {
     Replica replica = getSystemCollReplica();
     String url = replica.getStr(BASE_URL_PROP) + "/.system/blob/" + key + "?wt=filestream";
 
-    HttpClient httpClient = coreContainer.getUpdateShardHandler().getHttpClient();
+    HttpClient httpClient = coreContainer.getUpdateShardHandler().getDefaultHttpClient();
     HttpGet httpGet = new HttpGet(url);
     ByteBuffer b;
+    HttpResponse response = null;
+    HttpEntity entity = null;
     try {
-      HttpResponse entity = httpClient.execute(httpGet);
-      int statusCode = entity.getStatusLine().getStatusCode();
+      response = httpClient.execute(httpGet);
+      entity = response.getEntity();
+      int statusCode = response.getStatusLine().getStatusCode();
       if (statusCode != 200) {
         throw new SolrException(SolrException.ErrorCode.NOT_FOUND, "no such blob or version available: " + key);
       }
-      b = SimplePostTool.inputStreamToByteArray(entity.getEntity().getContent());
+      b = SimplePostTool.inputStreamToByteArray(entity.getContent());
     } catch (Exception e) {
       if (e instanceof SolrException) {
         throw (SolrException) e;
@@ -172,7 +177,7 @@ public class BlobRepository {
         throw new SolrException(SolrException.ErrorCode.NOT_FOUND, "could not load : " + key, e);
       }
     } finally {
-      httpGet.releaseConnection();
+      Utils.consumeFully(entity);
     }
     return b;
   }

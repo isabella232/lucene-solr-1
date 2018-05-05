@@ -1326,17 +1326,14 @@ public class DistributedUpdateProcessor extends UpdateRequestProcessor {
       }
       leaderUrl = leader.getCoreUrl();
     }
-    
-    HttpSolrClient hsc = new HttpSolrClient.Builder(leaderUrl).
-        withHttpClient(updateShardHandler.getHttpClient()).build();
-    NamedList rsp = null;
-    try {
+
+    NamedList<Object> rsp = null;
+    try (HttpSolrClient hsc = new HttpSolrClient.Builder(leaderUrl).
+        withHttpClient(updateShardHandler.getUpdateOnlyHttpClient()).build()) {
       rsp = hsc.request(ur);
     } catch (SolrServerException e) {
       throw new SolrException(ErrorCode.SERVER_ERROR, "Error during fetching [" + id +
           "] from leader (" + leaderUrl + "): ", e);
-    } finally {
-      hsc.close();
     }
     Object inputDocObj = rsp.get("inputDocument");
     Long version = (Long)rsp.get("version");

@@ -134,7 +134,7 @@ public class AutoScalingHandler extends RequestHandlerBase implements Permission
   private void handleDiagnostics(SolrQueryResponse rsp, Map<String, Object> autoScalingConf) throws IOException {
     Policy policy = new Policy(autoScalingConf);
     try (CloudSolrClient build = new CloudSolrClient.Builder()
-        .withHttpClient(container.getUpdateShardHandler().getHttpClient())
+        .withHttpClient(container.getUpdateShardHandler().getDefaultHttpClient())
         .withZkHost(container.getZkController().getZkServerAddress()).build()) {
       Policy.Session session = policy.createSession(new SolrClientDataProvider(build));
       List<Row> sorted = session.getSorted();
@@ -296,7 +296,7 @@ public class AutoScalingHandler extends RequestHandlerBase implements Permission
 
   private void verifyAutoScalingConf(Map<String, Object> autoScalingConf) throws IOException {
     try (CloudSolrClient build = new CloudSolrClient.Builder()
-        .withHttpClient(container.getUpdateShardHandler().getHttpClient())
+        .withHttpClient(container.getUpdateShardHandler().getDefaultHttpClient())
         .withZkHost(container.getZkController().getZkServerAddress()).build()) {
       Policy policy = new Policy(autoScalingConf);
       Policy.Session session = policy.createSession(new SolrClientDataProvider(build));

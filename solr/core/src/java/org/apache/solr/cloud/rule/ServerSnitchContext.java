@@ -90,7 +90,7 @@ public class ServerSnitchContext extends SnitchContext {
     String url = coreContainer.getZkController().getZkStateReader().getBaseUrlForNodeName(solrNode);
     UpdateShardHandler shardHandler = coreContainer.getUpdateShardHandler();
     GenericSolrRequest request = new GenericSolrRequest(SolrRequest.METHOD.GET, path, params);
-    try (HttpSolrClient client = new HttpSolrClient.Builder(url).withHttpClient(shardHandler.getHttpClient())
+    try (HttpSolrClient client = new HttpSolrClient.Builder(url).withHttpClient(shardHandler.getDefaultHttpClient())
         .withResponseParser(new BinaryResponseParser()).build()) {
       NamedList<Object> rsp = client.request(request);
       request.response.nl = rsp;
