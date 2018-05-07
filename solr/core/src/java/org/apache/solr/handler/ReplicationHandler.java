@@ -55,6 +55,7 @@ import java.util.zip.Checksum;
 import java.util.zip.DeflaterOutputStream;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexCommit;
@@ -1231,6 +1232,7 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
       @Override
       public void write(OutputStream out, SolrQueryRequest request, SolrQueryResponse resp) throws IOException {
         DirectoryFileStream stream = (DirectoryFileStream) resp.getValues().get(FILE_STREAM);
+        out = new CloseShieldOutputStream(out); // DeflaterOutputStream requires a close call, but don't close the request outputstream
         stream.write(out);
       }
 
@@ -1394,7 +1396,7 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
           packetsWritten++;
           if (read != buf.length) {
             writeNothing();
-            fos.close();
+            fos.close(); // we close because DeflaterOutputStream requires a close call, but but the request outputstream is protected
             break;
           }
           offset += read;
@@ -1494,7 +1496,7 @@ public class ReplicationHandler extends RequestHandlerBase implements SolrCoreAw
             long bytesRead = channel.read(bb);
             if (bytesRead <= 0) {
               writeNothing();
-              fos.close();
+              fos.close(); // we close because DeflaterOutputStream requires a close call, but but the request outputstream is protected
               break;
             }
             fos.writeInt((int) bytesRead);

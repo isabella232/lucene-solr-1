@@ -28,7 +28,7 @@ import javax.servlet.ServletOutputStream;
  * This class implements the Wrapper or Decorator pattern. Methods default to calling through to the wrapped stream.
  */
 public class ServletOutputStreamWrapper extends ServletOutputStream {
-  final ServletOutputStream stream;
+  ServletOutputStream stream;
   
   public ServletOutputStreamWrapper(ServletOutputStream stream) {
     this.stream = stream;

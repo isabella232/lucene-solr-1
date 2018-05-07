@@ -17,8 +17,6 @@
 
 package org.apache.solr.servlet;
 
-import org.apache.commons.io.input.CloseShieldInputStream;
-import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.HttpClient;
@@ -146,28 +144,11 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   protected String abortErrorMessage = null;
   protected HttpClient httpClient;
 
-  // Effectively immutable
-  private Boolean testMode = null;
-
   private static final Charset UTF8 = StandardCharsets.UTF_8;
 
   private static final boolean isSecure = System.getProperty("java.security.auth.login.config") != null;
 
-  public SolrDispatchFilter() {
-    // turn on test mode when running tests
-    assert testMode = true;
-    
-    if (testMode == null) {
-      testMode = false;
-    } else {
-      String tm = System.getProperty("solr.tests.doContainerStreamCloseAssert");
-      if (tm != null) {
-        testMode = Boolean.parseBoolean(tm);
-      } else {
-        testMode = true;
-      }
-    }
-  }
+  public SolrDispatchFilter() {}
   
   @Override
   public void init(FilterConfig config) throws ServletException
@@ -263,7 +244,10 @@ public class SolrDispatchFilter extends BaseSolrFilter {
     }
   }
   
-  public void httpSolrCall(ServletRequest request, ServletResponse response, FilterChain chain, boolean retry) throws IOException, ServletException {
+  public void httpSolrCall(ServletRequest _request, ServletResponse _response, FilterChain chain, boolean retry) throws IOException, ServletException {
+    HttpServletRequest request = closeShield((HttpServletRequest)_request, retry);
+    HttpServletResponse response = closeShield((HttpServletResponse)_response, retry);
+    
     MDCLoggingContext.reset();
     MDCLoggingContext.setNode(cores);
     if (abortErrorMessage != null) {
@@ -275,14 +259,15 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       sendError(request, response, 503, "Server is shutting down or failed to initialize");
       return;
     }
+    
     CoreContainer cores = this.cores;
     SolrCore core = null;
     SolrQueryRequest solrReq = null;
     Aliases aliases = null;
     
     if( request instanceof HttpServletRequest) {
-      HttpServletRequest req = closeShield((HttpServletRequest)request, retry);
-      HttpServletResponse resp = closeShield((HttpServletResponse)response, retry);
+      HttpServletRequest req = (HttpServletRequest) request;
+      HttpServletResponse resp = (HttpServletResponse) response;
       SolrRequestHandler handler = null;
       String corename = "";
       String origCorename = null;
@@ -653,7 +638,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       else if (isPostOrPutRequest) {
         HttpEntityEnclosingRequestBase entityRequest =
           "POST".equals(req.getMethod()) ? new HttpPost(urlstr) : new HttpPut(urlstr);
-        InputStream in = new CloseShieldInputStream(req.getInputStream()); // Prevent close of container streams
+        InputStream in = req.getInputStream();
         HttpEntity entity = new InputStreamEntity(in, req.getContentLength());
         entityRequest.setEntity(entity);
         method = entityRequest;
@@ -986,32 +971,59 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       log.info("Could not consume full client request", e);
     }
   }
+  
+  public static class ClosedServletInputStream extends ServletInputStream {
+    
+    public static final ClosedServletInputStream CLOSED_SERVLET_INPUT_STREAM = new ClosedServletInputStream();
+
+    @Override
+    public int read() {
+      return -1;
+    }
+  }
+  
+  public static class ClosedServletOutputStream extends ServletOutputStream {
+    
+    public static final ClosedServletOutputStream CLOSED_SERVLET_OUTPUT_STREAM = new ClosedServletOutputStream();
+    
+    @Override
+    public void write(final int b) throws IOException {
+      throw new IOException("write(" + b + ") failed: stream is closed");
+    }
+    
+    @Override
+    public void flush() throws IOException {
+      throw new IOException("flush() failed: stream is closed");
+    }
+
+  }
 
   /**
-   * Wrap the request's input stream with a close shield, as if by a {@link CloseShieldInputStream}. If this is a
+   * Wrap the request's input stream with a close shield. If this is a
    * retry, we will assume that the stream has already been wrapped and do nothing.
    *
    * @param request The request to wrap.
    * @param retry If this is an original request or a retry.
    * @return A request object with an {@link InputStream} that will ignore calls to close.
    */
-  private HttpServletRequest closeShield(HttpServletRequest request, boolean retry) {
-    if (testMode && !retry) {
+  public static HttpServletRequest closeShield(HttpServletRequest request, boolean retry) {
+    if (!retry) {
       return new HttpServletRequestWrapper(request) {
-        ServletInputStream stream;
-        
+
         @Override
         public ServletInputStream getInputStream() throws IOException {
-          // Lazy stream creation
-          if (stream == null) {
-            stream = new ServletInputStreamWrapper(super.getInputStream()) {
-              @Override
-              public void close() {
-                assert false : "Attempted close of request input stream.";
-              }
-            };
-          }
-          return stream;
+
+          return new ServletInputStreamWrapper(super.getInputStream()) {
+            @Override
+            public void close() {
+              // even though we skip closes, we let local tests know not to close so that a full understanding can take
+              // place
+              assert Thread.currentThread().getStackTrace()[2].getClassName().matches(
+                  "org\\.apache\\.(?:solr|lucene).*") ? false : true : "Attempted close of request input stream.";
+              this.stream = ClosedServletInputStream.CLOSED_SERVLET_INPUT_STREAM;
+            }
+          };
+
         }
       };
     } else {
@@ -1020,31 +1032,32 @@ public class SolrDispatchFilter extends BaseSolrFilter {
   }
   
   /**
-   * Wrap the response's output stream with a close shield, as if by a {@link CloseShieldOutputStream}. If this is a
+   * Wrap the response's output stream with a close shield. If this is a
    * retry, we will assume that the stream has already been wrapped and do nothing.
    *
    * @param response The response to wrap.
    * @param retry If this response corresponds to an original request or a retry.
    * @return A response object with an {@link OutputStream} that will ignore calls to close.
    */
-  private HttpServletResponse closeShield(HttpServletResponse response, boolean retry) {
-    if (testMode && !retry) {
+  public static HttpServletResponse closeShield(HttpServletResponse response, boolean retry) {
+    if (!retry) {
       return new HttpServletResponseWrapper(response) {
-        ServletOutputStream stream;
-        
+
         @Override
         public ServletOutputStream getOutputStream() throws IOException {
-          // Lazy stream creation
-          if (stream == null) {
-            stream = new ServletOutputStreamWrapper(super.getOutputStream()) {
-              @Override
-              public void close() {
-                assert false : "Attempted close of response output stream.";
-              }
-            };
-          }
-          return stream;
+
+          return new ServletOutputStreamWrapper(super.getOutputStream()) {
+            @Override
+            public void close() {
+              // even though we skip closes, we let local tests know not to close so that a full understanding can take
+              // place
+              assert Thread.currentThread().getStackTrace()[2].getClassName().matches(
+                  "org\\.apache\\.(?:solr|lucene).*") ? false : true : "Attempted close of response output stream.";
+              stream = ClosedServletOutputStream.CLOSED_SERVLET_OUTPUT_STREAM;
+            }
+          };
         }
+
       };
     } else {
       return response;
