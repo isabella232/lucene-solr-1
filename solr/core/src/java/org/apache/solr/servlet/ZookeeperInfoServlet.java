@@ -57,9 +57,13 @@ public final class ZookeeperInfoServlet extends BaseSolrServlet {
   }
 
   @Override
-  public void doGet(HttpServletRequest request,
-                    HttpServletResponse response)
+  public void doGet(HttpServletRequest _request,
+                    HttpServletResponse _response)
       throws ServletException,IOException {
+    
+    HttpServletRequest request = SolrDispatchFilter.closeShield((HttpServletRequest)_request, false);
+    HttpServletResponse response = SolrDispatchFilter.closeShield((HttpServletResponse)_response, false);
+    
     // This attribute is set by the SolrDispatchFilter
     CoreContainer cores = (CoreContainer) request.getAttribute("org.apache.solr.CoreContainer");
     if (cores == null) {
