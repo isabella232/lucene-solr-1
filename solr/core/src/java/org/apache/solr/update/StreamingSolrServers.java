@@ -52,7 +52,7 @@ public class StreamingSolrServers {
   public StreamingSolrServers(UpdateShardHandler updateShardHandler) {
     this.updateExecutor = updateShardHandler.getUpdateExecutor();
     
-    httpClient = updateShardHandler.getHttpClient();
+    httpClient = updateShardHandler.getUpdateOnlyHttpClient();
   }
 
   public List<Error> getErrors() {

@@ -179,7 +179,7 @@ public class SolrDispatchFilter extends BaseSolrFilter {
       this.pathPrefix = config.getInitParameter( "path-prefix" );
 
       this.cores = createCoreContainer();
-      this.httpClient = cores.getUpdateShardHandler().getHttpClient();
+      this.httpClient = cores.getUpdateShardHandler().getDefaultHttpClient();
       
       log.info("user.dir=" + System.getProperty("user.dir"));
     }

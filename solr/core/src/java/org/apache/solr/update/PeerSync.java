@@ -141,7 +141,7 @@ public class PeerSync  {
     this.cantReachIsSuccess = cantReachIsSuccess;
     this.getNoVersionsIsSuccess = getNoVersionsIsSuccess;
     this.doFingerprint = doFingerprint && !("true".equals(System.getProperty("solr.disableFingerprint")));
-    this.client = core.getCoreDescriptor().getCoreContainer().getUpdateShardHandler().getHttpClient();
+    this.client = core.getCoreDescriptor().getCoreContainer().getUpdateShardHandler().getDefaultHttpClient();
     this.onlyIfActive = onlyIfActive;
     
     uhandler = core.getUpdateHandler();
