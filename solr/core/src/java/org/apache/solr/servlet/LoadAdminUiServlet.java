@@ -27,7 +27,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.solr.core.CoreContainer;
@@ -41,9 +40,12 @@ import org.apache.solr.core.SolrCore;
 public final class LoadAdminUiServlet extends BaseSolrServlet {
 
   @Override
-  public void doGet(HttpServletRequest request,
-                    HttpServletResponse response)
+  public void doGet(HttpServletRequest _request,
+                    HttpServletResponse _response)
       throws IOException {
+    
+    HttpServletRequest request = SolrDispatchFilter.closeShield((HttpServletRequest)_request, false);
+    HttpServletResponse response = SolrDispatchFilter.closeShield((HttpServletResponse)_response, false);
 
       response.addHeader("X-Frame-Options", "DENY"); // security: SOLR-7966 - avoid clickjacking for admin interface
 
@@ -57,8 +59,7 @@ public final class LoadAdminUiServlet extends BaseSolrServlet {
         response.setCharacterEncoding("UTF-8");
         response.setContentType("text/html");
 
-        // Protect container owned streams from being closed by us, see SOLR-8933
-        out = new OutputStreamWriter(new CloseShieldOutputStream(response.getOutputStream()), StandardCharsets.UTF_8);
+        out = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8);
 
         String html = IOUtils.toString(in, "UTF-8");
         Package pack = SolrCore.class.getPackage();
