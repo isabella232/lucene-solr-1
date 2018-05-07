@@ -58,6 +58,8 @@ export SOLR_JETTY_SSL_INI=${SOLR_CUSTOM_CONFIG_DIR}/start.d/ssl.ini
 
 export SOLR_LOG_PRESTART_ROTATION=false
 
+# CDH-60734 - Increase the Solr wait duration for ZK startup
+export SOLR_WAIT_FOR_ZK=${SOLR_WAIT_FOR_ZK:-60}
 
 die() {
   echo "$@" >&2
