@@ -25,7 +25,6 @@ import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.impl.conn.SchemeRegistryFactory;
 import org.apache.solr.client.solrj.impl.HttpClientUtil;
-import org.apache.solr.cloud.RecoveryStrategy;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.ExecutorUtil;
@@ -44,16 +43,23 @@ public class UpdateShardHandler {
   private ExecutorService recoveryExecutor = Executors.newCachedThreadPool(
       new SolrjNamedThreadFactory("recoveryExecutor"));
   
-  private PoolingClientConnectionManager clientConnectionManager;
+  private PoolingClientConnectionManager defaultConnectionManager;
   
-  private final HttpClient client;
+  private final HttpClient defaultClient;
+  
+  private PoolingClientConnectionManager updateOnlyConnectionManager;
+  
+  private final HttpClient updateOnlyClient;
 
   public UpdateShardHandler(ConfigSolr cfg) {
     
-    clientConnectionManager = new PoolingClientConnectionManager(SchemeRegistryFactory.createSystemDefault());
+    defaultConnectionManager = new PoolingClientConnectionManager(SchemeRegistryFactory.createSystemDefault());
+    updateOnlyConnectionManager = new PoolingClientConnectionManager(SchemeRegistryFactory.createSystemDefault());
     if (cfg != null ) {
-      clientConnectionManager.setMaxTotal(cfg.getMaxUpdateConnections());
-      clientConnectionManager.setDefaultMaxPerRoute(cfg.getMaxUpdateConnectionsPerHost());
+      defaultConnectionManager.setMaxTotal(cfg.getMaxUpdateConnections());
+      defaultConnectionManager.setDefaultMaxPerRoute(cfg.getMaxUpdateConnectionsPerHost());
+      updateOnlyConnectionManager.setMaxTotal(cfg.getMaxUpdateConnections());
+      updateOnlyConnectionManager.setDefaultMaxPerRoute(cfg.getMaxUpdateConnectionsPerHost());
     }
     
     
@@ -68,27 +74,37 @@ public class UpdateShardHandler {
     // the default Solr retry handler that createClient will 
     // give us
     params.set(HttpClientUtil.PROP_USE_RETRY, true);
-    client = HttpClientUtil.createClient(params, clientConnectionManager);
-  }
-  
-  
-  public HttpClient getHttpClient() {
-    return client;
+    defaultClient = HttpClientUtil.createClient(params, defaultConnectionManager);
+    updateOnlyClient = HttpClientUtil.createClient(params, updateOnlyConnectionManager);
   }
 
-  public ClientConnectionManager getConnectionManager() {
-    return clientConnectionManager;
+  // if you are looking for a client to use, it's probably this one.
+  public HttpClient getDefaultHttpClient() {
+    return defaultClient;
   }
   
-  /**
-   * @return an executor for update related activities 
+  // don't introduce a bug, this client is for sending updates only!
+  public HttpClient getUpdateOnlyHttpClient() {
+    return updateOnlyClient;
+  }
+  
+
+   /**
+   * This method returns an executor that is meant for non search related tasks.
+   * 
+   * @return an executor for update side related activities.
    */
   public ExecutorService getUpdateExecutor() {
     return updateExecutor;
   }
-  
+
+  public ClientConnectionManager getDefaultConnectionManager() {
+    return defaultConnectionManager;
+  }
+
   /**
-   * @return executor for recovery related activities
+   * 
+   * @return executor for recovery operations
    */
   public ExecutorService getRecoveryExecutor() {
     return recoveryExecutor;
@@ -96,12 +112,14 @@ public class UpdateShardHandler {
 
   public void close() {
     try {
+      // do not interrupt, do not interrupt
       ExecutorUtil.shutdownAndAwaitTermination(updateExecutor);
       ExecutorUtil.shutdownAndAwaitTermination(recoveryExecutor);
     } catch (Exception e) {
       SolrException.log(log, e);
     } finally {
-      clientConnectionManager.shutdown();
+      updateOnlyConnectionManager.shutdown();
+      defaultConnectionManager.shutdown();
     }
   }
 
