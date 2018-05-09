@@ -45,10 +45,7 @@ SOLR_TLS_PROTOCOLS_CONFIG=${SOLR_TLS_PROTOCOLS_CONFIG:-"TLSv1.2,TLSv1.1,TLSv1,SS
 export SOLR_DATA=${SOLR_DATA:-/var/lib/solr}
 export SOLR_CUSTOM_CONFIG_DIR=${SOLR_DATA}/server
 
-# nocommit
-export CATALINA_TMPDIR=${SOLR_DATA}
-export CATALINA_PID=${SOLR_RUN:-/var/run/solr}/solr.pid
-export CATALINA_OUT=${SOLR_LOG:-/var/log/solr}/solr.out
+export SOLR_PID_DIR=${SOLR_RUN:-/var/run/solr}
 
 export SOLR_LOGS_DIR=${SOLR_LOG}
 
