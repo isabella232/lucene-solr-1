@@ -40,8 +40,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.input.CloseShieldInputStream;
-import org.apache.commons.io.output.CloseShieldOutputStream;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HeaderIterator;
@@ -602,7 +600,7 @@ public class HttpSolrCall {
       } else if (isPostOrPutRequest) {
         HttpEntityEnclosingRequestBase entityRequest =
             "POST".equals(req.getMethod()) ? new HttpPost(urlstr) : new HttpPut(urlstr);
-        InputStream in = new CloseShieldInputStream(req.getInputStream()); // Prevent close of container streams
+        InputStream in = req.getInputStream();
         HttpEntity entity = new InputStreamEntity(in, req.getContentLength());
         entityRequest.setEntity(entity);
         method = entityRequest;
@@ -807,7 +805,7 @@ public class HttpSolrCall {
       }
 
       if (Method.HEAD != reqMethod) {
-        OutputStream out = new CloseShieldOutputStream(response.getOutputStream()); // Prevent close of container streams, see SOLR-8933
+        OutputStream out = response.getOutputStream();
         QueryResponseWriterUtil.writeQueryResponse(out, responseWriter, solrReq, solrRsp, ct);
       }
       //else http HEAD request, nothing to write out, waited this long just to get ContentType
