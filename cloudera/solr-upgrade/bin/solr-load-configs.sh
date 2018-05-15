@@ -15,7 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -e
+set -e -x
+
+echo "Running this command as user $(whoami)"
 
 if [ -z "${CDH_SOLR_HOME}" ]; then
   if [ -f "$(dirname "$0")/../bin/zkcli.sh" ]; then
@@ -58,7 +60,8 @@ SOLR_CONFIG_METADATA="${CMD_OP_DIR}"/config_metadata
 for config in $(ls "${SOLR_CONFIG_METADATA}"/configs)
   do
     echo "Updating $config configset to use local file-system (instead of HDFS)"
-    "$(dirname "$0")"/solr-upgrade.sh config-upgrade -c "${SOLR_METADATA_DIR}"/configs/"${config}"/conf/solrconfig.xml \
+    "$(dirname "$0")"/solr-upgrade.sh --debug --trace config-upgrade \
+                                                     -c "${SOLR_METADATA_DIR}"/configs/"${config}"/conf/solrconfig.xml \
                                                      -t solrconfig \
                                                      -u "$(dirname "$0")"/validators/customplugins/processor.xml \
                                                      -d "${SOLR_CONFIG_METADATA}"/configs/"${config}"/conf
@@ -67,8 +70,9 @@ for config in $(ls "${SOLR_CONFIG_METADATA}"/configs)
 # Start a Solr server and test these configs
 SOLR_PORT=${SOLR_PORT:-8983}
 SOLR_HOME_DIR="${CMD_OP_DIR}/home"
-export SOLR_LOGS_DIR="${CMD_OP_DIR}/logs"
+export SOLR_LOGS_DIR="$(cd "${CMD_OP_DIR}"; pwd)/logs" # log directory path needs to be absolute
 export SOLR_PID_DIR="${CMD_OP_DIR}"
+export SOLR_SERVER_DIR="${CDH_SOLR_HOME}/server" # by default CM generates incorrect server directory path (Ref: OPSAPS-24444)
 
 mkdir -p "${SOLR_LOGS_DIR}"
 mkdir -p "${SOLR_HOME_DIR}"

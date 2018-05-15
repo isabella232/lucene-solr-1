@@ -33,7 +33,7 @@
       <directory>${project.basedir}/validators</directory>
       <outputDirectory>validators</outputDirectory>
       <includes>
-        <include>*</include>
+        <include>**</include>
       </includes>
     </fileSet>
   </fileSets>
