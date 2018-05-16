@@ -488,6 +488,13 @@ while test $# != 0 ; do
             else
               usage "Error: collection --create name needs to have more than 0 shards specified"
             fi
+            
+            # we 'simulate' Solr 4x behavior by specifying the config name as the collection name
+            # if no config name is specified
+            if [ -z "${COL_CREATE_CONFNAME}" ] ; then
+              COL_CREATE_CONFNAME=${COL_CREATE_NAME}
+            fi
+            
             [ -n "$COL_CREATE_CONFNAME" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&collection.configName=${COL_CREATE_CONFNAME}"
             [ -n "$COL_CREATE_REPL" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&replicationFactor=${COL_CREATE_REPL}"
             [ -n "$COL_CREATE_MAXSHARDS" ] && COL_CREATE_CALL="${COL_CREATE_CALL}&maxShardsPerNode=${COL_CREATE_MAXSHARDS}"
