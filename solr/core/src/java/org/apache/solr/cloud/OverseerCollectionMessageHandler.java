@@ -2501,10 +2501,12 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     // TODO how do we leverage the RULE / SNITCH logic in createCollection?
 
     ClusterState clusterState = zkStateReader.getClusterState();
+    Map<String, List<String>> hostsByShardName = shardToHostAssignment(nodeList, restoreCollection);
+
     //Create one replica per shard and copy backed up data to it
-    int assignment_id = 0;
     for (Slice slice: restoreCollection.getSlices()) {
-      String nodeName = nodeList.get(assignment_id++ % nodeList.size());
+      List<String> nodes = hostsByShardName.get(slice.getName());
+      String nodeName = nodes.get(0);
 
       log.info("Adding replica for shard={} collection={} on node {}",
           slice.getName(), restoreCollection.getName(), nodeName);
@@ -2556,8 +2558,10 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
       log.info("Adding replicas to restored collection={}", restoreCollection);
 
       for (Slice slice: restoreCollection.getSlices()) {
+        List<String> nodes = hostsByShardName.get(slice.getName());
+
         for(int i=1; i<numReplicas; i++) {
-          String nodeName = nodeList.get(assignment_id++ % nodeList.size());
+          String nodeName = nodes.get(i);
 
           log.info("Adding replica for shard={} collection={} on node {}",
               slice.getName(), restoreCollection.getName(), nodeName);
@@ -2578,6 +2582,71 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     }
 
     log.info("Completed restoring collection={} backupName={}", restoreCollection, backupName);
+  }
+
+  /**
+   * This method prepares the assignment of hosts in the solr cluster for the
+   * replicas in the collection to be restored. It attempts to satisfy two constraints
+   * (a) No host should be assigned more than one replica for a given shard
+   * (b) First replica for every shard should be on a distinct host
+   *
+   * @param nodeList List of live (and chosen) hosts in Solr cluster
+   * @param restoreCollection The metadata for the collection to be restored.
+   * @return A map which has shard name as the key and list of hosts as the value.
+   *         The caller of this function should use the list of hosts to assign replicas
+   *         for the given shard (specified by the key).
+   */
+  private static Map<String, List<String>> shardToHostAssignment (List<String> nodeList,
+      DocCollection restoreCollection) {
+    Integer numReplicas = restoreCollection.getReplicationFactor();
+    Map<String, List<String>> result = new HashMap<>();
+    List<String> nodesWithFirstReplica = new ArrayList<>();
+
+    if (nodeList.size() < numReplicas) {
+      log.warn("Number of replicas per shard for collection {} are more than number of"
+          + " live (or chosen) nodes in the cluster. replication factor : {} number of nodes {}. "
+          + " This will place more than one replica for a given shard on the same node.",
+          restoreCollection.getName(), numReplicas, nodeList.size());
+    }
+
+    List<Slice> slices = new ArrayList<>(restoreCollection.getSlices());
+    Set<String> hostsWithFirstReplica = new HashSet<>();
+    for (int i = 0; i < slices.size(); i++) {
+      String name = slices.get(i).getName();
+      List<String> nodes = new ArrayList<>();
+      for (int j = 0; j < numReplicas; j++) {
+        int index = (i * numReplicas + j) % nodeList.size();
+        String node = nodeList.get(index);
+        nodes.add(node);
+      }
+      if (!nodes.isEmpty()) {
+        if (hostsWithFirstReplica.contains(nodes.get(0))) {
+          boolean shuffle = false;
+          for (int j = 1; i < nodes.size() && !shuffle; i++) {
+            String node = nodes.get(j);
+            if (!hostsWithFirstReplica.contains(node)) {
+              // Found a node which is not currently hosting first replica for any shard.
+              // shuffle the position in the list so that this node can take over hosting
+              // first replica for this shard.
+              log.info("Shuffling {} and {} to ensure any node is not assigned first replica"
+                  + " for more than one shard during restore operation of collection {}"
+                  , nodes.get(0), nodes.get(j), restoreCollection.getName());
+              nodes.set(j, nodes.get(0));
+              nodes.set(0, node);
+              shuffle = true;
+            }
+          }
+          if (!shuffle) {
+            log.warn("The node {} is configured to host first replica for more than"
+                + " one shard during restore operation for collection {}", nodes.get(0), restoreCollection.getName());
+          }
+        }
+        hostsWithFirstReplica.add(nodes.get(0));
+      }
+      result.put(name, nodes);
+    }
+
+    return result;
   }
 
   static List<String> getLiveOrLiveAndCreateNodeSetList(final Set<String> liveNodes, final ZkNodeProps message) {

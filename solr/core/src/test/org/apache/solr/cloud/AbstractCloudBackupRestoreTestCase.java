@@ -21,11 +21,13 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 
 import org.apache.solr.SolrTestCaseJ4;
@@ -244,6 +246,31 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
       assertTrue("Node " + entry.getKey() + " has " + entry.getValue() + " replicas."
           + " Expected num replicas : " + restoreCollection.getMaxShardsPerNode() ,
           entry.getValue() <= restoreCollection.getMaxShardsPerNode());
+    }
+
+    // CDH-68828 Verify if the replicas for a given shard are not co-located on the same host
+    for (Slice s : restoreCollection.getSlices()) {
+      Set<String> hostNames = new HashSet<>();
+      for (Replica r : s.getReplicas()) {
+        String nodeName = r.getNodeName();
+        assertFalse("More than one replica for shard " + s.getName() + " is on host "
+                    + nodeName + " : The restore collection state is " + restoreCollection,
+                    hostNames.contains(nodeName));
+        hostNames.add(nodeName);
+      }
+    }
+
+    // CDH-68828 Verify if first replica for more than one shard are not co-located on the same host
+    Set<String> hostsWithFirstReplica = new HashSet<>();
+    for (Slice s : restoreCollection.getSlices()) {
+      for (Replica r : s.getReplicas()) {
+        String name = r.getName();
+        if (name.endsWith("replica0")) {
+          assertFalse("Node " + r.getNodeName() + " is hosting first replica for more than one shard.",
+              hostsWithFirstReplica.contains(r.getNodeName()));
+          hostsWithFirstReplica.add(r.getNodeName());
+        }
+      }
     }
 
     // assert added core properties:
