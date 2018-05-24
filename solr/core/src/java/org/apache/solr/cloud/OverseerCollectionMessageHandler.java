@@ -2501,7 +2501,7 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
     // TODO how do we leverage the RULE / SNITCH logic in createCollection?
 
     ClusterState clusterState = zkStateReader.getClusterState();
-    Map<String, List<String>> hostsByShardName = shardToHostAssignment(nodeList, restoreCollection);
+    Map<String, List<String>> hostsByShardName = shardToHostAssignment(nodeList, restoreCollection, repFactor);
 
     //Create one replica per shard and copy backed up data to it
     for (Slice slice: restoreCollection.getSlices()) {
@@ -2592,13 +2592,13 @@ public class OverseerCollectionMessageHandler implements OverseerMessageHandler 
    *
    * @param nodeList List of live (and chosen) hosts in Solr cluster
    * @param restoreCollection The metadata for the collection to be restored.
+   * @param numReplicas replication factor for the collection to be restored.
    * @return A map which has shard name as the key and list of hosts as the value.
    *         The caller of this function should use the list of hosts to assign replicas
    *         for the given shard (specified by the key).
    */
   private static Map<String, List<String>> shardToHostAssignment (List<String> nodeList,
-      DocCollection restoreCollection) {
-    Integer numReplicas = restoreCollection.getReplicationFactor();
+      DocCollection restoreCollection, int numReplicas) {
     Map<String, List<String>> result = new HashMap<>();
     List<String> nodesWithFirstReplica = new ArrayList<>();
 
