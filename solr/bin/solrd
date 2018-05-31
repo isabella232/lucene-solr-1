@@ -246,5 +246,14 @@ fi
 if [ "$1" = "stop" ] ; then
   exec $(dirname "$BASH_SOURCE")/solr stop -d $(dirname "$BASH_SOURCE")/../server -k csearch -p $SOLR_PORT
 else
+  if [ -n "${SOLR_PLUGINS_DIR}" ]; then
+    if [ ! -d "${SOLR_PLUGINS_DIR}" ]; then
+      echo "The configured solr plugins directory ${SOLR_PLUGINS_DIR} does not exist!"
+      exit 1
+    else
+      export JAVA_OPTS="${JAVA_OPTS} -Dsolr.plugins.dir=${SOLR_PLUGINS_DIR}"
+    fi
+  fi
+
   exec $(dirname "$BASH_SOURCE")/solr -f -d $(dirname "$BASH_SOURCE")/../server -k csearch -z $SOLR_ZK_ENSEMBLE -p $SOLR_PORT -a "$JAVA_OPTS" -j "--lib=${SOLR_HDFS_CONFIG}"
 fi

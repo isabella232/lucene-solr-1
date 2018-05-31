@@ -70,11 +70,27 @@ for config in $(ls "${SOLR_CONFIG_METADATA}"/configs)
 # Start a Solr server and test these configs
 SOLR_PORT=${SOLR_PORT:-8983}
 SOLR_HOME_DIR="${CMD_OP_DIR}/home"
-export SOLR_LOGS_DIR="$(cd "${CMD_OP_DIR}"; pwd)/logs" # log directory path needs to be absolute
+# Use Solr server log directory so as to facilitate log inspection via CM UI.
+export SOLR_LOGS_DIR=${SOLR_LOG:-/var/log/solr}
+export SOLR_LOG4J_CONFIG=${SOLR_LOG4J_CONFIG:-/etc/solr/conf/log4j.properties}
 export SOLR_PID_DIR="${CMD_OP_DIR}"
 export SOLR_SERVER_DIR="${CDH_SOLR_HOME}/server" # by default CM generates incorrect server directory path (Ref: OPSAPS-24444)
+export JAVA_OPTS="-Dlog4j.configuration=file://$SOLR_LOG4J_CONFIG"
 
-mkdir -p "${SOLR_LOGS_DIR}"
+# Unset the SOLR_STOP_WAIT variable configured as part of OPSAPS-37922
+# This is required since the Solr server started in this script is not managed by CM and we want
+# to ensure Solr process is terminated in a timely basis.
+unset SOLR_STOP_WAIT
+
+if [ -n "${SOLR_PLUGINS_DIR}" ]; then
+  if [ ! -d "${SOLR_PLUGINS_DIR}" ]; then
+    echo "The solr plugins directory ${SOLR_PLUGINS_DIR} does not exist!"
+    exit 1
+  else
+    export JAVA_OPTS="${JAVA_OPTS} -Dsolr.plugins.dir=${SOLR_PLUGINS_DIR}"
+  fi
+fi
+
 mkdir -p "${SOLR_HOME_DIR}"
 
 # Make sure to stop the test instance at the end
@@ -89,7 +105,7 @@ cp "${SOLR_METADATA_DIR}"/solr.xml ${SOLR_HOME_DIR}
 
 # Start SOLR server
 echo "Starting SOLR instance"
-"${SOLR_SVC_CMD}" start -p "${SOLR_PORT}" -s "${SOLR_HOME_DIR}"
+"${SOLR_SVC_CMD}" start -p "${SOLR_PORT}" -s "${SOLR_HOME_DIR}" -a "$JAVA_OPTS"
 
 # Test configsets by creating cores on the test instance
 for config in $(ls "${SOLR_CONFIG_METADATA}"/configs)
