@@ -71,7 +71,7 @@ public class SolrIndexConfig implements MapSerializable {
   public final double ramBufferSizeMB;
 
   public final int writeLockTimeout;
-  public final String lockType;
+  public volatile String lockType;
   public final PluginInfo mergePolicyFactoryInfo;
   public final PluginInfo mergeSchedulerInfo;
   public final PluginInfo metricsInfo;

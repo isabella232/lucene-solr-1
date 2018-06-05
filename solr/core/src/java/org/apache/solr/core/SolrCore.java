@@ -871,6 +871,9 @@ public final class SolrCore implements SolrInfoBean, SolrMetricProducer, Closeab
     if (coreContainer.isZooKeeperAware()) {
       boolean isLegacyCloud = Overseer.isLegacy(coreContainer.zkSys.zkController.getZkStateReader());
       boolean isAutoAddReplicas = coreContainer.zkSys.zkController.getZkStateReader().getClusterState().getCollection(coreDescriptor.getCollectionName()).getAutoAddReplicas();
+      if (isAutoAddReplicas) {
+        config.indexConfig.lockType = "none";
+      }
       if (isLegacyCloud && isAutoAddReplicas) {
         throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "AutoAddReplicas cannot be used with the deprecated legacyCloud=true mode.");
       }
