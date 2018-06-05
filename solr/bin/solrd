@@ -76,7 +76,7 @@ fi
 
 
 export SOLR_JAVA_MEM=" "
-JAVA_OPTS="${JAVA_OPTS} -Dsolr.solrxml.location=zookeeper"
+JAVA_OPTS="${CATALINA_OPTS} ${JAVA_OPTS} -Dsolr.solrxml.location=zookeeper"
 
 if [ -n "$SOLR_HDFS_HOME" ] ; then
   JAVA_OPTS="${JAVA_OPTS} -Dsolr.hdfs.home=${SOLR_HDFS_HOME}"
