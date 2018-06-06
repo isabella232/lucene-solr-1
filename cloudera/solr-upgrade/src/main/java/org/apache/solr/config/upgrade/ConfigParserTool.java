@@ -19,6 +19,7 @@ package org.apache.solr.config.upgrade;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -94,10 +95,40 @@ public class ConfigParserTool {
       out.println(String.format("%s is not found in the specified clusterstate.json", collection));
       exitFunction.accept(1);
     }
-    Object collState = result.get(collection);
+    Map collState = handleIncompatibleCollectionState((Map)result.get(collection));
     result.clear();
     result.put(collection, collState);
     out.println(mapper.writeValueAsString(result));
+  }
+
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  private static Map handleIncompatibleCollectionState(Map collState) {
+    // Handle missing replication factor, maxShardsPerNode and autoAddReplicas params (Ref: CDH-60700)
+    if (!collState.containsKey("replicationFactor")) {
+      collState.put("replicationFactor", 1);
+    }
+    if (!collState.containsKey("maxShardsPerNode")) {
+      collState.put("maxShardsPerNode", 1);
+    }
+    if (!collState.containsKey("autoAddReplicas")) {
+      collState.put("autoAddReplicas", false);
+    }
+
+    // If the collection state contains old-format router config, upgrade it to new config (Ref: CDH-24796)
+    Object routerConf = collState.get("router");
+    if (routerConf instanceof String) {
+      Map<String, Object> routerProps = new HashMap<>();
+      routerProps.put("name", routerConf);
+      collState.put("router", routerProps);
+    }
+
+    // If the collection state contains new-format router config, rename it (Ref: CDH-24796)
+    Object routerSpecConf = collState.get("routerSpec");
+    if (routerSpecConf instanceof Map) {
+      collState.put("router", routerSpecConf);
+    }
+
+    return collState;
   }
 
   @SuppressWarnings("unchecked")

@@ -251,9 +251,7 @@ collection=${c}
 __EOT__
     echo "Generating collection_state.json for collection ${c}"
     run_config_parser_tool --get-collection-state -i "${SOURCEDIR}"/clusterstate.json -c "${c}" \
-     |sed 's/"router"/"__router"/g' \
-     |sed 's/"routerSpec"/"router"/g' \
-     > "${WORKDIR}/${c}/zk_backup/collection_state.json"
+      > "${WORKDIR}/${c}/zk_backup/collection_state.json"
   done
   echo "---------- Successfully built backup-formatted directories ----------"
 
