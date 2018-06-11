@@ -264,7 +264,7 @@ public abstract class FacetProcessor<FacetRequestT extends FacetRequest>  {
       // We need to remember to not redundantly re-apply these filters after.
       DocSet acceptDocs = this.filter;
       if (acceptDocs == null) {
-        acceptDocs = fcontext.searcher.getLiveDocs();
+        acceptDocs = fcontext.searcher.getLiveDocSet();
       } else {
         appliedFilters = true;
       }
