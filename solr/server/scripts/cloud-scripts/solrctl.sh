@@ -186,12 +186,13 @@ get_solr_metadata() {
 }
 
 run_solr_snapshot_tool() {
-  SOLR_USE_DISTCP="true" ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties ${SOLR_HOME}/bin/snapshotscli.sh "$@"
+  SOLR_USE_DISTCP="true" ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${LOG4J_PROPS} ${SOLR_HOME}/bin/snapshotscli.sh "$@"
 }
 
 SOLR_CONF_DIR=${SOLR_CONF_DIR:-/etc/solr/conf}
 SOLR_DEFAULTS=${SOLR_DEFAULTS:-/etc/default/solr}
 SENTRY_CONF_DIR=${SENTRY_CONF_DIR:-/etc/sentry/conf}
+export LOG4J_PROPS=${LOG4J_PROPS:-${SOLR_CONF_DIR}/log4j.properties}
 
 if [ -e "$SOLR_CONF_DIR/solr-env.sh" ] ; then
   . "$SOLR_CONF_DIR/solr-env.sh"
@@ -278,7 +279,7 @@ if [ -z "$SOLR_ZK_ENSEMBLE" ] ; then
     If you running remotely, please use --zk zk_ensemble.
 __EOT__
 else
-  SOLR_ADMIN_ZK_CMD='ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties ${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>&3'
+  SOLR_ADMIN_ZK_CMD='ZKCLI_JVM_FLAGS=${ZKCLI_JVM_FLAGS} LOG4J_PROPS=${LOG4J_PROPS} ${SOLR_HOME}/bin/zkcli.sh -zkhost $SOLR_ZK_ENSEMBLE 2>&3'
 fi
 
 # Now start parsing commands -- there has to be at least one!
@@ -885,7 +886,6 @@ while test $# != 0 ; do
       [ $# -gt 1 ] || usage "Error: incorrect specification of arguments for $1"
       # Put hadoop native libs in java.library.path to avoid a WARN in logs
       SENTRYCLI_JVM_FLAGS="${SENTRYCLI_JVM_FLAGS} -Djava.library.path=${HADOOP_HOME}/lib/native"
-      export LOG4J_PROPS=${SOLR_CONF_DIR}/log4j.properties
       # NOTE: Instead of doing the normal "eval" method for invoking the sentrycli script
       # we put the entire command here so it is only evaled once (on the user's command line).
       # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
