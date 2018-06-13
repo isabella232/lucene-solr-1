@@ -16,6 +16,7 @@
  */
 package org.apache.solr.servlet;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.EOFException;
@@ -41,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.security.authentication.client.AuthenticatedURL;
 import org.apache.http.Header;
 import org.apache.http.HeaderIterator;
 import org.apache.http.HttpEntity;
@@ -96,6 +98,7 @@ import org.apache.solr.security.AuthorizationContext;
 import org.apache.solr.security.AuthorizationContext.CollectionRequest;
 import org.apache.solr.security.AuthorizationContext.RequestType;
 import org.apache.solr.security.AuthorizationResponse;
+import org.apache.solr.security.HadoopAuthPlugin;
 import org.apache.solr.security.KerberosPlugin;
 import org.apache.solr.security.PKIAuthenticationPlugin;
 import org.apache.solr.servlet.SolrDispatchFilter.Action;
@@ -586,11 +589,58 @@ public class HttpSolrCall {
     }
   }
 
+  private boolean isAuthCookieAvailable(HttpServletRequest req) {
+    Cookie[] cookies = req.getCookies();
+    if (cookies != null) {
+      for (Cookie cookie : cookies) {
+        if (AuthenticatedURL.AUTH_COOKIE.equals(cookie.getName())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private void remoteQuery(String coreUrl, HttpServletResponse resp) throws IOException {
     HttpRequestBase method = null;
     HttpEntity httpEntity = null;
     try {
-      String urlstr = coreUrl + queryParams.toQueryString();
+      String urlstr = coreUrl;
+      String queryString = queryParams.toQueryString();
+
+      /**
+       * CDH-69204 When Solr is configured in secure mode (with Sentry), the request
+       * forwarding logic allows an unauthorized user to perform arbitrary operation in
+       * Solr. The reason is that authorization framework design requires access to
+       * RequestHandler reference to figure out the appropriate permissions to test against
+       * Sentry (or any other authorization back-end).But in case of request forwarding
+       * scenario, such reference is not available (since no local core can be found in that
+       * case). When no request handler reference is available, authorization plugin needs
+       * to allow that request to go through. This is because there are many request handlers
+       * which do not implement PermissionNameProvider interface and the authorization framework
+       * needs to play well with these request handlers (Ref: SOLR-11623). Internally request is
+       * forwarded using the Solr admin credentials. Hence the remote Solr instance bypass the
+       * authorization check, resulting in this vulnerability.
+       * This CLOUDERA only code change uses proxy users support in Hadoop authentication framework
+       * to pass original user-name via doAs param. That forces the remote Solr node to perfrom
+       * authorization check for the forwarded request, avoiding this vulnerability.
+       **/
+      if (cores.getAuthenticationPlugin() instanceof HadoopAuthPlugin) {
+        String doAsUserName = queryParams.get(KerberosPlugin.IMPERSONATOR_DO_AS_HTTP_PARAM);
+        if (doAsUserName == null) {
+          // doAsUserName is null, let's add it to the request so authorization works properly
+          StringBuilder doAsParam = new StringBuilder();
+          // CDH-37569 - Impersonation is necessary only if the Auth cookie is not available.
+          if(!isAuthCookieAvailable(req)) {
+            doAsParam.append(KerberosPlugin.IMPERSONATOR_DO_AS_HTTP_PARAM)
+                     .append("=").append(req.getRemoteUser());
+          }
+          queryString = (queryString == null || queryString.isEmpty())
+              ? doAsParam.toString() : queryString + "&" + doAsParam.toString();
+        }
+      }
+
+      urlstr += (queryString == null || queryString.isEmpty()) ? "" : "?" + queryString;
 
       boolean isPostOrPutRequest = "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod());
       if ("GET".equals(req.getMethod())) {
