@@ -344,6 +344,7 @@ while test $# != 0 ; do
     --zk)
       [ $# -gt 1 ] || usage "Error: $1 requires an argument"
       SOLR_ZK_ENSEMBLE="$2"
+      SOLRCTL_OPTS="${SOLRCTL_OPTS} --zk $SOLR_ZK_ENSEMBLE"
       shift 2
       ;;
     --jaas)
