@@ -192,7 +192,16 @@ run_solr_snapshot_tool() {
 SOLR_CONF_DIR=${SOLR_CONF_DIR:-/etc/solr/conf}
 SOLR_DEFAULTS=${SOLR_DEFAULTS:-/etc/default/solr}
 SENTRY_CONF_DIR=${SENTRY_CONF_DIR:-/etc/sentry/conf}
-export LOG4J_PROPS=${LOG4J_PROPS:-${SOLR_CONF_DIR}/log4j.properties}
+
+if [ -z "${LOG4J_PROPS}" ]; then
+  if [ -f "${SOLR_CONF_DIR}/log4j.properties" ]; then
+    export LOG4J_PROPS="${SOLR_CONF_DIR}/log4j.properties"
+  else
+    export LOG4J_PROPS="$(dirname "$0")/log4j.properties"
+  fi
+else
+  export LOG4J_PROPS="${LOG4J_PROPS}"
+fi
 
 if [ -e "$SOLR_CONF_DIR/solr-env.sh" ] ; then
   . "$SOLR_CONF_DIR/solr-env.sh"
