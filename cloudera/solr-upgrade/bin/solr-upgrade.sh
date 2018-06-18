@@ -49,6 +49,18 @@ elif [ -e ${CDH_SOLR_HOME}/../bigtop-utils/bigtop-detect-javahome ]; then
   . ${CDH_SOLR_HOME}/../bigtop-utils/bigtop-detect-javahome
 fi
 
+# Ensure that LOG4J_PROPS env variable is configured automatically by the
+# Solr upgrade tool.
+if [ -z "${LOG4J_PROPS}" ]; then
+  if [ -f "${SOLR_CONF_DIR}/log4j.properties" ]; then
+    export LOG4J_PROPS="${SOLR_CONF_DIR}/log4j.properties"
+  else
+    export LOG4J_PROPS="$(dirname "$0")/lib/log4j.properties"
+  fi
+else
+  export LOG4J_PROPS="${LOG4J_PROPS}"
+fi
+
 usage() {
   echo "
 Usage: $0 command [command-arg]
