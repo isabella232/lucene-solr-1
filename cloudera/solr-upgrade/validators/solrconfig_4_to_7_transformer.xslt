@@ -73,6 +73,10 @@
   <xsl:message>* Removed deprecated solr.admin.AdminHandlers RequestHandler</xsl:message>
 </xsl:template>
 
+<xsl:template match="requestHandler[@class='org.apache.solr.handler.admin.SecureAdminHandlers']">
+  <xsl:message>* Removed org.apache.solr.handler.admin.SecureAdminHandlers configuration</xsl:message>
+</xsl:template>
+
 <xsl:template match="requestHandler[@class='org.apache.solr.handler.dataimport.DataImportHandler']">
   <xsl:message>* Removed org.apache.solr.handler.dataimport.DataImportHandler configuration</xsl:message>
 </xsl:template>
