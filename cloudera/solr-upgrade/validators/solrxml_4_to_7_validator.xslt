@@ -36,7 +36,7 @@
   <xsl:if test="./cores">
     <incompatibility>
       <level>error</level>
-      <jira_number>TBD</jira_number>
+      <jira_number>SOLR-4083,SOLR-4196</jira_number>
       <description>Solr no longers supports solr.xml files with a cores element. Cores are now auto discovered instead.</description>
       <recommendation>Update your solr.xml file to the new format: https://cwiki.apache.org/confluence/display/solr/Moving+to+the+New+solr.xml+Format</recommendation>
       <reindexing>no</reindexing>
@@ -50,32 +50,21 @@
       <description>The deprecated zkCredientialsProvider element in solrcloud section of solr.xml is now removed.</description>
       <recommendation>Use the correct spelling (zkCredentialsProvider) instead.</recommendation>
       <reindexing>no</reindexing>
-      <transform>no</transform>
+      <transform>yes</transform>
     </incompatibility>
   </xsl:if>
 
   <xsl:if test="not(./backup)">
     <incompatibility>
       <level>info</level>
-      <jira_number>TBD</jira_number>
+      <jira_number>SOLR-9242</jira_number>
       <description>solr.xml must contain HDFS backup repository definition for upgrade.</description>
-      <recommendation>Define backup configuration.</recommendation>
+      <recommendation>Please refer the "Backing Up and Restoring Cloudera Search" section in Cloudera docs</recommendation>
       <reindexing>no</reindexing>
       <transform>yes</transform>
     </incompatibility>
   </xsl:if>
   <xsl:apply-templates select="child::node()"/>
-</xsl:template>
-
-<xsl:template match="str[@name='adminHandler'][text()='org.apache.solr.handler.admin.SecureAdminHandlers']">
-  <incompatibility>
-    <level>error</level>
-    <jira_number>SENTRY-1475</jira_number>
-    <description>org.apache.solr.handler.admin.SecureAdminHandlers class is removed</description>
-    <recommendation>Use org.apache.solr.handler.admin.CoreAdminHandler class instead</recommendation>
-    <reindexing>no</reindexing>
-    <transform>no</transform>
-  </incompatibility>
 </xsl:template>
 
 <xsl:template match="str[@name='adminHandler'][text()='org.apache.solr.handler.admin.SecureCoreAdminHandler']">
@@ -126,7 +115,7 @@
   <xsl:if test="contains(.,'solr.port')">
     <incompatibility>
       <level>info</level>
-      <jira_number>TBD</jira_number>
+      <jira_number>none</jira_number>
       <description>System property used to define SOLR server port has changed from solr.port to jetty.port</description>
       <recommendation>Replace the usage of solr.port system property with jetty.port</recommendation>
       <reindexing>no</reindexing>

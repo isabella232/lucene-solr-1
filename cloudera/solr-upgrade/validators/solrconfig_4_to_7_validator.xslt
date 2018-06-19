@@ -96,7 +96,7 @@
   <xsl:if test="@file">
     <incompatibility>
       <level>error</level>
-      <jira_number>TBD</jira_number>
+      <jira_number>SOLR-4977</jira_number>
       <description>The "file" attribute of infoStream element is removed</description>
       <recommendation>Control this via your logging configuration (org.apache.solr.update.LoggingInfoStream) instead.</recommendation>
       <reindexing>no</reindexing>
@@ -183,8 +183,18 @@
    <xsl:if test="@class='solr.admin.AdminHandlers'">
     <incompatibility>
       <level>info</level>
-      <jira_number>TBD</jira_number>
+      <jira_number>SOLR-6792</jira_number>
       <description>The AdminHandlers class has been deprecated and removed.</description>
+      <recommendation>Remove this handler configuration.</recommendation>
+      <reindexing>no</reindexing>
+      <transform>yes</transform>
+    </incompatibility>
+  </xsl:if>
+  <xsl:if test="@class='org.apache.solr.handler.admin.SecureAdminHandlers'">
+    <incompatibility>
+      <level>error</level>
+      <jira_number>SENTRY-1475</jira_number>
+      <description>org.apache.solr.handler.admin.SecureAdminHandlers class is removed</description>
       <recommendation>Remove this handler configuration.</recommendation>
       <reindexing>no</reindexing>
       <transform>yes</transform>
@@ -247,9 +257,9 @@
     <xsl:if test="not(@handleSelect)">
     <incompatibility>
       <level>info</level>
-      <jira_number>SOLR-3161</jira_number>
-      <description>&lt;requestDispatcher handleSelect="..."&gt; now defaults to false when luceneMatchVersion >= 7.0, thus ignoring "qt".</description>
-      <recommendation>TBD</recommendation>
+      <jira_number>SOLR-3161,SOLR-6807</jira_number>
+      <description>&lt;requestDispatcher handleSelect="..."&gt; now defaults to false when luceneMatchVersion >= 7.0, thus ignoring "qt". This will cause Solr to return HTTP 404 response for "/select" requests unless a handler is explicitly registered with name "/select"</description>
+      <recommendation>Explicitly register request handlers in solrconfig.xml instead of relying on "qt" parameter.</recommendation>
       <reindexing>no</reindexing>
       <transform>no</transform>
     </incompatibility>
