@@ -19,6 +19,7 @@ package org.apache.solr.config.upgrade;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
 
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
@@ -35,22 +36,32 @@ import org.w3c.dom.Document;
  */
 public class ConfigValidator {
   private final String confName;
-  private final Transformer transformer;
+  private final Optional<Transformer> transformer;
+  private Path scriptPath;
 
   public ConfigValidator(ToolParams params, String confName, ProcessorConfig procConfig) {
     this.confName = confName;
     this.transformer = buildTransformer(params, procConfig);
   }
 
-  public boolean validate(Source config, ValidationHandler handler) throws TransformerException {
-    handler.begin(confName);
-    DOMResult validationResult = new DOMResult();
-    transformer.transform(config, validationResult);
-    return handler.process(confName, (Document)validationResult.getNode());
+  public boolean validate(Source config, ValidationHandler handler) {
+    if (!transformer.isPresent()) {
+      return false;
+    }
+    try {
+      handler.begin(confName);
+      DOMResult validationResult = new DOMResult();
+      transformer.get().transform(config, validationResult);
+      return handler.process(confName, (Document)validationResult.getNode());
+    } catch (TransformerException ex) {
+      System.out.println("Configuration validation failed.");
+      System.out.printf("Unexpected error executing %s : %s", scriptPath, ex.getLocalizedMessage());
+      return false;
+    }
   }
 
-  protected Transformer buildTransformer(ToolParams params, ProcessorConfig procConfig) {
-    Path scriptPath = Paths.get(procConfig.getValidatorPath());
+  protected Optional<Transformer> buildTransformer(ToolParams params, ProcessorConfig procConfig) {
+    scriptPath = Paths.get(procConfig.getValidatorPath());
     if (!scriptPath.isAbsolute()) {
       scriptPath = params.getProcessorConfPath().getParent().resolve(scriptPath);
     }
@@ -58,9 +69,11 @@ public class ConfigValidator {
       throw new IllegalArgumentException("Unable to find validation script "+scriptPath);
     }
     try {
-      return params.getFactory().newTransformer(new StreamSource(scriptPath.toFile())) ;
+      return Optional.of(params.getFactory().newTransformer(new StreamSource(scriptPath.toFile()))) ;
     } catch (TransformerConfigurationException e) {
-      throw new UpgradeConfigException(e);
+      System.out.printf("Following syntactical errors found in script %s : %s", scriptPath, e.getLocalizedMessage());
+      System.out.println();
+      return Optional.empty();
     }
   }
 }
