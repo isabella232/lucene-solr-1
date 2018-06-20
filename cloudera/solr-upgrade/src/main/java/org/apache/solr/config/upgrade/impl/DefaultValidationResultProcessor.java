@@ -52,6 +52,9 @@ public class DefaultValidationResultProcessor implements ValidationHandler {
     StreamSource resultSummaryProcessor = new StreamSource(
         ConfigUpgradeTool.class.getClassLoader()
                                .getResourceAsStream("validation_result_summary.xslt"));
+    StreamSource resultProcessor = new StreamSource(
+        ConfigUpgradeTool.class.getClassLoader()
+                               .getResourceAsStream("validation_result_html.xslt"));
 
     try {
       Transformer summaryTransform =
@@ -62,11 +65,13 @@ public class DefaultValidationResultProcessor implements ValidationHandler {
 
       if (this.params.getResultDirPath() != null) {
         // Store the results in the specified directory.
-        Transformer saveTransform = TransformerFactory.newInstance().newTransformer();
+        Transformer saveTransform = TransformerFactory.newInstance().newTransformer(resultProcessor);
+        saveTransform.setParameter("solrOpVersion", this.params.getUpgradeProcessorConf().getOutputVersion());
+        saveTransform.setParameter("dryRun", this.params.isDryRun());
         saveTransform.setOutputProperty(OutputKeys.INDENT, "yes");
         saveTransform.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
         saveTransform.transform(new DOMSource(result),
-            new StreamResult(this.params.getResultDirPath().resolve(confName+"_validation.xml").toFile()));
+            new StreamResult(this.params.getResultDirPath().resolve(confName+"_validation.html").toFile()));
       }
 
       if (evaluateXPathExpression(result, "/result/incompatibility[contains(level, 'error')]").getLength() == 0) {
@@ -91,7 +96,7 @@ public class DefaultValidationResultProcessor implements ValidationHandler {
   private void printValidationResultFilePath (String confName) {
     if (params.getResultDirPath() != null) {
       System.out.printf(" Please review %s for more details.",
-          params.getResultDirPath().resolve(confName+"_validation.xml").toAbsolutePath());
+          params.getResultDirPath().resolve(confName+"_validation.html").toAbsolutePath());
     }
     System.out.println();
   }

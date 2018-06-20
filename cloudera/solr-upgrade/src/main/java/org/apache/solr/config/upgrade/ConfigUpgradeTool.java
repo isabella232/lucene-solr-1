@@ -42,12 +42,12 @@ public class ConfigUpgradeTool {
   private static final String UPGRADE_PROCESSORS_CONF_FILE = "u";
   public static final String SOLR_CONFIG_TYPE = "t";
   public static final String RESULT_DIR_PATH = "d";
-  
+
   // TODO: currently this just turns on XSLT compiler warnings, but seems
   // more useful as a verbose flag for debugging - x could be used for XSLT
   // compiler warnings only if desired.
   public static final String VERBOSE_OUTPUT = "v";
-  
+
   private static Consumer<Integer> exitFunction = System::exit;
 
   public static void setExitFunction(Consumer<Integer> f) {
@@ -110,14 +110,16 @@ public class ConfigUpgradeTool {
       // Note we expect the transformation rules to be present in the validation script
       // at an info level. When validation script is not present, there is no need for
       // transformation as well.
-      if (result && !params.isDryRun()) {
-        Optional<ConfigTransformer> transformer = getConfigTransformer(params);
-        if (transformer.isPresent()) {
-          transformer.get().transform(getConfigSource(params));
+      if (result) {
+        if (params.isDryRun()) {
+          System.out.printf("Skipping auto-transformations since --%s option was selected.", DRY_RUN);
+          System.out.println();
+        } else {
+          Optional<ConfigTransformer> transformer = getConfigTransformer(params);
+          if (transformer.isPresent()) {
+            transformer.get().transform(getConfigSource(params));
+          }
         }
-      } else {
-          System.out.println(
-              "No transform of the input file was done because you specified a dry run or because there are errors in the file that need to be manually addressed.");
       }
     } else {
       System.out.println("No validation rules found for config type : " + params.getConfType()
