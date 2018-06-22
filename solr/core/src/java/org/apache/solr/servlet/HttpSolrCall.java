@@ -636,11 +636,11 @@ public class HttpSolrCall {
                      .append("=").append(req.getRemoteUser());
           }
           queryString = (queryString == null || queryString.isEmpty())
-              ? doAsParam.toString() : queryString + "&" + doAsParam.toString();
+              ? "?" + doAsParam.toString() : queryString + "&" + doAsParam.toString();
         }
       }
 
-      urlstr += (queryString == null || queryString.isEmpty()) ? "" : "?" + queryString;
+      urlstr += (queryString == null || queryString.isEmpty()) ? "" : queryString;
 
       boolean isPostOrPutRequest = "POST".equals(req.getMethod()) || "PUT".equals(req.getMethod());
       if ("GET".equals(req.getMethod())) {
