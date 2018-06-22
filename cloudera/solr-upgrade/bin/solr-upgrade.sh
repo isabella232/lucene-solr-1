@@ -313,7 +313,12 @@ __EOT__
 }
 
 hdfs_cmd(){
-  hdfs dfs "$@"
+  HDFS_CMD="${HDFS_BIN:-hdfs}"
+  HDFS_CONFIG_PARAM=""
+  if [ -n "${SOLR_HDFS_CONFIG}" ]; then
+    HDFS_CONFIG_PARAM="--config ${SOLR_HDFS_CONFIG}"
+  fi
+  ${HDFS_CMD} ${HDFS_CONFIG_PARAM} dfs "$@"
 }
 
 random_string(){
