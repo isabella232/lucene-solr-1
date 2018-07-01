@@ -295,6 +295,7 @@ abstract class FacetFieldProcessor extends FacetProcessor<FacetField> {
     // note: We avoid object allocation by having a Slot and re-using the 'bottom'.
     Slot bottom = null;
     Slot scratchSlot = new Slot();
+    boolean shardHasMoreBuckets = false;  // This shard has more buckets than were returned
     for (int slotNum = 0; slotNum < numSlots; slotNum++) {
 
       // screen out buckets not matching mincount
@@ -310,6 +311,7 @@ abstract class FacetFieldProcessor extends FacetProcessor<FacetField> {
       numBuckets++;
 
       if (bottom != null) {
+        shardHasMoreBuckets = true;
         scratchSlot.slot = slotNum; // scratchSlot is only used to hold this slotNum for the following line
         if (orderPredicate.test(bottom, scratchSlot)) {
           bottom.slot = slotNum;
@@ -378,6 +380,11 @@ abstract class FacetFieldProcessor extends FacetProcessor<FacetField> {
       fillBucket(bucket, countAcc.getCount(slotNum), slotNum, null, filter);
 
       bucketList.add(bucket);
+    }
+
+    if (fcontext.isShard() && shardHasMoreBuckets) {
+      // Currently, "more" is an internal implementation detail and only returned for distributed sub-requests
+      res.add("more", true);
     }
 
     if (freq.missing) {
