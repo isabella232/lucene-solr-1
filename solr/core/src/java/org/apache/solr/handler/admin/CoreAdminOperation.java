@@ -36,7 +36,6 @@ import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.Utils;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.CoreDescriptor;
-import org.apache.solr.core.DirectoryFactory;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.core.SolrInfoBean;
 import org.apache.solr.core.snapshots.SolrSnapshotManager;
@@ -341,7 +340,7 @@ enum CoreAdminOperation implements CoreAdminOp {
               RefCounted<SolrIndexSearcher> searcher = core.getSearcher();
               try {
                 SimpleOrderedMap<Object> indexInfo = LukeRequestHandler.getIndexInfo(searcher.get().getIndexReader());
-                long size = getIndexSize(core);
+                long size = core.getIndexSize();
                 indexInfo.add("sizeInBytes", size);
                 indexInfo.add("size", NumberUtils.readableSize(size));
                 info.add("index", indexInfo);
@@ -354,24 +353,6 @@ enum CoreAdminOperation implements CoreAdminOp {
       }
     }
     return info;
-  }
-
-  static long getIndexSize(SolrCore core) {
-    Directory dir;
-    long size = 0;
-    try {
-
-      dir = core.getDirectoryFactory().get(core.getIndexDir(), DirectoryFactory.DirContext.DEFAULT, core.getSolrConfig().indexConfig.lockType);
-
-      try {
-        size = core.getDirectoryFactory().size(dir);
-      } finally {
-        core.getDirectoryFactory().release(dir);
-      }
-    } catch (IOException e) {
-      SolrException.log(log, "IO error while trying to get the size of the Directory", e);
-    }
-    return size;
   }
 
   @Override
