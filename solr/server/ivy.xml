@@ -14,7 +14,7 @@
    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
    KIND, either express or implied.  See the License for the
    specific language governing permissions and limitations
-   under the License.    
+   under the License.
 -->
 <ivy-module version="2.0" xmlns:maven="http://ant.apache.org/ivy/maven">
   <info organisation="org.apache.solr" module="server"/>
@@ -67,9 +67,9 @@
     <dependency org="javax.servlet" name="javax.servlet-api" rev="${/javax.servlet/javax.servlet-api}" conf="jetty"/>
 
     <dependency org="org.eclipse.jetty" name="jetty-start" rev="${/org.eclipse.jetty/jetty-start}" conf="start">
-      <artifact name="jetty-start" type="jar" maven:classifier="shaded"/>
+      <artifact name="jetty-start" type="jar"/>
     </dependency>
 
-    <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/> 
+    <exclude org="*" ext="*" matcher="regexp" type="${ivy.exclude.types}"/>
   </dependencies>
 </ivy-module>
