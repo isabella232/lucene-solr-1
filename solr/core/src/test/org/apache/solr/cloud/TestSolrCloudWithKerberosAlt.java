@@ -39,6 +39,10 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.solr.SolrTestCaseJ4.configset;
+import static org.apache.solr.cloud.SolrCloudTestCase.cluster;
+import static org.apache.solr.cloud.SolrCloudTestCase.configureCluster;
+
 /**
  * Test 5 nodes Solr cluster with Kerberos plugin enabled.
  * This test is Ignored right now as Mini KDC has a known bug that
