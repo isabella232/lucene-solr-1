@@ -33,6 +33,7 @@
       <dependency org="org.apache.sentry" name="sentry-provider-common" rev="${/org.apache.sentry/sentry-provider-common}" conf="compile"/>
       <dependency org="org.apache.sentry" name="sentry-provider-db" rev="${/org.apache.sentry/sentry-provider-db}" conf="compile"/>
       <dependency org="org.apache.sentry" name="sentry-provider-file" rev="${/org.apache.sentry/sentry-provider-file}" conf="compile"/>
+      <dependency org="org.apache.sentry" name="sentry-tools" rev="${/org.apache.sentry/sentry-tools}" conf="compile"/>
       <dependency org="org.apache.sentry" name="solr-sentry-handlers" rev="${/org.apache.sentry/solr-sentry-handlers}" conf="compile"/>
       <dependency org="org.apache.shiro" name="shiro-core" rev="${/org.apache.shiro/shiro-core}" conf="compile"/>
       <dependency org="org.apache.thrift" name="libthrift" rev="${/org.apache.thrift/libthrift}" conf="compile"/>

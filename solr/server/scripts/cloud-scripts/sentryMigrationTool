@@ -36,4 +36,4 @@ elif [ -e ${CDH_SOLR_HOME}/../bigtop-utils/bigtop-detect-javahome ]; then
   . ${CDH_SOLR_HOME}/../bigtop-utils/bigtop-detect-javahome
 fi
 
-"${CDH_SOLR_HOME}/bin/sentrycli.sh" org.apache.sentry.provider.db.generic.tools.PermissionsMigrationToolSolr "$@"
+"${CDH_SOLR_HOME}/bin/sentrycli.sh" org.apache.sentry.cli.tools.PermissionsMigrationToolSolr "$@"

@@ -899,8 +899,8 @@ while test $# != 0 ; do
       # we put the entire command here so it is only evaled once (on the user's command line).
       # This is because of privilege specification, e.g. 'collection=collection1->action=UPDATE'
       # works correctly, but needs to be escaped if evaled.
-      SENTRY_CLI_CMD="${SOLR_HOME}/bin/sentrycli.sh org.apache.sentry.provider.db.generic.tools.SentryShellGeneric -conf ${SENTRY_CONF_DIR}/sentry-site.xml -t solr"
-      SENTRY_CONFIGTOOL_CMD="${SOLR_HOME}/bin/sentrycli.sh org.apache.sentry.provider.db.generic.tools.SentryConfigToolSolr -conf ${SENTRY_CONF_DIR}/sentry-site.xml"
+      SENTRY_CLI_CMD="${SOLR_HOME}/bin/sentrycli.sh org.apache.sentry.cli.tools.SentryShellGeneric -conf ${SENTRY_CONF_DIR}/sentry-site.xml -t solr"
+      SENTRY_CONFIGTOOL_CMD="${SOLR_HOME}/bin/sentrycli.sh org.apache.sentry.cli.tools.SentryConfigToolSolr -conf ${SENTRY_CONF_DIR}/sentry-site.xml"
       case "$2" in
         --create-role)
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
