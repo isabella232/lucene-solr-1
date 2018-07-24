@@ -79,7 +79,8 @@ Commands:
 Parameters:
   -c <arg>     This parameter specifies the path of Solr configuration to be operated upon.
   -t <arg>     This parameter specifies the type of Solr configuration to be validated and
-               transformed.The tool currently supports schema.xml, solrconfig.xml and solr.xml
+               transformed.The tool currently supports schema.xml, solrconfig.xml and solr.xml.
+               The valid values for this parameter are schema, solrconfig and solrxml.
   -d <arg>     This parameter specifies the directory path where the result of the command
                should be stored.
   -h <arg>     This parameter specifies the HDFS directory path where the result of the command
