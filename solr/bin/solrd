@@ -255,5 +255,9 @@ else
     fi
   fi
 
-  exec $(dirname "$BASH_SOURCE")/solr -f -d $(dirname "$BASH_SOURCE")/../server -k csearch -z $SOLR_ZK_ENSEMBLE -p $SOLR_PORT -a "$JAVA_OPTS" -j "--lib=${SOLR_HDFS_CONFIG}"
+  # CM starts solr in foreground
+  if [ "$1" = "run" ]; then
+    FOREGROUND="-f"
+  fi
+  exec $(dirname "${BASH_SOURCE}")/solr ${FOREGROUND} -d $(dirname "${BASH_SOURCE}")/../server -k csearch -z ${SOLR_ZK_ENSEMBLE} -p ${SOLR_PORT} -a "${JAVA_OPTS}" -j "--lib=${SOLR_HDFS_CONFIG}"
 fi
