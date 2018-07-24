@@ -81,4 +81,12 @@
   <xsl:message>* Removed org.apache.solr.handler.dataimport.DataImportHandler configuration</xsl:message>
 </xsl:template>
 
+<xsl:template match="requestHandler[@class='solr.JsonUpdateRequestHandler']">
+  <xsl:message>* Removed solr.JsonUpdateRequestHandler configuration</xsl:message>
+</xsl:template>
+
+<xsl:template match="requestHandler[@class='solr.CSVRequestHandler']">
+  <xsl:message>* Removed solr.CSVRequestHandler configuration</xsl:message>
+</xsl:template>
+
 </xsl:stylesheet>

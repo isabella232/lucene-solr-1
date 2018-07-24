@@ -251,6 +251,26 @@
       <transform>yes</transform>
     </incompatibility>
   </xsl:if>
+  <xsl:if test="@class='solr.JsonUpdateRequestHandler'">
+    <incompatibility>
+      <level>info</level>
+      <jira_number>SOLR-6976</jira_number>
+      <description>Request handler (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select="attribute::class"/>) is removed.</description>
+      <recommendation>Remove this request handler configuration.</recommendation>
+      <reindexing>no</reindexing>
+      <transform>yes</transform>
+    </incompatibility>
+  </xsl:if>
+  <xsl:if test="@class='solr.CSVRequestHandler'">
+    <incompatibility>
+      <level>info</level>
+      <jira_number>SOLR-6976</jira_number>
+      <description>Request handler (name = <xsl:value-of select="attribute::name"/> and class = <xsl:value-of select="attribute::class"/>) is removed.</description>
+      <recommendation>Remove this request handler configuration.</recommendation>
+      <reindexing>no</reindexing>
+      <transform>yes</transform>
+    </incompatibility>
+  </xsl:if>
 </xsl:template>
 
 <xsl:template match="requestDispatcher">
