@@ -47,5 +47,9 @@
                     class="solr.NRTCachingDirectoryFactory"/>
 </xsl:template>
 
+<xsl:template match="indexConfig/lockType">
+  <xsl:message>* Using native lock type</xsl:message>
+  <lockType>native</lockType>
+</xsl:template>
 
 </xsl:stylesheet>

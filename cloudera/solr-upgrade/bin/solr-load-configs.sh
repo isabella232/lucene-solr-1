@@ -76,6 +76,7 @@ export SOLR_LOG4J_CONFIG=${SOLR_LOG4J_CONFIG:-/etc/solr/conf/log4j.properties}
 export SOLR_PID_DIR="${CMD_OP_DIR}"
 export SOLR_SERVER_DIR="${CDH_SOLR_HOME}/server" # by default CM generates incorrect server directory path (Ref: OPSAPS-24444)
 export JAVA_OPTS="-Dlog4j.configuration=file://$SOLR_LOG4J_CONFIG"
+export SOLR_SSL_ENABLED="false"
 
 # Unset the SOLR_STOP_WAIT variable configured as part of OPSAPS-37922
 # This is required since the Solr server started in this script is not managed by CM and we want
