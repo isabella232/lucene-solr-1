@@ -120,7 +120,7 @@ public class TestHashQParserPlugin extends SolrTestCaseJ4 {
     Random random = random();
     HashSet<String> set = new HashSet();
 
-    for(int i=0; i<50; i++) {
+    for (int i=0; i<50; i++) {
       int v = random.nextInt(1000000);
       String val = Integer.toString(v);
       if(!set.contains(val)){
