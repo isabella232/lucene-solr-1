@@ -68,6 +68,9 @@ public class HashQParserPlugin extends QParserPlugin {
 
     public Query parse() {
       int workers = localParams.getInt("workers", 0);
+      if (workers < 2) {
+        throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "workers needs to be more than 1");
+      }
       int worker = localParams.getInt("worker", 0);
       String keyParam = params.get("partitionKeys");
       String[] keys = keyParam.replace(" ", "").split(",");
