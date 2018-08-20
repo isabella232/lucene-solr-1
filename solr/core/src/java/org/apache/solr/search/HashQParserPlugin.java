@@ -39,6 +39,7 @@ import org.apache.lucene.util.CharsRef;
 import org.apache.lucene.util.CharsRefBuilder;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.solr.common.params.SolrParams;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.IndexSchema;
@@ -68,15 +69,18 @@ public class HashQParserPlugin extends QParserPlugin {
     public Query parse() {
       int workers = localParams.getInt("workers", 0);
       int worker = localParams.getInt("worker", 0);
-      String keys = params.get("partitionKeys");
-      keys = keys.replace(" ", "");
+      String keyParam = params.get("partitionKeys");
+      String[] keys = keyParam.replace(" ", "").split(",");
+      if (keys.length > 4) {
+        throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "HashQuery supports upto 4 partitionKeys");
+      }
       return new HashQuery(keys, workers, worker);
     }
   }
 
   private static class HashQuery extends ExtendedQueryBase implements PostFilter {
 
-    private String keysParam;
+    private String[] keys;
     private int workers;
     private int worker;
 
@@ -90,7 +94,7 @@ public class HashQParserPlugin extends QParserPlugin {
 
     public int hashCode() {
       return classHash() + 
-          31 * keysParam.hashCode() + 
+          31 * keys.hashCode() +
           31 * workers + 
           31 * worker;
     }
@@ -101,20 +105,19 @@ public class HashQParserPlugin extends QParserPlugin {
     }
 
     private boolean equalsTo(HashQuery other) {
-      return keysParam.equals(other.keysParam) && 
+      return keys.equals(other.keys) &&
              workers == other.workers && 
              worker == other.worker;
     }
 
-    public HashQuery(String keysParam, int workers, int worker) {
-      this.keysParam = keysParam;
+    public HashQuery(String[] keys, int workers, int worker) {
+      this.keys = keys;
       this.workers = workers;
       this.worker = worker;
     }
 
     public Weight createWeight(IndexSearcher searcher, boolean needsScores, float boost) throws IOException {
 
-      String[] keys = keysParam.split(",");
       SolrIndexSearcher solrIndexSearcher = (SolrIndexSearcher)searcher;
       IndexReaderContext context = solrIndexSearcher.getTopReaderContext();
 
@@ -218,7 +221,6 @@ public class HashQParserPlugin extends QParserPlugin {
     }
 
     public DelegatingCollector getFilterCollector(IndexSearcher indexSearcher) {
-      String[] keys = keysParam.split(",");
       HashKey[] hashKeys = new HashKey[keys.length];
       SolrIndexSearcher searcher = (SolrIndexSearcher)indexSearcher;
       IndexSchema schema = searcher.getSchema();
