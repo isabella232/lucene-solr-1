@@ -231,9 +231,11 @@ bootstrap_config() {
   run_zk_cli C6 -cmd putfile /clusterprops.json "$1/clusterprops.json"
 
   for config in "$1"/configs/*; do
-    c="${config##*/}"
-    echo "Uploading config $c"
-    run_zk_cli C6 -cmd upconfig --confdir "$1/configs/$c/conf" --confname "$c"
+    if [ -d "${config}" ]; then
+      c="${config##*/}"
+      echo "Uploading config $c"
+      run_zk_cli C6 -cmd upconfig --confdir "$1/configs/$c/conf" --confname "$c"
+    fi
   done
 
   echo "Re-initialized Solr metadata using the configuration available at $1"
