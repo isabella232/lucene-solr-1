@@ -152,7 +152,7 @@ public class TestHdfsCloudBackupRestore extends AbstractCloudBackupRestoreTestCa
   }
 
   @Override
-  public String getCollectionName() {
+  public String getCollectionNamePrefix() {
     return "hdfsbackuprestore";
   }
 

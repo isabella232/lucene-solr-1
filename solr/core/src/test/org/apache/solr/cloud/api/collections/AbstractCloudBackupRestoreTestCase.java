@@ -58,12 +58,14 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   protected static final int NUM_SHARDS = 2;//granted we sometimes shard split to get more
+  public static final String BACKUPNAME_PREFIX = "mytestbackup";
 
   int replFactor;
   int numTlogReplicas;
   int numPullReplicas;
 
   private static long docsSeed; // see indexDocs()
+  private String testSuffix = "test1";
 
   @BeforeClass
   public static void createCluster() throws Exception {
@@ -73,7 +75,7 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
   /**
    * @return The name of the collection to use.
    */
-  public abstract String getCollectionName();
+  public abstract String getCollectionNamePrefix();
 
   /**
    * @return The name of the backup repository to use.
@@ -86,8 +88,18 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
    */
   public abstract String getBackupLocation();
 
+
+  public String getCollectionName(){
+    return getCollectionNamePrefix() + "_" + testSuffix;
+  }
+
+  public void setTestSuffix(String testSuffix) {
+    this.testSuffix = testSuffix;
+  }
+
   @Test
   public void test() throws Exception {
+    setTestSuffix("testok");
     boolean isImplicit = random().nextBoolean();
     boolean doSplitShardOperation = !isImplicit && random().nextBoolean();
     replFactor = TestUtil.nextInt(random(), 1, 2);
@@ -142,6 +154,56 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
     testBackupAndRestore(getCollectionName());
     testConfigBackupOnly("conf1", getCollectionName());
     testInvalidPath(getCollectionName());
+  }
+
+  @Test
+  public void testRestoreFailure() throws Exception {
+    setTestSuffix("testfailure");
+    replFactor = TestUtil.nextInt(random(), 1, 2);
+    numTlogReplicas = TestUtil.nextInt(random(), 0, 1);
+    numPullReplicas = TestUtil.nextInt(random(), 0, 1);
+
+    CollectionAdminRequest.Create create =
+        CollectionAdminRequest.createCollection(getCollectionName(), "conf1", NUM_SHARDS, replFactor, numTlogReplicas, numPullReplicas);
+
+    if (NUM_SHARDS * (replFactor + numTlogReplicas + numPullReplicas) > cluster.getJettySolrRunners().size()) {
+      create.setMaxShardsPerNode((int)Math.ceil(NUM_SHARDS * (replFactor + numTlogReplicas + numPullReplicas) / cluster.getJettySolrRunners().size())); //just to assert it survives the restoration
+    }
+
+    CloudSolrClient solrClient = cluster.getSolrClient();
+    create.process(solrClient);
+
+    indexDocs(getCollectionName());
+
+
+    String backupLocation = getBackupLocation();
+    String backupName = BACKUPNAME_PREFIX + testSuffix;
+
+    DocCollection backupCollection = solrClient.getZkStateReader().getClusterState().getCollection(getCollectionName());
+
+    log.info("Triggering Backup command");
+
+    {
+      CollectionAdminRequest.Backup backup = CollectionAdminRequest.backupCollection(getCollectionName(), backupName)
+          .setLocation(backupLocation).setRepositoryName(getBackupRepoName());
+      assertEquals(0, backup.process(solrClient).getStatus());
+    }
+
+    log.info("Triggering Restore command");
+
+    String restoreCollectionName = getCollectionName() + "_restored";
+
+    {
+      CollectionAdminRequest.Restore restore = CollectionAdminRequest.restoreCollection(restoreCollectionName, backupName)
+          .setLocation(backupLocation).setRepositoryName(getBackupRepoName());
+      if (backupCollection.getReplicas().size() > cluster.getJettySolrRunners().size()) {
+        // may need to increase maxShardsPerNode (e.g. if it was shard split, then now we need more)
+        restore.setMaxShardsPerNode((int)Math.ceil(backupCollection.getReplicas().size()/cluster.getJettySolrRunners().size()));
+      }
+
+      restore.setConfigName("confFaulty");
+      assertEquals(RequestStatusState.FAILED, restore.processAndWait(solrClient, 30));
+    }
   }
 
   /**
@@ -224,7 +286,7 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
 
   private void testBackupAndRestore(String collectionName) throws Exception {
     String backupLocation = getBackupLocation();
-    String backupName = "mytestbackup";
+    String backupName = BACKUPNAME_PREFIX + testSuffix;
 
     CloudSolrClient client = cluster.getSolrClient();
     DocCollection backupCollection = client.getZkStateReader().getClusterState().getCollection(collectionName);

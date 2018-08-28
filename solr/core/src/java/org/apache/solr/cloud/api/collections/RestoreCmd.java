@@ -32,6 +32,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.solr.client.solrj.cloud.DistributedQueue;
 import org.apache.solr.client.solrj.cloud.autoscaling.PolicyHelper;
@@ -50,6 +53,7 @@ import org.apache.solr.common.cloud.ZkStateReader;
 import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
+import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.common.util.Utils;
 import org.apache.solr.core.CoreContainer;
@@ -218,6 +222,8 @@ public class RestoreCmd implements OverseerCollectionMessageHandler.Cmd {
     restoreCollection.getSlices().forEach(x -> sliceNames.add(x.getName()));
     PolicyHelper.SessionWrapper sessionWrapper = null;
 
+    CountDownLatch countDownLatch = new CountDownLatch(restoreCollection.getSlices().size());
+
     try {
       List<ReplicaPosition> replicaPositions = Assign.identifyNodes(
           ocmh.cloudManager, clusterState,
@@ -258,7 +264,38 @@ public class RestoreCmd implements OverseerCollectionMessageHandler.Cmd {
           propMap.put(ASYNC, asyncId);
         }
         ocmh.addPropertyParams(message, propMap);
-        ocmh.addReplica(clusterState, new ZkNodeProps(propMap), new NamedList(), null);
+
+        final NamedList addResult = new NamedList();
+        ocmh.addReplica(clusterState, new ZkNodeProps(propMap), addResult, ()-> {
+          countDownLatch.countDown();
+          Object addResultFailure = addResult.get("failure");
+          if (addResultFailure != null) {
+            SimpleOrderedMap failure = (SimpleOrderedMap) results.get("failure");
+            if (failure == null) {
+              failure = new SimpleOrderedMap();
+              results.add("failure", failure);
+            }
+            failure.addAll((NamedList) addResultFailure);
+          } else {
+            SimpleOrderedMap success = (SimpleOrderedMap) results.get("success");
+            if (success == null) {
+              success = new SimpleOrderedMap();
+              results.add("success", success);
+            }
+            success.addAll((NamedList) addResult.get("success"));
+          }
+        });
+      }
+
+      boolean allIsDone = countDownLatch.await(10, TimeUnit.MINUTES);
+      if(!allIsDone){
+        throw new TimeoutException("Initial replicas were not created within 10 minutes. Timing out.");
+      }
+      Object failures = results.get("failure");
+      if(failures != null && ((SimpleOrderedMap)failures).size() >0){
+        log.error("Restore failed to create initial replicas.");
+        ocmh.cleanupCollection(restoreCollectionName, new NamedList());
+        return;
       }
 
       //refresh the location copy of collection state
