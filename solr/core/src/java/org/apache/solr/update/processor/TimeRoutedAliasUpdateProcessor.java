@@ -20,7 +20,6 @@ package org.apache.solr.update.processor;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -367,12 +366,15 @@ public class TimeRoutedAliasUpdateProcessor extends UpdateRequestProcessor {
   }
 
   private SolrCmdDistributor.Node lookupShardLeaderOfCollection(String collection) {
-    //TODO consider router to get the right slice.  Refactor common code in CloudSolrClient & DistributedUrp
-    final Collection<Slice> activeSlices = zkController.getClusterState().getCollection(collection).getActiveSlices();
-    if (activeSlices.isEmpty()) {
+    final Slice[] activeSlices = zkController.getClusterState().getCollection(collection).getActiveSlicesArr();
+    if (activeSlices.length == 0) {
       throw new SolrException(SolrException.ErrorCode.SERVICE_UNAVAILABLE, "Cannot route to collection " + collection);
     }
-    final Slice slice = activeSlices.iterator().next();
+    final Slice slice = activeSlices[0];
+    return getLeaderNode(collection, slice);
+  }
+
+  private SolrCmdDistributor.Node getLeaderNode(String collection, Slice slice) {
     //TODO when should we do StdNode vs RetryNode?
     final Replica leader = slice.getLeader();
     if (leader == null) {
