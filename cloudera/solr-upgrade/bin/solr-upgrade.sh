@@ -89,6 +89,7 @@ Parameters:
   --dry-run    This command will perform compatibility checks for the specified Solr configuration.
   -v           This parameter enables printing XSLT compiler warnings on the command output.
 "
+  exit 1
 }
 
 run_solrctl() {
@@ -403,7 +404,6 @@ while test $# != 0 ; do
       if [ -z "${destDir}" ]; then
         echo "Please specify destination directory using -d option"
         usage
-        exit 1
       fi
 
       check_dir_present "${destDir}" "Specified output directory path ${destDir} does not exist!"
@@ -428,7 +428,6 @@ while test $# != 0 ; do
       if [ -z "${metadataDir}" ]; then
         echo "Please specify metadata directory to validate using -c option"
         usage
-        exit 1
       fi
 
       check_dir_present "${metadataDir}" "Specified metadata directory path ${metadataDir} does not exist!"
@@ -453,7 +452,6 @@ while test $# != 0 ; do
       if [ -z "${metadataDir}" ]; then
         echo "Please specify metadata directory to validate using -c option"
         usage
-        exit 1
       fi
 
       check_dir_present "${metadataDir}" "Specified metadata directory path ${metadataDir} does not exist!"
@@ -491,17 +489,14 @@ while test $# != 0 ; do
       if [ -z "${metadataDir}" ]; then
         echo "Please specify metadata directory using -c option"
         usage
-        exit 1
       fi
       if [ -z "${workDir}" ]; then
         echo "Please specify a working directory using -d option"
         usage
-        exit 1
       fi
       if [ -z "${hdfsDir}" ]; then
         echo "Please specify an HDFS working directory using -h option"
         usage
-        exit 1
       fi
 
       check_dir_present "${metadataDir}" "Specified metadata directory path ${metadataDir} does not exist!"
@@ -556,22 +551,18 @@ while test $# != 0 ; do
       if [ -z "${confType}" ]; then
         echo "Please specify Solr configuration type using -t option"
         usage
-        exit 1
       fi
       if [ -z "${confPath}" ]; then
         echo "Please specify Solr configuration path using -c option"
         usage
-        exit 1
       fi
       if [ -z "${upgradeProcessorConf}" ]; then
         echo "Please specify Solr upgrade processor config file using -u option"
         usage
-        exit 1
       fi
       if [ -z "${resultDir}" ]; then
         echo "Please specify result directory path using -d option"
         usage
-        exit 1
       fi
 
       run_config_upgrade_tool "${dryRun}" -t "${confType}" -c "${confPath}" -u "${upgradeProcessorConf}" -d "${resultDir}" "${verbose}"
@@ -583,6 +574,5 @@ while test $# != 0 ; do
     *)
       echo "Unknown command $1"
       usage
-      exit 1
   esac
 done
