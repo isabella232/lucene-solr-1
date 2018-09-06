@@ -180,7 +180,7 @@
 </xsl:template>
 
 <xsl:template match="requestHandler">
-   <xsl:if test="@class='solr.admin.AdminHandlers'">
+   <xsl:if test="@class='solr.admin.AdminHandlers' or @class='org.apache.solr.handler.admin.AdminHandlers'">
     <incompatibility>
       <level>info</level>
       <jira_number>SOLR-6792</jira_number>
@@ -190,7 +190,7 @@
       <transform>yes</transform>
     </incompatibility>
   </xsl:if>
-  <xsl:if test="@class='org.apache.solr.handler.admin.SecureAdminHandlers'">
+  <xsl:if test="@class='solr.admin.SecureAdminHandlers' or @class='org.apache.solr.handler.admin.SecureAdminHandlers'">
     <incompatibility>
       <level>error</level>
       <jira_number>SENTRY-1475</jira_number>
@@ -201,7 +201,7 @@
     </incompatibility>
   </xsl:if>
   <!-- TODO - avoid duplication of logic -->
-  <xsl:if test="@class='solr.SecureRealTimeGetHandler'">
+  <xsl:if test="@class='solr.SecureRealTimeGetHandler' or @class='org.apache.solr.handler.SecureRealTimeGetHandler'">
     <incompatibility>
       <level>error</level>
       <jira_number>SENTRY-1475</jira_number>
@@ -211,7 +211,7 @@
       <transform>no</transform>
     </incompatibility>
   </xsl:if>
-  <xsl:if test="@class='solr.SecureFieldAnalysisRequestHandler'">
+  <xsl:if test="@class='solr.SecureFieldAnalysisRequestHandler' or @class='org.apache.solr.handler.SecureFieldAnalysisRequestHandler'">
     <incompatibility>
       <level>error</level>
       <jira_number>SENTRY-1475</jira_number>
@@ -221,7 +221,7 @@
       <transform>no</transform>
     </incompatibility>
   </xsl:if>
-  <xsl:if test="@class='solr.SecureDocumentAnalysisRequestHandler'">
+  <xsl:if test="@class='solr.SecureDocumentAnalysisRequestHandler' or @class='org.apache.solr.handler.SecureDocumentAnalysisRequestHandler'">
     <incompatibility>
       <level>error</level>
       <jira_number>SENTRY-1475</jira_number>
@@ -231,7 +231,7 @@
       <transform>no</transform>
     </incompatibility>
   </xsl:if>
-  <xsl:if test="@class='solr.SecureReplicationHandler'">
+  <xsl:if test="@class='solr.SecureReplicationHandler' or @class='org.apache.solr.handler.SecureReplicationHandler'">
     <incompatibility>
       <level>error</level>
       <jira_number>SENTRY-1475</jira_number>
@@ -241,7 +241,7 @@
       <transform>no</transform>
     </incompatibility>
   </xsl:if>
-  <xsl:if test="@class='org.apache.solr.handler.dataimport.DataImportHandler'">
+  <xsl:if test="@class='solr.DataImportHandler' or @class='org.apache.solr.handler.dataimport.DataImportHandler'">
     <incompatibility>
       <level>info</level>
       <jira_number>CDH-26966</jira_number>
@@ -251,7 +251,7 @@
       <transform>yes</transform>
     </incompatibility>
   </xsl:if>
-  <xsl:if test="@class='solr.JsonUpdateRequestHandler'">
+  <xsl:if test="@class='solr.JsonUpdateRequestHandler' or @class='org.apache.solr.handler.JsonUpdateRequestHandler'">
     <incompatibility>
       <level>info</level>
       <jira_number>SOLR-6976</jira_number>
@@ -261,7 +261,7 @@
       <transform>yes</transform>
     </incompatibility>
   </xsl:if>
-  <xsl:if test="@class='solr.CSVRequestHandler'">
+  <xsl:if test="@class='solr.CSVRequestHandler' or @class='org.apache.solr.handler.CSVRequestHandler'">
     <incompatibility>
       <level>info</level>
       <jira_number>SOLR-6976</jira_number>
