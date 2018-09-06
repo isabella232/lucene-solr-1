@@ -49,6 +49,11 @@ elif [ -e ${CDH_SOLR_HOME}/../bigtop-utils/bigtop-detect-javahome ]; then
   . ${CDH_SOLR_HOME}/../bigtop-utils/bigtop-detect-javahome
 fi
 
+if [ -z "$JAVA_HOME" ]; then
+  echo "ERROR: JAVA_HOME is not set. Set JAVA_HOME and try again."
+  exit 1
+fi
+
 # Ensure that LOG4J_PROPS env variable is configured automatically by the
 # Solr upgrade tool.
 if [ -z "${LOG4J_PROPS}" ]; then
