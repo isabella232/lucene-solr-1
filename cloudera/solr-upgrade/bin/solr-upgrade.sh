@@ -286,6 +286,20 @@ __EOT__
   allSuccess=true
   set +e
   for c in $(run_config_parser_tool --list-collections -i "${SOURCEDIR}"/clusterstate.json); do
+    echo "---------- Make sure ${c} does not exists ----------"
+    found=$(run_solrctl collection --list|grep "${c} "|wc -l)
+    if [ ${found} != "0" ]; then
+      echo "Found ${c}..."
+      echo "Deleting previous collection ${c}..."
+      run_solrctl collection --delete "${c}"
+      if [[ -n ${solrHdfsDataDir} ]]; then
+        colHdfsDataDir="${solrHdfsDataDir}/${c}"
+        echo "Cleaning HDFS data dir ${colHdfsDataDir}..."
+        hdfs_cmd -rmr -skipTrash "${colHdfsDataDir}"
+      fi
+      echo "Clearing /collections/${c} in ZK..."
+      run_zk_cli C6 -cmd clear "/collections/${c}"
+    fi
     echo "---------- Re-initializing ${c} ----------"
     # Starting restore command
     run_solrctl collection --restore "${c}" -b "${c}" -l "${HDFS_WORKDIR}/" -i "restore-${c}-${SUFFIX}"
@@ -467,6 +481,7 @@ while test $# != 0 ; do
       metadataDir=
       workDir=
       hdfsDir=
+      solrHdfsDataDir=
       shift 1
       while test $# -gt 0 ; do
         case "$1" in
@@ -483,6 +498,11 @@ while test $# != 0 ; do
           -h)
             [ $# -gt 1 ] || usage "Error:  bootstrap-collections command parameter $1 requires an argument"
             hdfsDir="$2"
+            shift 2
+            ;;
+          -s)
+            [ $# -gt 1 ] || usage "Error:  bootstrap-collections command parameter $1 requires an argument"
+            solrHdfsDataDir="$2"
             shift 2
             ;;
           *)
