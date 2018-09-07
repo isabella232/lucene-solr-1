@@ -32,6 +32,19 @@
   <xsl:apply-templates select="node() | @*"/>
 </xsl:template>
 
+<xsl:template match="luceneMatchVersion">
+  <xsl:if test=".!='7.0.0'">
+    <incompatibility>
+      <level>info</level>
+      <jira_number>N/A</jira_number>
+      <description>Lucene index version is not 7.0.0</description>
+      <recommendation>Update "luceneMatchVersion" to 7.0.0</recommendation>
+      <reindexing>yes</reindexing>
+      <transform>yes</transform>
+    </incompatibility>
+  </xsl:if>
+</xsl:template>
+
 <xsl:template match="indexConfig">
   <xsl:if test="./termIndexInterval">
     <incompatibility>
