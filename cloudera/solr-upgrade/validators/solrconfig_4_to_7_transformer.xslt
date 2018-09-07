@@ -69,6 +69,13 @@
   </arr>
 </xsl:template>
 
+<xsl:template match="luceneMatchVersion">
+  <xsl:if test=".!='7.0.0'">
+    <xsl:message>* Changed "luceneMatchVersion" to 7.0.0</xsl:message>
+    <luceneMatchVersion>7.0.0</luceneMatchVersion>
+  </xsl:if>
+</xsl:template>
+
 <xsl:template match="requestHandler[@class='solr.admin.AdminHandlers']">
   <xsl:message>* Removed deprecated solr.admin.AdminHandlers RequestHandler</xsl:message>
 </xsl:template>

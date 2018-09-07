@@ -45,7 +45,7 @@
   </xsl:choose>
 
   <xsl:if test="not($dryRun)">
-  <xsl:if test="/result/incompatibility[contains(level, 'info') and contains(transform, 'yes')]"><xsl:text>&#10;</xsl:text>Following incompatibilities will be fixed by auto-transformations (using --upgrade command):</xsl:if>
+  <xsl:if test="/result/incompatibility[contains(level, 'info') and contains(transform, 'yes')]"><xsl:text>&#10;</xsl:text>Following incompatibilities will be fixed by auto-transformations::</xsl:if>
   <xsl:for-each select="/result/incompatibility[contains(level, 'info') and contains(transform, 'yes')]">
     * <xsl:value-of select="./description"/>
   </xsl:for-each>

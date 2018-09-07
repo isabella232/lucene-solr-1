@@ -86,7 +86,7 @@
     </xsl:choose>
     <xsl:choose>
       <xsl:when test="/result/incompatibility[contains(level, 'info') and contains(transform, 'yes')]">
-        <h2>Following incompatibilities will be fixed by auto-transformations (using --upgrade command):</h2>
+        <h2>Following incompatibilities will be fixed by auto-transformations:</h2>
         <table border="1">
           <tr bgcolor="#9acd32">
             <th>Description</th>
