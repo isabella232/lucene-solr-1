@@ -72,9 +72,6 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
     docsSeed = random().nextLong();
   }
 
-  /**
-   * @return The name of the collection to use.
-   */
   public abstract String getCollectionNamePrefix();
 
   /**
@@ -88,7 +85,9 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
    */
   public abstract String getBackupLocation();
 
-
+  /**
+   * @return The name of the collection to use.
+   */
   public String getCollectionName(){
     return getCollectionNamePrefix() + "_" + testSuffix;
   }
@@ -173,7 +172,7 @@ public abstract class AbstractCloudBackupRestoreTestCase extends SolrCloudTestCa
     CloudSolrClient solrClient = cluster.getSolrClient();
     create.process(solrClient);
 
-    indexDocs(getCollectionName());
+    indexDocs(getCollectionName(), false);
 
 
     String backupLocation = getBackupLocation();
