@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 public class InterpolatedProperties extends Properties {
   private static final Pattern PROPERTY_REFERENCE_PATTERN = Pattern.compile("\\$\\{(?<name>[^}]+)\\}");
 
+  private Properties overrides;
   /**
    * CLOUDERA BUILD
    * Constructor.
@@ -50,6 +51,12 @@ public class InterpolatedProperties extends Properties {
    */
   public InterpolatedProperties(Properties overrides) {
     super(overrides);
+    String gbn = overrides.getProperty("cdh.gbn");
+    Matcher matcher = PROPERTY_REFERENCE_PATTERN.matcher(gbn);
+    if(matcher.find()) {
+      overrides.setProperty("cdh.gbn", "CDH_GBN is not set");
+    }
+    this.overrides = overrides;
   }
 
   /**
@@ -67,7 +74,7 @@ public class InterpolatedProperties extends Properties {
    */
   @Override
   public void load(Reader reader) throws IOException {
-    Properties p = new Properties();
+    Properties p = new Properties(overrides);
     p.load(reader);
 
     LinkedHashMap<String, String> props = new LinkedHashMap<>();

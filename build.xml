@@ -45,6 +45,12 @@
         <arg value="cloudera-pom.xml" />
         <arg value="process-resources"/>
       </exec>
+      <exec executable="echo" dir="${basedir}">
+        <arg value="Generated cdh.build.properties file:" />
+      </exec>
+      <exec executable="cat" dir="${basedir}">
+        <arg value="cdh.build.properties" />
+      </exec>
     </then>
   </if>
   <property file="${basedir}/cdh.build.properties" />
