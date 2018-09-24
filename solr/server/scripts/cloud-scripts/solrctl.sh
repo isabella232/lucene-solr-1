@@ -194,10 +194,10 @@ SOLR_DEFAULTS=${SOLR_DEFAULTS:-/etc/default/solr}
 SENTRY_CONF_DIR=${SENTRY_CONF_DIR:-/etc/sentry/conf}
 
 if [ -z "${LOG4J_PROPS}" ]; then
-  if [ -f "${SOLR_CONF_DIR}/log4j.properties" ]; then
-    export LOG4J_PROPS="${SOLR_CONF_DIR}/log4j.properties"
+  if [ -f "${SOLR_CONF_DIR}/log4j2.xml" ]; then
+    export LOG4J_PROPS="${SOLR_CONF_DIR}/log4j2.xml"
   else
-    export LOG4J_PROPS="$(dirname "$0")/log4j.properties"
+    export LOG4J_PROPS="$(dirname "$0")/log4j2.xml"
   fi
 else
   export LOG4J_PROPS="${LOG4J_PROPS}"
