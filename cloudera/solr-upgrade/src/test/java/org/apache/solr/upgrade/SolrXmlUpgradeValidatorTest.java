@@ -17,17 +17,11 @@
 
 package org.apache.solr.upgrade;
 
-import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashSet;
 import java.util.Set;
 
 import com.google.common.io.Files;
@@ -35,9 +29,6 @@ import org.apache.solr.config.upgrade.UpgradeConfigException;
 import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Test;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
 import static org.apache.solr.util.RegexMatcher.matchesPattern;
 import static org.hamcrest.core.IsNot.not;
@@ -55,8 +46,6 @@ public class SolrXmlUpgradeValidatorTest extends UpgradeTestBase {
     }
   }
 
-
-  public static final String INCOMPATIBILITY_DESCRIPTIONS = "/result/incompatibility[contains(level, '%s')]/description";
 
   @Test
   public void verifyInvalidItemsInOldFormat() throws Exception {
@@ -104,7 +93,7 @@ public class SolrXmlUpgradeValidatorTest extends UpgradeTestBase {
     Path solrXml = Paths.get(TEST_HOME(), solrXmlFilename);
     UpgradeToolUtil.doUpgradeSolrXml(solrXml, upgradedDir, false);
     LOG.info(Files.toString(upgradedDir.resolve(solrXmlFilename).toFile(), Charset.forName("UTF-8")));
-    LOG.info(Files.toString(upgradedDir.resolve("solrxml_validation.xml").toFile(), Charset.forName("UTF-8")));
+    LOG.info(Files.toString(upgradedDir.resolve("solrxml_validation.html").toFile(), Charset.forName("UTF-8")));
 
     assertThat(solrXmlIncompatibilities("info"), everyItem(not(matchesPattern("must contain HDFS backup repository definition"))));
   }
@@ -131,19 +120,10 @@ public class SolrXmlUpgradeValidatorTest extends UpgradeTestBase {
     }
   }
 
-  private Set<String> solrXmlIncompatibilities(String level) throws XPathExpressionException, FileNotFoundException {
-    return asSet(String.format(INCOMPATIBILITY_DESCRIPTIONS, level), validationResult("solrxml_validation.xml"));
+  private Set<String> solrXmlIncompatibilities(String level) throws IOException {
+    return getIncompatibilitiesByQuery(String.format(INCOMPATIBILITY_DESCRIPTIONS, level), validationResult("solrxml_validation.html"));
   }
 
-  private Set<String> asSet(String xpath, Path input) throws XPathExpressionException, FileNotFoundException {
-    NodeList incompatibilities = (NodeList) XPathFactory.newInstance().newXPath().evaluate(xpath, new InputSource(new FileInputStream(input.toFile())), XPathConstants.NODESET);
-    Set<String> incompatibilityList = new HashSet<>();
-    for(int i=0;i<incompatibilities.getLength(); i++) {
-      Element e = (Element) incompatibilities.item(i);
-      incompatibilityList.add(e.getTextContent());
-    }
-    return incompatibilityList;
-  }
 
   private Path validationResult(String fileName) {
     return upgradedDir.resolve(fileName);

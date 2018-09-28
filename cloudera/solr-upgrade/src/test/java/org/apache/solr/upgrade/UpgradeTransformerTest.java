@@ -27,18 +27,13 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.solr.config.upgrade.UpgradeConfigException;
 import org.junit.After;
 import org.junit.Test;
-import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
-import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.internal.matchers.IsCollectionContaining.hasItems;
-import static org.junit.matchers.JUnitMatchers.containsString;
 
 public class UpgradeTransformerTest extends UpgradeTestBase {
   @After
@@ -51,9 +46,9 @@ public class UpgradeTransformerTest extends UpgradeTestBase {
     }
   }
 
-  public static final String SIMILARITY_CLASS_XPATH = "/schema/similarity/@class";
+  private static final String SIMILARITY_CLASS_XPATH = "/schema/similarity/@class";
 
-  public static final String CONF_DIR = "transformer-test";
+  private static final String CONF_DIR = "transformer-test";
 
   @Test
   public void verifySchemaTransformRules() throws Exception {
@@ -66,7 +61,7 @@ public class UpgradeTransformerTest extends UpgradeTestBase {
     upgradeSchema(CONF_DIR, false);
     upgradeConfig(CONF_DIR, false);
 
-    Set<String> similarityClass = schema(SIMILARITY_CLASS_XPATH);
+    Set<String> similarityClass = schema();
     assertThat(similarityClass, hasItems("solr.ClassicSimilarityFactory"));
     assertThat(similarityClass, not(hasItems("solr.DefaultSimilarityFactory")));
 
@@ -78,12 +73,12 @@ public class UpgradeTransformerTest extends UpgradeTestBase {
 
   }
 
-  private Set<String> schema(String xpath) throws XPathExpressionException, FileNotFoundException {
-    return asSet(xpath, schemaTransformationResult());
+  private Set<String> schema() throws XPathExpressionException, FileNotFoundException {
+    return getIncompatibilitiesByXPath(schemaTransformationResult());
   }
 
-  private Set<String> asSet(String xpath, Path input) throws XPathExpressionException, FileNotFoundException {
-    Node incompatibilities = (Node) XPathFactory.newInstance().newXPath().evaluate(xpath, new InputSource(new FileInputStream(input.toFile())), XPathConstants.NODE);
+  private Set<String> getIncompatibilitiesByXPath(Path input) throws XPathExpressionException, FileNotFoundException {
+    Node incompatibilities = (Node) XPathFactory.newInstance().newXPath().evaluate(SIMILARITY_CLASS_XPATH, new InputSource(new FileInputStream(input.toFile())), XPathConstants.NODE);
     Set<String> incompatibilityList = new HashSet<>();
     incompatibilityList.add(incompatibilities.getTextContent());
     return incompatibilityList;

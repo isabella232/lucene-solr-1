@@ -21,11 +21,16 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.config.upgrade.ConfigUpgradeTool;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.junit.Before;
 
 /**
@@ -33,10 +38,12 @@ import org.junit.Before;
  */
 public class UpgradeTestBase extends DockerRunnerTestBase {
 
-  protected Solr4CloudRunner solr4 = null;
-  protected SolrCloudRunner solr = null;
-  public Path upgradedDir;
+  Solr4CloudRunner solr4 = null;
+  SolrCloudRunner solr = null;
+  Path upgradedDir;
   private ZooKeeperRunner zooKeeper;
+
+  static final String INCOMPATIBILITY_DESCRIPTIONS = "table.table-%s tbody tr td.description";
 
   @Before
   public void setUp() throws Exception {
@@ -47,71 +54,72 @@ public class UpgradeTestBase extends DockerRunnerTestBase {
     UpgradeToolUtil.init();
   }
 
-  protected void reCreateCollection(String configName) throws IOException, SolrServerException {
+  void reCreateCollection(String configName) throws IOException, SolrServerException {
     dockerRunner.uploadConfig(upgradedDir, configName);
     createCollection(COLLECTION_NAME, configName);
   }
 
-  protected void provisionSolrXml() throws IOException {
+  void provisionSolrXml() throws IOException {
     File nodeDir = new File(solr.getNodeDir());
     File xmlF = new File(SolrTestCaseJ4.TEST_HOME(), "solr.xml");
     FileUtils.copyFile(xmlF, new File(nodeDir, "solr.xml"));
   }
 
-  protected void createCurrentSolrCluster() {
+  void createCurrentSolrCluster() {
     zooKeeper = dockerRunner.zooKeeperRunner();
     zooKeeper.start();
     solr = dockerRunner.solrCloudRunner(zooKeeper);
     try {
       copyMinFullSetup(new File(solr.getNodeDir()));
     } catch (IOException e) {
-      new RuntimeException(e);
-     }
+      LOG.error(e.getLocalizedMessage());
+      throw new RuntimeException(e);
+    }
 
   }
 
 
-  protected void stopSolr4() {
+  void stopSolr4() {
     solr4.stop();
     zooKeeper.stop();
   }
 
 
-  protected void upgradeConfigs(String configName) throws IOException {
+  void upgradeConfigs(String configName) throws IOException {
     upgradeConfig(configName);
     upgradeSchema();
   }
 
-  public void upgradeConfig(String configName) throws IOException {
+  void upgradeConfig(String configName) throws IOException {
     upgradeConfig(configName, false);
   }
 
-  public void upgradeConfig(String configName, boolean dryRun) throws IOException {
+  void upgradeConfig(String configName, boolean dryRun) throws IOException {
     Path solrConfig = downLoadConfig(configName);
     UpgradeToolUtil.doUpgradeConfig(solrConfig, upgradedDir, dryRun);
     LOG.info("converted solrconfig.xml:");
     LOG.info(new String(Files.readAllBytes(upgradedDir.resolve("solrconfig.xml"))));
-    Files.delete(upgradedDir.resolve("solrconfig_validation.xml"));
+    Files.delete(upgradedDir.resolve("solrconfig_validation.html"));
   }
 
-  public void upgradeSchema(String configName, boolean dryRun) throws IOException {
+  void upgradeSchema(String configName, boolean dryRun) throws IOException {
     Path schemaPath = solr4.getSchemaCopy(configName);
     UpgradeToolUtil.doUpgradeSchema(schemaPath, upgradedDir, dryRun);
     LOG.info("converted schema.xml:");
     LOG.info(new String(Files.readAllBytes(upgradedDir.resolve("schema.xml"))));
-    Files.delete(upgradedDir.resolve("schema_validation.xml"));
+    Files.delete(upgradedDir.resolve("schema_validation.html"));
   }
 
-  public void upgradeSchema() throws IOException {
+  void upgradeSchema() throws IOException {
     upgradeSchema(COLLECTION_NAME, false);
   }
 
-  protected void createSolr4Cluster() {
+  void createSolr4Cluster() {
     zooKeeper.start();
     solr4 = dockerRunner.solr4CloudRunner(zooKeeper);
   }
 
-  protected void assertConfigMigration(String configName) throws IOException, SolrServerException {
+  void assertConfigMigration(String configName) throws IOException, SolrServerException {
     createSolr4Cluster();
 
     dockerRunner.copy4_10_3SolrXml(new File(solr4.getNodeDir()));
@@ -129,5 +137,15 @@ public class UpgradeTestBase extends DockerRunnerTestBase {
 
 
     reCreateCollection(configName);
+  }
+
+  Set<String> getIncompatibilitiesByQuery(String query, Path input) throws  IOException {
+    Document result = Jsoup.parse(input.toFile(), "utf-8");
+    Elements errors = result.select(query);
+    return errors.stream().map(UpgradeTestBase::extractWholeText).collect(Collectors.toSet());
+  }
+
+  private static String extractWholeText(Element element) {
+    return element.wholeText();
   }
 }

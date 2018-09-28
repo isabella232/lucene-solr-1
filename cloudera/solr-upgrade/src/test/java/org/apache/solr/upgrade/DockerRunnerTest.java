@@ -48,8 +48,8 @@ import static org.junit.matchers.JUnitMatchers.hasItem;
 public class DockerRunnerTest extends DockerRunnerTestBase {
 
 
-  public static final int THREAD_GRACEFUL_CLOSE_TIMEOUT = 5;
-  public static final int OK_RESPONSE = 0;
+  private static final int THREAD_GRACEFUL_CLOSE_TIMEOUT = 5;
+  private static final int OK_RESPONSE = 0;
   private ExecutorService threadExecutor;
   private ZooKeeperServerMainWithoutExit zooKeeperServer;
 
@@ -141,7 +141,7 @@ public class DockerRunnerTest extends DockerRunnerTestBase {
 
 
   @Test
-  public void solrCannotBeStartedTwice() throws Exception {
+  public void solrCannotBeStartedTwice(){
     Solr4Runner solr4Runner = dockerRunner.solr4Runner();
 
     solr4Runner.start();
@@ -153,7 +153,7 @@ public class DockerRunnerTest extends DockerRunnerTestBase {
   }
 
   @Test
-  public void startZookeeperContainerAsDetachedForeground() throws Exception {
+  public void startZookeeperContainerAsDetachedForeground(){
     dockerRunner.zooKeeperRunner().start();
 
   }
@@ -233,7 +233,7 @@ public class DockerRunnerTest extends DockerRunnerTestBase {
 
     Path targetSchemaDir = Files.createTempDirectory("schema-tmp-dir").toRealPath();
     UpgradeToolUtil.doUpgradeSchema(schemaPath, targetSchemaDir);
-    Path upgradeResult = Paths.get(targetSchemaDir.toString(), "schema_validation.xml");
+    Path upgradeResult = Paths.get(targetSchemaDir.toString(), "schema_validation.html");
     assertThat(new String(readAllBytes(upgradeResult)), not(containsBlockingIncompatibility()));
   }
 
@@ -271,7 +271,7 @@ public class DockerRunnerTest extends DockerRunnerTestBase {
 
     Path targetConfigDir = Files.createTempDirectory("config-tmp-dir").toRealPath();
     UpgradeToolUtil.doUpgradeConfig(configPath.resolve("solrconfig.xml"), targetConfigDir);
-    Path upgradeResult = Paths.get(targetConfigDir.toString(), "solrconfig_validation.xml");
+    Path upgradeResult = Paths.get(targetConfigDir.toString(), "solrconfig_validation.html");
     assertThat(new String(readAllBytes(upgradeResult)), not(containsBlockingIncompatibility()));
   }
 

@@ -41,21 +41,25 @@
     <xsl:choose>
       <xsl:when test="/result/incompatibility[contains(level, 'error')]">
         <h2>Following configuration errors found:</h2>
-        <table border="1">
+        <table border="1" class="table-error">
+          <thead>
           <tr bgcolor="#9acd32">
             <th>Description</th>
             <th>Recommendation</th>
             <th>Lucene/Solr JIRAs</th>
             <th>Requires re-indexing</th>
           </tr>
+          </thead>
+          <tbody>
           <xsl:for-each select="/result/incompatibility[contains(level, 'error')]">
             <tr>
-              <td><xsl:value-of select="./description"/></td>
+              <td class="description"><xsl:value-of select="./description"/></td>
               <td><xsl:value-of select="./recommendation"/></td>
               <td><xsl:value-of select="./jira_number"/></td>
               <td><xsl:value-of select="./reindexing"/></td>
             </tr>
           </xsl:for-each>
+          </tbody>
         </table>
         <br />
       </xsl:when>
@@ -64,21 +68,25 @@
     <xsl:choose>
       <xsl:when test="/result/incompatibility[contains(level, 'warn')]">
         <h2>Following configuration warnings found:</h2>
-        <table border="1">
+        <table border="1" class="table-warn">
+          <thead>
           <tr bgcolor="#9acd32">
             <th>Description</th>
             <th>Recommendation</th>
             <th>Lucene/Solr JIRAs</th>
             <th>Requires re-indexing</th>
           </tr>
+          </thead>
+          <tbody>
           <xsl:for-each select="/result/incompatibility[contains(level, 'warn')]">
             <tr>
-              <td><xsl:value-of select="./description"/></td>
+              <td class="description"><xsl:value-of select="./description"/></td>
               <td><xsl:value-of select="./recommendation"/></td>
               <td><xsl:value-of select="./jira_number"/></td>
               <td><xsl:value-of select="./reindexing"/></td>
             </tr>
           </xsl:for-each>
+          </tbody>
         </table>
         <br />
       </xsl:when>
@@ -87,21 +95,25 @@
     <xsl:choose>
       <xsl:when test="/result/incompatibility[contains(level, 'info') and contains(transform, 'yes')]">
         <h2>Following incompatibilities will be fixed by auto-transformations:</h2>
-        <table border="1">
+        <table border="1" class="table-info">
+          <thead>
           <tr bgcolor="#9acd32">
             <th>Description</th>
             <th>Recommendation</th>
             <th>Lucene/Solr JIRAs</th>
             <th>Requires re-indexing</th>
           </tr>
+          </thead>
+          <tbody>
           <xsl:for-each select="/result/incompatibility[contains(level, 'info') and contains(transform, 'yes')]">
             <tr>
-              <td><xsl:value-of select="./description"/></td>
+              <td class="description"><xsl:value-of select="./description"/></td>
               <td><xsl:value-of select="./recommendation"/></td>
               <td><xsl:value-of select="./jira_number"/></td>
               <td><xsl:value-of select="./reindexing"/></td>
             </tr>
           </xsl:for-each>
+          </tbody>
         </table>
         <br />
       </xsl:when>
@@ -109,21 +121,25 @@
     <xsl:choose>
       <xsl:when test="/result/incompatibility[contains(level, 'info') and contains(transform, 'no')]">
         <h2>Please note the other incompatibilities in Solr <xsl:value-of select="$solrOpVersion"/>:</h2>
-        <table border="1">
+        <table border="1" class="table-info">
+          <thead>
           <tr bgcolor="#9acd32">
             <th>Description</th>
             <th>Recommendation</th>
             <th>Lucene/Solr JIRAs</th>
             <th>Requires re-indexing</th>
           </tr>
+          </thead>
+          <tbody>
           <xsl:for-each select="/result/incompatibility[contains(level, 'info') and contains(transform, 'no')]">
             <tr>
-              <td><xsl:value-of select="./description"/></td>
+              <td class="description"><xsl:value-of select="./description"/></td>
               <td><xsl:value-of select="./recommendation"/></td>
               <td><xsl:value-of select="./jira_number"/></td>
               <td><xsl:value-of select="./reindexing"/></td>
             </tr>
           </xsl:for-each>
+          </tbody>
         </table>
         <br />
       </xsl:when>

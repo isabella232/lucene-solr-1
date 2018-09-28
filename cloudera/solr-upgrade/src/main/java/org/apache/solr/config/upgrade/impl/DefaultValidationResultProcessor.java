@@ -44,7 +44,6 @@ public class DefaultValidationResultProcessor implements ValidationHandler {
   @Override
   public void begin(String confName) {
     System.out.println("Validating "+confName+"...");
-    //System.out.println();
   }
 
   @Override
