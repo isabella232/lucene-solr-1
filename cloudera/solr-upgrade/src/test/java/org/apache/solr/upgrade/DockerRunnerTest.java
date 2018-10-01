@@ -283,6 +283,7 @@ public class DockerRunnerTest extends DockerRunnerTestBase {
       try {
         super.initializeAndRun(args);
       } catch (QuorumPeerConfig.ConfigException | IOException e) {
+        e.printStackTrace();
         throw new RuntimeException(e);
       }
     }
