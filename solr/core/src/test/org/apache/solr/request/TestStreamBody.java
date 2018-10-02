@@ -118,7 +118,8 @@ public class TestStreamBody extends RestTestBase {
       public String getPath() { //don't let superclass substitute qt for the path
         return "/update";
       }
-    };    
+    };
+    enableStreamBody(false);
     try {
       queryRequest.process(getSolrClient());
       fail();

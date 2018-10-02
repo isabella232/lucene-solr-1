@@ -311,7 +311,7 @@ public class SolrConfig extends Config implements MapSerializable {
         "requestDispatcher/requestParsers/@enableRemoteStreaming", false);
 
     enableStreamBody = getBool(
-        "requestDispatcher/requestParsers/@enableStreamBody", false);
+        "requestDispatcher/requestParsers/@enableStreamBody", true);
 
     handleSelect = getBool(
         "requestDispatcher/@handleSelect", !luceneMatchVersion.onOrAfter(Version.LUCENE_7_0_0));

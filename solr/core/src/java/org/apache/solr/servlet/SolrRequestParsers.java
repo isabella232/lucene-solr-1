@@ -103,7 +103,7 @@ public class SolrRequestParsers
     if( globalConfig == null ) {
       multipartUploadLimitKB = formUploadLimitKB = Integer.MAX_VALUE; 
       enableRemoteStreams = false;
-      enableStreamBody = false;
+      enableStreamBody = true;
       handleSelect = false;
       addHttpRequestToContext = false;
     } else {
@@ -124,7 +124,7 @@ public class SolrRequestParsers
   
   private SolrRequestParsers() {
     enableRemoteStreams = false;
-    enableStreamBody = false;
+    enableStreamBody = true;
     handleSelect = false;
     addHttpRequestToContext = false;
     init(Integer.MAX_VALUE, Integer.MAX_VALUE);
