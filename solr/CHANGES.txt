@@ -374,8 +374,6 @@ Other Changes
 
 * SOLR-12165: Ref Guide: DisMax default mm param value is improperly documented as 100%. (Steve Rowe)
 
-* SOLR-12154: Disallow explicit usage of Log4j2 logger via forbidden APIs. (Varun Thacker, Tomás Fernández Löbbe)
-
 * SOLR-12176: Improve FORCELEADER to handle the case when a replica win the election but does not present
   in clusterstate (Cao Manh Dat)
 
