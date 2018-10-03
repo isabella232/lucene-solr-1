@@ -68,8 +68,8 @@ if "%JAVACMD%"=="" set JAVACMD=java
 
 if "%REPO%"=="" set REPO=%BASEDIR%\lib
 
-set CLASSPATH=%REPO%\*;%BASEDIR%\..\..\dist\solrj-lib\*;%BASEDIR%\..\..\dist\*;%BASEDIR%\lucene-libs\*
-set EXTRA_JVM_ARGUMENTS=-Xmx512m -Dlog4j.configurationFile=file:%BASEDIR%/conf/log4j2.xml
+set CLASSPATH="%CLASSPATH%";"%REPO%\*;%BASEDIR%\..\..\dist\solrj-lib\*;%BASEDIR%\..\..\dist\solr-core-*;%BASEDIR%\..\..\dist\solr-solrj-*;%BASEDIR%\..\..\dist\solr-prometheus-exporter-*;%BASEDIR%\lib\*"
+set EXTRA_JVM_ARGUMENTS=-Xmx512m -Dlog4j.configuration=file:%BASEDIR%/conf/log4j.properties
 goto endInit
 
 @REM Reaching here means variables are defined and arguments have been captured
