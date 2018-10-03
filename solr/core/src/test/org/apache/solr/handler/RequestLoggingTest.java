@@ -20,14 +20,11 @@ import java.io.StringWriter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.Appender;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.appender.WriterAppender;
-import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.layout.PatternLayout;
+import org.apache.log4j.Appender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.SimpleLayout;
+import org.apache.log4j.WriterAppender;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.common.util.SuppressForbidden;
 import org.apache.solr.core.SolrCore;
@@ -47,40 +44,26 @@ public class RequestLoggingTest extends SolrTestCaseJ4 {
 
   @Before
   public void setupAppender() {
-    LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-    LoggerConfig config = ctx.getConfiguration().getLoggerConfig("RequestLoggingTest");
-
     writer = new StringWriter();
-    appender = WriterAppender.createAppender(
-      PatternLayout
-        .newBuilder()
-        .withPattern("%-5p [%t]: %m%n")
-        .build(), 
-        null, writer, "RequestLoggingTest", false, true);
-    appender.start();
-    
+    appender = new WriterAppender(new SimpleLayout(), writer);
   }
 
   @Test
   public void testLogBeforeExecuteWithCoreLogger() {
-    Logger logger = LogManager.getLogger(SolrCore.class);
+    Logger logger = Logger.getLogger(SolrCore.class);
     testLogBeforeExecute(logger);
   }
 
   @Test
   public void testLogBeforeExecuteWithRequestLogger() {
-    Logger logger = LogManager.getLogger("org.apache.solr.core.SolrCore.Request");
+    Logger logger = Logger.getLogger("org.apache.solr.core.SolrCore.Request");
     testLogBeforeExecute(logger);
   }
 
   public void testLogBeforeExecute(Logger logger) {
     Level level = logger.getLevel();
-    
-    LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-    LoggerConfig config = ctx.getConfiguration().getLoggerConfig(logger.getName());
-    config.setLevel(Level.DEBUG);
-    config.addAppender(appender, Level.DEBUG, null);
-    ctx.updateLoggers();
+    logger.setLevel(Level.DEBUG);
+    logger.addAppender(appender);
 
     try {
       assertQ(req("q", "*:*"));
@@ -94,9 +77,8 @@ public class RequestLoggingTest extends SolrTestCaseJ4 {
       assertFalse(msg, group.contains("status"));
       assertFalse(msg, group.contains("QTime"));
     } finally {
-      config.setLevel(level);
-      config.removeAppender(appender.getName());
-      ctx.updateLoggers();
+      logger.setLevel(level);
+      logger.removeAppender(appender);
     }
   }
 }

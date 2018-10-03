@@ -4339,7 +4339,7 @@ public class SolrCLI {
      *   ...
      *   solr.log   -&gt; solr.log.1
      * </pre>
-     * @param generations number of generations to keep. Should agree with setting in log4j2.xml
+     * @param generations number of generations to keep. Should agree with setting in log4j.properties
      * @return 0 if success
      * @throws Exception if problems
      */
