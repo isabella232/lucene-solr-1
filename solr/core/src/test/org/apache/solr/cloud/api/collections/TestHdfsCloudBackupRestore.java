@@ -135,6 +135,7 @@ public class TestHdfsCloudBackupRestore extends AbstractCloudBackupRestoreTestCa
 
     configureCluster(NUM_SHARDS)// nodes
     .addConfig("conf1", TEST_PATH().resolve("configsets").resolve("cloud-minimal").resolve("conf"))
+    .addConfig("confFaulty", TEST_PATH().resolve("configsets").resolve("cloud-minimal-faulty").resolve("conf"))
     .withSolrXml(SOLR_XML)
     .configure();
   }
