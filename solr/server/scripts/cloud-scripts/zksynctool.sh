@@ -19,7 +19,7 @@ fi
 if [ -n "$LOG4J_PROPS" ]; then
   log4j_config="file:${LOG4J_PROPS}"
 else
-  log4j_config="file:${scriptDir}/log42.xml"
+  log4j_config="file:${scriptDir}/log4j.properties"
 fi
 
 PATH="${JAVA_HOME}/bin:${PATH}" ${JVM} ${ZKCLI_JVM_FLAGS} -Dlog4j.configuration=${log4j_config} \

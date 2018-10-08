@@ -16,7 +16,7 @@ sdir="`dirname \"$0\"`"
 if [ -n "$LOG4J_PROPS" ]; then
   log4j_config="file:$LOG4J_PROPS"
 else
-  log4j_config="file:$sdir/log4j2.xml"
+  log4j_config="file:$sdir/log4j.properties"
 fi
 
 PATH=$JAVA_HOME/bin:$PATH $JVM $SENTRYCLI_JVM_FLAGS -Dlog4j.configuration=$log4j_config -classpath "${sdir}/../server/solr-webapp/webapp/WEB-INF/lib/*:${sdir}/../server/lib/ext/*:${SENTRY_CONF_DIR}" ${1+"$@"}

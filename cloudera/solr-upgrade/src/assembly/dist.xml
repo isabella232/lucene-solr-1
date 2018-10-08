@@ -33,7 +33,7 @@
       <directory>${project.basedir}/bin</directory>
       <outputDirectory>lib</outputDirectory>
       <includes>
-        <include>log4j2.xml</include>
+        <include>log4j.properties</include>
       </includes>
     </fileSet>
     <fileSet>
