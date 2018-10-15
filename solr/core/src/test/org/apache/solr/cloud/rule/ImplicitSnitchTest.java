@@ -24,7 +24,6 @@ import java.util.Map;
 
 import com.google.common.collect.Sets;
 import org.apache.lucene.util.LuceneTestCase;
-import org.apache.lucene.util.TestRuleLimitSysouts;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.lucene.util.TestRuleLimitSysouts.Limit;
 import org.apache.solr.common.SolrException;

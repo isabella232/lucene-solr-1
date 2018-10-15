@@ -230,14 +230,20 @@ public class LibVersionsCheckTask extends Task {
     initializeBuildOverrides();
 
     int numErrors = 0;
+    StringBuilder errorMsg = new StringBuilder();
     if ( ! verifySortedCoordinatesPropertiesFile(centralizedVersionsFile)) {
+      errorMsg.append("Lexical sort or duplicate check failed for ")
+          .append(centralizedVersionsFile.getName()).append("\n");
       ++numErrors;
     }
     if ( ! verifySortedCoordinatesPropertiesFile(ignoreConflictsFile)) {
+      errorMsg.append("Lexical sort or duplicate check failed for ")
+          .append(ignoreConflictsFile.getName()).append("\n");
       ++numErrors;
     }
     collectDirectDependencies();
     if ( ! collectVersionConflictsToIgnore()) {
+      errorMsg.append("collectVersionConflictsToIgnore failed\n");
       ++numErrors;
     }
 
@@ -258,12 +264,15 @@ public class LibVersionsCheckTask extends Task {
       File ivyXmlFile = ((FileResource)resource).getFile();
       try {
         if ( ! checkIvyXmlFile(ivyXmlFile)) {
+          errorMsg.append("checkIvyXmlFile failed for ").append(ivyXmlFile.getName()).append("\n");
           ++numErrors;
         }
         if ( ! resolveTransitively(ivyXmlFile)) {
+          errorMsg.append("resolveTransitively failed for ").append(ivyXmlFile.getName()).append("\n");
           ++numErrors;
         }
         if ( ! findLatestConflictVersions()) {
+          errorMsg.append("findLatestConflictVersions failed\n");
           ++numErrors;
         }
       } catch (Exception e) {
@@ -292,6 +301,9 @@ public class LibVersionsCheckTask extends Task {
     log("Scanned " + numChecked + " " + IVY_XML_FILENAME + " files for rev=\"${/org/name}\" format.",
         messageLevel);
     log("Found " + numConflicts + " indirect dependency version conflicts.");
+    if(errorMsg.length() != 0) {
+      log("Errors found: " + errorMsg.toString());
+    }
     log(String.format(Locale.ROOT, "Completed in %.2fs., %d error(s).",
                       (System.currentTimeMillis() - start) / 1000.0, numErrors),
         messageLevel);
@@ -761,11 +773,11 @@ public class LibVersionsCheckTask extends Task {
         if (null != previousKey) {
           int comparison = currentKey.compareTo(previousKey);
           if (0 == comparison) {
-            log("DUPLICATE coordinate key '" + currentKey + "' in " + coordinatePropertiesFile.getName(),
+            log("ERROR: DUPLICATE coordinate key '" + currentKey + "' in " + coordinatePropertiesFile.getName(),
                 Project.MSG_ERR);
             success = false;
           } else if (comparison < 0) {
-            log("OUT-OF-ORDER coordinate key '" + currentKey + "' in " + coordinatePropertiesFile.getName(),
+            log("ERROR: OUT-OF-ORDER coordinate key '" + currentKey + "' in " + coordinatePropertiesFile.getName(),
                 Project.MSG_ERR);
             success = false;
           }

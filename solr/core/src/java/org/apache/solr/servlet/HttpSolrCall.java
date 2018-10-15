@@ -104,7 +104,6 @@ import org.apache.solr.security.AuthorizationResponse;
 import org.apache.solr.security.PublicKeyHandler;
 import org.apache.solr.security.HadoopAuthPlugin;
 import org.apache.solr.security.KerberosPlugin;
-import org.apache.solr.security.PKIAuthenticationPlugin;
 import org.apache.solr.servlet.SolrDispatchFilter.Action;
 import org.apache.solr.servlet.cache.HttpCacheHeaderUtil;
 import org.apache.solr.servlet.cache.Method;
