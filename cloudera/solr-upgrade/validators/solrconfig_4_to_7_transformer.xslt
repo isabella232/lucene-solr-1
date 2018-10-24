@@ -70,9 +70,9 @@
 </xsl:template>
 
 <xsl:template match="luceneMatchVersion">
-  <xsl:if test=".!='7.0.0'">
-    <xsl:message>* Changed "luceneMatchVersion" to 7.0.0</xsl:message>
-    <luceneMatchVersion>7.0.0</luceneMatchVersion>
+  <xsl:if test=".!='7.4.0'">
+    <xsl:message>* Changed "luceneMatchVersion" to 7.4.0</xsl:message>
+    <luceneMatchVersion>7.4.0</luceneMatchVersion>
   </xsl:if>
 </xsl:template>
 
