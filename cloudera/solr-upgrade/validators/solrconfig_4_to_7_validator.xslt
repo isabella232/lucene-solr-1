@@ -33,12 +33,12 @@
   </xsl:template>
 
   <xsl:template match="luceneMatchVersion">
-    <xsl:if test=".!='7.0.0'">
+    <xsl:if test=".!='7.4.0'">
       <incompatibility>
         <level>info</level>
         <jira_number>N/A</jira_number>
-        <description>Lucene index version is not 7.0.0</description>
-        <recommendation>Update "luceneMatchVersion" to 7.0.0</recommendation>
+        <description>Lucene index version is not 7.4.0</description>
+        <recommendation>Update "luceneMatchVersion" to 7.4.0</recommendation>
         <reindexing>yes</reindexing>
         <transform>yes</transform>
       </incompatibility>

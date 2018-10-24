@@ -143,7 +143,8 @@ public class DockerRunnerTestBase extends SolrTestCaseJ4 {
 
 
 
-  protected Path downLoadConfig(String configName) throws IOException {Path configPath = createTempDir("config-tmp").toRealPath();
+  protected Path downLoadConfig(String configName) throws IOException {
+    Path configPath = createTempDir("config-tmp").toRealPath();
     dockerRunner.downloadConfig(configName, configPath);
     return configPath.resolve("solrconfig.xml");
   }
