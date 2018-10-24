@@ -37,10 +37,6 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.solr.SolrTestCaseJ4.configset;
-import static org.apache.solr.cloud.SolrCloudTestCase.cluster;
-import static org.apache.solr.cloud.SolrCloudTestCase.configureCluster;
-
 /**
  * Test 5 nodes Solr cluster with Kerberos plugin enabled.
  * This test is Ignored right now as Mini KDC has a known bug that
@@ -52,7 +48,7 @@ import static org.apache.solr.cloud.SolrCloudTestCase.configureCluster;
 })
 
 @LuceneTestCase.SuppressSysoutChecks(bugUrl = "Solr logs to JUL")
-public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
+public class TestSolrCloudWithKerberosAlt extends SolrCloudTestCase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -135,7 +131,7 @@ public class TestSolrCloudWithKerberosAlt extends LuceneTestCase {
   }
   
   @Test
-  @BadApple(bugUrl="https://issues.apache.org/jira/browse/SOLR-12028") // 21-May-2018
+ // @BadApple(bugUrl="https://issues.apache.org/jira/browse/SOLR-12028") // 21-May-2018
   public void testBasics() throws Exception {
     testCollectionCreateSearchDelete();
     // sometimes run a second test e.g. to test collection create-delete-create scenario
