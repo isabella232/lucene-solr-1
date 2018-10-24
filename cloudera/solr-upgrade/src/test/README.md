@@ -16,6 +16,7 @@ At first run it will build a docker image that will take long. Later on this can
 	
 	>	`echo '{ "hosts":["tcp://0.0.0.0:2375"] }' >>/etc/docker/daemon.json`
 - Get solr...tar.gz built using ant package from the lucene-solr/solr directory
+- Copy the solr tgz from lucene-solr/solr/package/ or create a sym link in the resources/solr/dockerfiles/[solr_all | solr5localcopy]
 - Solr version numbers in files
   > `resourced/solr/dockerfiles/solr_all`
   > `../pom.xml`

@@ -23,6 +23,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.google.common.io.Files;
 import org.apache.solr.config.upgrade.UpgradeConfigException;
@@ -54,8 +55,8 @@ public class SolrXmlUpgradeValidatorTest extends UpgradeTestBase {
 
     generateSolrXmlUpgradeFailures(solrXml);
 
-    assertMatchesAll(solrXmlIncompatibilities("error"),
-        matchesPattern("no.*support.*cores element")
+    assertMatchesAll(solrXmlIncompatibilities("error").stream().map(str -> str.replaceAll("\n", "")).collect(Collectors.toSet()),
+        matchesPattern("no.*supports.*cores element")
     );
   }
 

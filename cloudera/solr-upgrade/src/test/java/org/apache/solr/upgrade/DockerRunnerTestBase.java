@@ -70,7 +70,6 @@ public class DockerRunnerTestBase extends SolrTestCaseJ4 {
 
   @BeforeClass
   public static void setUpClassBase() throws Exception {
-    randomizeNumericTypesProperties();
     docker = DockerRunner.dockerClient();
     if (System.getProperty("skipImageBuilding") == null) {
       new DockerRunner.Context().build().buildImages();
@@ -144,8 +143,7 @@ public class DockerRunnerTestBase extends SolrTestCaseJ4 {
 
 
 
-  protected Path downLoadConfig(String configName) throws IOException {
-    Path configPath = createTempDir("config-tmp").toRealPath();
+  protected Path downLoadConfig(String configName) throws IOException {Path configPath = createTempDir("config-tmp").toRealPath();
     dockerRunner.downloadConfig(configName, configPath);
     return configPath.resolve("solrconfig.xml");
   }

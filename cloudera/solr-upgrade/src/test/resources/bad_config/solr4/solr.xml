@@ -58,4 +58,27 @@
     <repository name="local" class="a.b.C" default="true"/>
   </backup>
 
+  <metrics>
+    <reporter name="testReporter1" group="shard">
+      <str name="host">localhost</str>
+      <int name="port">8080</int>
+      <int name="period">60</int>
+    </reporter>
+    <reporter name="testReporter2" group="cluster">
+      <str name="host">localhost</str>
+      <int name="port">8081</int>
+      <int name="period">60</int>
+    </reporter>
+    <reporter name="testReporter3" group="custom" class="com.custom.Implementation">
+      <str name="host">localhost</str>
+      <int name="port">8082</int>
+      <int name="period">60</int>
+    </reporter>
+    <reporter name="testReporter4" group="cluster" class="com.custom.Implementation">
+      <str name="host">localhost</str>
+      <int name="port">8082</int>
+      <int name="period">60</int>
+    </reporter>
+  </metrics>
+
 </solr>

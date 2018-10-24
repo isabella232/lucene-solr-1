@@ -2,7 +2,7 @@ FROM anapsix/alpine-java:8_jdk_unlimited
 
 ARG docker_source_version
 
-ENV target_version solr-7.0.0-SNAPSHOT
+ENV target_version solr-7.4.0-SNAPSHOT
 ENV source_version ${docker_source_version}
 
 
