@@ -41,6 +41,7 @@ import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.common.util.StrUtils;
+import org.apache.solr.core.CoreContainer;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.metrics.SolrMetricManager;
 import org.apache.solr.request.SolrQueryRequest;
@@ -70,6 +71,10 @@ public class MetricsHandler extends RequestHandlerBase implements PermissionName
 
   public MetricsHandler() {
     this.metricManager = null;
+  }
+
+  public MetricsHandler(CoreContainer coreContainer) {
+    this.metricManager = coreContainer.getMetricManager();
   }
 
   public MetricsHandler(SolrMetricManager metricManager) {
