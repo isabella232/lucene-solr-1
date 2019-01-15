@@ -16,6 +16,8 @@
  */
 package org.apache.solr.search.facet;
 
+import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
+import com.tdunning.math.stats.AVLTreeDigest;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,8 +28,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
-import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
-import com.tdunning.math.stats.AVLTreeDigest;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.util.hll.HLL;
@@ -38,6 +38,7 @@ import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.request.macro.MacroExpander;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -66,18 +67,41 @@ public class TestJsonFacets extends SolrTestCaseHS {
 
     // we need DVs on point fields to compute stats & facets
     if (Boolean.getBoolean(NUMERIC_POINTS_SYSPROP)) System.setProperty(NUMERIC_DOCVALUES_SYSPROP,"true");
-    
+
     initCore("solrconfig-tlog.xml","schema_latest.xml");
   }
 
+  /**
+   * Start all servers for cluster, initialize shards whitelist and then restart
+   */
   public static void initServers() throws Exception {
     if (servers == null) {
       servers = new SolrInstances(3, "solrconfig-tlog.xml", "schema_latest.xml");
+      // Set the shards whitelist to all shards plus the fake one used for tolerant test
+      System.setProperty(SOLR_TESTS_SHARDS_WHITELIST, servers.getWhitelistString() + ",http://[ff01::114]:33332");
+      systemSetPropertySolrDisableShardsWhitelist("false");
+      restartServers();
     }
+  }
+
+  /**
+   * Restart all configured servers, i.e. configuration will be re-read
+   */
+  public static void restartServers() {
+    servers.slist.forEach(s -> {
+      try {
+        s.stop();
+        s.start();
+      } catch (Exception e) {
+        fail("Exception during server restart: " + e.getMessage());
+      }
+    });
   }
 
   @AfterClass
   public static void afterTests() throws Exception {
+    System.clearProperty(SOLR_TESTS_SHARDS_WHITELIST);
+    systemClearPropertySolrDisableShardsWhitelist();
     JSONTestUtil.failRepeatedKeys = false;
     FacetFieldProcessorByHashDV.MAXIMUM_STARTING_TABLE_SIZE=origTableSize;
     FacetField.FacetMethod.DEFAULT_METHOD = origDefaultFacetMethod;
@@ -288,14 +312,14 @@ public class TestJsonFacets extends SolrTestCaseHS {
     indexSimple(client);
 
     { // simple 'query' domain
-      
+
       // the facet buckets for all of the requests below should be identical
       // only the numFound & top level facet count should differ
       final String expectedFacets
         = "facets/w=={ buckets:["
         + "  { val:'NJ', count:2}, "
         + "  { val:'NY', count:1} ] }";
-      
+
       assertJQ(req("rows", "0", "q", "cat_s:B", "json.facet",
                    "{w: {type:terms, field:'where_s'}}"),
                "response/numFound==3",
@@ -317,13 +341,13 @@ public class TestJsonFacets extends SolrTestCaseHS {
                "facets/count==0",
                expectedFacets);
     }
-    
+
     { // a nested explicit query domain
 
       // for all of the "top" buckets, the subfacet should have identical sub-buckets
       final String expectedSubBuckets = "{ buckets:[ { val:'B', count:3}, { val:'A', count:2} ] }";
       assertJQ(req("rows", "0", "q", "num_i:[0 TO *]", "json.facet",
-                   "{w: {type:terms, field:'where_s', " + 
+                   "{w: {type:terms, field:'where_s', " +
                    "     facet: { c: { type:terms, field:'cat_s', domain: { query:'*:*' }}}}}")
                , "facets/w=={ buckets:["
                + "  { val:'NJ', count:2, c: " + expectedSubBuckets + "}, "
@@ -338,14 +362,14 @@ public class TestJsonFacets extends SolrTestCaseHS {
       for (String raw : Arrays.asList("null", "[ ]", "{param:bogus}")) {
         expectThrows(SolrException.class, () -> {
             assertJQ(req("rows", "0", "q", "num_i:[0 TO *]", "json.facet",
-                         "{w: {type:terms, field:'where_s', " + 
+                         "{w: {type:terms, field:'where_s', " +
                          "     facet: { c: { type:terms, field:'cat_s', domain: { query: "+raw+" }}}}}"));
           });
       }
     }
   }
 
-  
+
   @Test
   public void testSimpleSKG() throws Exception {
     Client client = Client.localClient();
@@ -363,7 +387,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
              + "           background_popularity: 0.83333,"
              + "   } }"
              );
-    
+
     // simple single level facet w/skg stat & sorting
     for (String sort : Arrays.asList("index asc", "skg desc")) {
       // the relatedness score of each of our cat_s values is (conviniently) also alphabetical order
@@ -395,7 +419,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
                + "   } ] } } "
                );
     }
-    
+
     // SKG used in multiple nested facets
     //
     // we'll re-use these params in 2 requests, one will simulate a shard request
@@ -405,7 +429,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
        + "      facet: { skg: 'relatedness($fore,$back)', "
        + "               y:   { type: terms, field: 'where_s', sort: 'skg desc', "
        + "                      facet: { skg: 'relatedness($fore,$back)' } } } } }");
-       
+
     // plain old request
     assertJQ(req(nestedSKG)
              , "facets=={count:5, x:{ buckets:["
@@ -419,7 +443,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
              + "             background_popularity: 0.5 },"
              + "     y : { buckets:["
              + "            {  val:'NY', count: 1, "
-             + "               skg : { relatedness: 0.00554, " 
+             + "               skg : { relatedness: 0.00554, "
              //+ "                       foreground_count: 1, "
              //+ "                       foreground_size: 2, "
              //+ "                       background_count: 2, "
@@ -481,14 +505,14 @@ public class TestJsonFacets extends SolrTestCaseHS {
              + "             background_size: 6 }, "
              + "     y : { buckets:["
              + "            {  val:'NY', count: 1, "
-             + "               skg : { " 
+             + "               skg : { "
              + "                       foreground_count: 1, "
              + "                       foreground_size: 2, "
              + "                       background_count: 2, "
              + "                       background_size: 6, "
              + "            } }, "
              + "            {  val:'NJ', count: 2, "
-             + "               skg : { " 
+             + "               skg : { "
              + "                       foreground_count: 1, "
              + "                       foreground_size: 2, "
              + "                       background_count: 3, "
@@ -497,28 +521,28 @@ public class TestJsonFacets extends SolrTestCaseHS {
              + "     ] } "
              + "   }, "
              + "   { val:'A', count:2, "
-             + "     skg : { " 
+             + "     skg : { "
              + "             foreground_count: 0, "
              + "             foreground_size: 2, "
              + "             background_count: 2, "
              + "             background_size: 6 },"
              + "     y : { buckets:["
              + "            {  val:'NJ', count: 1, "
-             + "               skg : { " 
+             + "               skg : { "
              + "                       foreground_count: 0, "
              + "                       foreground_size: 0, "
              + "                       background_count: 3, "
              + "                       background_size: 6, "
              + "            } }, "
              + "            {  val:'NY', count: 1, "
-             + "               skg : { " 
+             + "               skg : { "
              + "                       foreground_count: 0, "
              + "                       foreground_size: 0, "
              + "                       background_count: 2, "
              + "                       background_size: 6, "
              + "            } }, "
              + "   ] } } ] } } ");
-    
+
   }
 
   @Test
@@ -634,7 +658,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
                  + "                     facet: { z2: { type: terms, field: 'z_t', "
                  + "                                    domain: { join: { from:'3_s', to:'1_s' } } } } } } } }")
              , "facets=={count:4, "
-             + "x:{ buckets:[" // joined 1->2: doc5 drops out, counts: z=4, x=3, y=3 
+             + "x:{ buckets:[" // joined 1->2: doc5 drops out, counts: z=4, x=3, y=3
              + "   { val:z, count:4, " // x=z (docs 1,3,4,6) y terms: A=2, B=1, C=1
              + "     y1 : { buckets:[ " // z1 joins 2->3...
              + "             { val:A, count:2, " // A in docs(3,4), joins (A,B) -> docs(2,5,6)
@@ -652,7 +676,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
              + "             { val:C, count:1, " // C in doc6, joins A -> docs(1,4)
              + "               z2: { buckets:[{ val:'3', count:2 }, { val:'2', count:1 }] } } "
              + "          ] } }, "
-             + "   { val:x, count:3, " // x=x (docs 1,2,!5,6) y terms: B=2, C=1 
+             + "   { val:x, count:3, " // x=x (docs 1,2,!5,6) y terms: B=2, C=1
              + "     y1 : { buckets:[ " // z1 joins 2->3...
              + "             { val:B, count:2, " // B in docs(1,2), joins A -> doc6
              + "               z1: { buckets:[{ val:'1', count:1 }] } }, "
@@ -665,7 +689,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
              + "             { val:C, count:1, " // C in doc6, joins A -> docs(1,4)
              + "               z2: { buckets:[{ val:'3', count:2 }, { val:'2', count:1 }] } } "
              + "          ] } }, "
-             + "   { val:y, count:3, " // x=y (docs 2,3,6) y terms: A=1, B=1, C=1 
+             + "   { val:y, count:3, " // x=y (docs 2,3,6) y terms: A=1, B=1, C=1
              + "     y1 : { buckets:[ " // z1 joins 2->3...
              + "             { val:A, count:1, " // A in doc3, joins A -> doc6
              + "               z1: { buckets:[{ val:'1', count:1 }] } }, "
@@ -686,7 +710,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
              );
   }
 
-  
+
   @Test
   public void testMethodStream() throws Exception {
     Client client = Client.localClient();
@@ -1406,7 +1430,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
             ",between:{count:3,x:0.0, ny:{count:2}}" +
             " } }"
     );
-    
+
     // sparse range facet (with sub facets and stats), with "other:all"
     client.testJQ(params(p, "q", "*:*", "json.facet",
                          "{f:{range:{field:${num_d}, start:-5, end:10, gap:1, other:all,   "+
@@ -1433,7 +1457,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
                   "                       ,between:{count:3,x:0.0, ny:{count:2}}" +
                   " } }"
     );
-    
+
     // sparse range facet (with sub facets and stats), with "other:all" & mincount==1
     client.testJQ(params(p, "q", "*:*", "json.facet",
                          "{f:{range:{field:${num_d}, start:-5, end:10, gap:1, other:all, mincount:1,   "+
@@ -2209,7 +2233,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
   public void testTolerant() throws Exception {
     initServers();
     Client client = servers.getClient(random().nextInt());
-    client.queryDefaults().set("shards", servers.getShards() + ",[ff01::114]:33332:/ignore_exception");
+    client.queryDefaults().set("shards", servers.getShards() + ",[ff01::114]:33332/ignore_exception");
     indexSimple(client);
 
     try {
@@ -2377,7 +2401,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
     // build up a list of the docs we want to test with
     List<SolrInputDocument> docsToAdd = new ArrayList<>(10);
     docsToAdd.add(sdoc("id", "1", "type_s","book", "book_s","A", "v_t","q"));
-    
+
     docsToAdd.add( sdoc("id", "2", "type_s","book", "book_s","B", "v_t","q w") );
     docsToAdd.add( sdoc("book_id_s", "2", "id", "2.1", "type_s","page", "page_s","a", "v_t","x y z") );
     docsToAdd.add( sdoc("book_id_s", "2", "id", "2.2", "type_s","page", "page_s","b", "v_t","x y  ") );
@@ -2389,7 +2413,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
     docsToAdd.add( sdoc("book_id_s", "3", "id","3.3", "type_s","page", "page_s","f", "v_t","    z") );
 
     docsToAdd.add( sdoc("id", "4", "type_s","book", "book_s","D", "v_t","e") );
-    
+
     // shuffle the docs since order shouldn't matter
     Collections.shuffle(docsToAdd, random());
     for (SolrInputDocument doc : docsToAdd) {
@@ -2422,7 +2446,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
             ", books2:{ buckets:[ {val:q,count:2},{val:w,count:2},{val:e,count:1} ] }" +
             ", pageof3:{count:1 , x:{buckets:[ {val:d,count:1},{val:e,count:1},{val:f,count:1} ]}  }" +
             ", bookof22:{count:1 , x:{buckets:[ {val:B,count:1} ]}  }" +
-            ", missing_Parents:{count:0}" + 
+            ", missing_Parents:{count:0}" +
             ", missing_Children:{count:0}" +
             "}"
     );
