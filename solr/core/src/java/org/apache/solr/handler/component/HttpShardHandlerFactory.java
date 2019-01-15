@@ -16,6 +16,12 @@ package org.apache.solr.handler.component;
  * limitations under the License.
  */
 
+
+import com.google.common.annotations.VisibleForTesting;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -25,6 +31,10 @@ import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.LBHttpSolrServer;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
+import org.apache.solr.common.cloud.ClusterState;
+import org.apache.solr.common.params.ShardParams;
 import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.StrUtils;
@@ -77,6 +87,7 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
   int queueSize = -1;
   boolean accessPolicy = false;
   boolean useRetries = false;
+  private WhitelistHostChecker whitelistHostChecker = null;
 
   private String scheme = null;
 
@@ -103,7 +114,13 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
   // Turn on retries for certain IOExceptions, many of which can happen
   // due to connection pooling limitations / races
   static final String USE_RETRIES = "useRetries";
-  
+
+  public static final String INIT_SHARDS_WHITELIST = "shardsWhitelist";
+
+  static final String INIT_SOLR_DISABLE_SHARDS_WHITELIST = "solr.disable." + INIT_SHARDS_WHITELIST;
+
+  static final String SET_SOLR_DISABLE_SHARDS_WHITELIST_CLUE = " set -D"+INIT_SOLR_DISABLE_SHARDS_WHITELIST+"=true to disable shards whitelist checks";
+
   /**
    * Get {@link ShardHandler} that uses the default http client.
    */
@@ -117,6 +134,24 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
    */
   public ShardHandler getShardHandler(final HttpClient httpClient){
     return new HttpShardHandler(this, httpClient);
+  }
+
+  /**
+   * Returns this Factory's {@link WhitelistHostChecker}.
+   * This method can be overridden to change the checker implementation.
+   */
+  public WhitelistHostChecker getWhitelistHostChecker() {
+    return this.whitelistHostChecker;
+  }
+
+  @Deprecated // For temporary use by the TermsComponent only.
+  static boolean doGetDisableShardsWhitelist() {
+    return getDisableShardsWhitelist();
+  }
+
+
+  private static boolean getDisableShardsWhitelist() {
+    return Boolean.getBoolean(INIT_SOLR_DISABLE_SHARDS_WHITELIST);
   }
 
   @Override
@@ -135,6 +170,9 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
     this.queueSize = getParameter(args, INIT_SIZE_OF_QUEUE, queueSize);
     this.accessPolicy = getParameter(args, INIT_FAIRNESS_POLICY, accessPolicy);
     this.useRetries = getParameter(args, USE_RETRIES, useRetries);
+    this.whitelistHostChecker = new WhitelistHostChecker(args == null? null: (String) args.get(INIT_SHARDS_WHITELIST), !getDisableShardsWhitelist());
+    log.info("Host whitelist initialized: {}", this.whitelistHostChecker);
+
     
     // magic sysprop to make tests reproducible: set by SolrTestCaseJ4.
     String v = System.getProperty("tests.shardhandler.randomSeed");
@@ -269,4 +307,141 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
     
     return url;
   }
+  
+  /**
+   * Class used to validate the hosts in the "shards" parameter when doing a distributed
+   * request
+   */
+  public static class WhitelistHostChecker {
+    
+    /**
+     * List of the whitelisted hosts. Elements in the list will be host:port (no protocol or context)
+     */
+    private final Set<String> whitelistHosts;
+    
+    /**
+     * Indicates whether host checking is enabled 
+     */
+    private final boolean whitelistHostCheckingEnabled;
+    
+    public WhitelistHostChecker(String whitelistStr, boolean enabled) {
+      this.whitelistHosts = implGetShardsWhitelist(whitelistStr);
+      this.whitelistHostCheckingEnabled = enabled;
+    }
+    
+    final static Set<String> implGetShardsWhitelist(final String shardsWhitelist) {
+      if (shardsWhitelist != null && !shardsWhitelist.isEmpty()) {
+        List<String> shardList = StrUtils.splitSmart(shardsWhitelist, ',');
+        Set<String> result = new HashSet<>();
+        for(String shard : shardList) {
+          String hostUrl =  shard.trim();
+          URL url;
+          try {
+            if (!hostUrl.startsWith("http://") && !hostUrl.startsWith("https://")) {
+              // It doesn't really matter which protocol we set here because we are not going to use it. We just need a full URL.
+              url = new URL("http://" + hostUrl);
+            } else {
+              url = new URL(hostUrl);
+            }
+          } catch (MalformedURLException e) {
+            throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Invalid URL syntax in \"" + INIT_SHARDS_WHITELIST + "\": " + shardsWhitelist, e);
+          }
+          if (url.getHost() == null || url.getPort() < 0) {
+            throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Invalid URL syntax in \"" + INIT_SHARDS_WHITELIST + "\": " + shardsWhitelist);
+          }
+          result.add(url.getHost() + ":" + url.getPort());
+        }
+        return result;
+      }
+      return null;
+    }
+    
+    
+    /**
+     * @see #checkWhitelist(ClusterState, String, List)
+     */
+    protected void checkWhitelist(String shardsParamValue, List<String> shardUrls) {
+      checkWhitelist(null, shardsParamValue, shardUrls);
+    }
+    
+    /**
+     * Checks that all the hosts for all the shards requested in shards parameter exist in the configured whitelist
+     * or in the ClusterState (in case of cloud mode)
+     * 
+     * @param clusterState The up to date ClusterState, can be null in case of non-cloud mode
+     * @param shardsParamValue The original shards parameter
+     * @param shardUrls The list of cores generated from the shards parameter. 
+     */
+    protected void checkWhitelist(ClusterState clusterState, String shardsParamValue, List<String> shardUrls) {
+      if (!whitelistHostCheckingEnabled) {
+        return;
+      }
+      Set<String> localWhitelistHosts;
+      if (whitelistHosts == null && clusterState != null) {
+        // TODO: We could implement caching, based on the version of the live_nodes znode
+        localWhitelistHosts = generateWhitelistFromLiveNodes(clusterState);
+      } else if (whitelistHosts != null) {
+        localWhitelistHosts = whitelistHosts;
+      } else {
+        localWhitelistHosts = Collections.emptySet();
+      }
+
+      for(String string : shardUrls){
+        String shardUrl =  string.trim();
+        URL url;
+        try {
+          if (!shardUrl.startsWith("http://") && !shardUrl.startsWith("https://")) {
+            // It doesn't really matter which protocol we set here because we are not going to use it. We just need a full URL.
+            url = new URL("http://" + shardUrl);
+          } else {
+            url = new URL(shardUrl);
+          }
+        } catch (MalformedURLException e) {
+          throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "Invalid URL syntax in \"shards\" parameter: " + shardsParamValue, e);
+        }
+        if (url.getHost() == null || url.getPort() < 0) {
+          throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, "Invalid URL syntax in \"shards\" parameter: " + shardsParamValue);
+        }
+        if (!localWhitelistHosts.contains(url.getHost() + ":" + url.getPort())) {
+          log.warn("The '"+ShardParams.SHARDS+"' parameter value '"+shardsParamValue+"' contained value(s) not on the shards whitelist ("+localWhitelistHosts+"), shardUrl:" + shardUrl);
+          throw new SolrException(ErrorCode.FORBIDDEN,
+              "The '"+ShardParams.SHARDS+"' parameter value '"+shardsParamValue+"' contained value(s) not on the shards whitelist. shardUrl:" + shardUrl + "." +
+                  HttpShardHandlerFactory.SET_SOLR_DISABLE_SHARDS_WHITELIST_CLUE);
+        }
+      }
+    }
+    
+    Set<String> generateWhitelistFromLiveNodes(ClusterState clusterState) {
+      Set<String> liveNodes = clusterState.getLiveNodes();
+      Set<String> result = new HashSet<>();
+      for(String liveNode : liveNodes) {
+        result.add(liveNode.substring(0, liveNode.indexOf('_')));
+      }
+      return result;
+    }
+    
+    public boolean hasExplicitWhitelist() {
+      return this.whitelistHosts != null;
+    }
+    
+    public boolean isWhitelistHostCheckingEnabled() {
+      return whitelistHostCheckingEnabled;
+    }
+    
+    /**
+     * Only to be used by tests
+     */
+    @VisibleForTesting
+    Set<String> getWhitelistHosts() {
+      return this.whitelistHosts;
+    }
+
+    @Override
+    public String toString() {
+      return "WhitelistHostChecker [whitelistHosts=" + whitelistHosts + ", whitelistHostCheckingEnabled="
+          + whitelistHostCheckingEnabled + "]";
+    }
+    
+  }
+  
 }

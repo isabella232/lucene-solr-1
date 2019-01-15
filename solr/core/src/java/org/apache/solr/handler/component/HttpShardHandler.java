@@ -27,6 +27,7 @@ import org.apache.solr.client.solrj.util.ClientUtils;
 import org.apache.solr.cloud.CloudDescriptor;
 import org.apache.solr.cloud.ZkController;
 import org.apache.solr.common.SolrException;
+import org.apache.solr.common.SolrException.ErrorCode;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.cloud.Replica;
@@ -44,6 +45,8 @@ import org.apache.solr.request.SolrQueryRequest;
 import org.slf4j.MDC;
 
 import java.net.ConnectException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -75,7 +78,6 @@ public class HttpShardHandler extends ShardHandler {
     // This is primarily to keep track of what order we should use to query the replicas of a shard
     // so that we use the same replica for all phases of a distributed request.
     shardToURLs = new HashMap<>();
-
   }
 
 
@@ -261,7 +263,7 @@ public class HttpShardHandler extends ShardHandler {
     // search is distributed.
     boolean hasShardURL = shards != null && shards.indexOf('/') > 0;
     rb.isDistrib = hasShardURL | rb.isDistrib;
-    
+
     if (rb.isDistrib) {
       // since the cost of grabbing cloud state is still up in the air, we grab it only
       // if we need it.
@@ -271,12 +273,16 @@ public class HttpShardHandler extends ShardHandler {
       CloudDescriptor cloudDescriptor = coreDescriptor.getCloudDescriptor();
       ZkController zkController = coreDescriptor.getCoreContainer().getZkController();
 
+      HttpShardHandlerFactory.WhitelistHostChecker hostChecker = httpShardHandlerFactory.getWhitelistHostChecker();
 
       if (shards != null) {
         List<String> lst = StrUtils.splitSmart(shards, ",", true);
         rb.shards = lst.toArray(new String[lst.size()]);
         rb.slices = new String[rb.shards.length];
-
+        if (clusterState == null && zkController != null) {
+          clusterState =  zkController.getClusterState();
+        }
+        hostChecker.checkWhitelist(clusterState, shards, lst);
         if (zkController != null) {
           // figure out which shards are slices
           for (int i=0; i<rb.shards.length; i++) {
@@ -322,12 +328,23 @@ public class HttpShardHandler extends ShardHandler {
           addSlices(slices, clusterState, params, collectionName,  shardKeys, false);
         }
 
-        
+
         // Store the logical slices in the ResponseBuilder and create a new
         // String array to hold the physical shards (which will be mapped
         // later).
         rb.slices = slices.keySet().toArray(new String[slices.size()]);
         rb.shards = new String[rb.slices.length];
+
+      }
+
+      if (shards != null && zkController == null && hostChecker.isWhitelistHostCheckingEnabled() && !hostChecker.hasExplicitWhitelist()) {
+        throw new SolrException(ErrorCode.FORBIDDEN, "HttpShardHandlerFactory "+HttpShardHandlerFactory.INIT_SHARDS_WHITELIST
+            +" not configured but required (in lieu of ZkController and ClusterState) when using the '"+ShardParams.SHARDS+"' parameter."
+            +HttpShardHandlerFactory.SET_SOLR_DISABLE_SHARDS_WHITELIST_CLUE);
+      }
+
+      if (clusterState == null && zkController != null) {
+        clusterState =  zkController.getClusterState();
       }
 
       //
@@ -351,6 +368,13 @@ public class HttpShardHandler extends ShardHandler {
           if (shortCircuit) {
             rb.isDistrib = false;
             rb.shortCircuitedURL = ZkCoreNodeProps.getCoreUrl(zkController.getBaseUrl(), coreDescriptor.getName());
+            if (hostChecker.isWhitelistHostCheckingEnabled() && hostChecker.hasExplicitWhitelist()) {
+              /*
+               * We only need to check the host whitelist if there is an explicit whitelist (other than all the live nodes)
+               * when the "shards" indicate cluster state elements only
+               */
+              hostChecker.checkWhitelist(clusterState, shards, Arrays.asList(rb.shortCircuitedURL));
+            }
             return;
           }
           // We shouldn't need to do anything to handle "shard.rows" since it was previously meant to be an optimization?
@@ -392,10 +416,24 @@ public class HttpShardHandler extends ShardHandler {
               String url = ZkCoreNodeProps.getCoreUrl(replica);
               sliceShardsStr.append(url);
             }
-
+            if (hostChecker.isWhitelistHostCheckingEnabled() && hostChecker.hasExplicitWhitelist()) {
+              /*
+               * We only need to check the host whitelist if there is an explicit whitelist (other than all the live nodes)
+               * when the "shards" indicate cluster state elements only
+               */
+              hostChecker.checkWhitelist(clusterState, shards, Arrays.asList(sliceShardsStr.toString().split("[,|]")));
+            }
             rb.shards[i] = sliceShardsStr.toString();
+          } else {
+            hostChecker.checkWhitelist(clusterState, shards, Arrays.asList(rb.shards[i]));
           }
         }
+      }
+    } else {
+      if (shards != null) {
+        HttpShardHandlerFactory.WhitelistHostChecker hostChecker = httpShardHandlerFactory.getWhitelistHostChecker();
+        // No cloud, verbatim check of shards
+        hostChecker.checkWhitelist(shards, new ArrayList<>(Arrays.asList(shards.split("[,|]"))));
       }
     }
     String shards_rows = params.get(ShardParams.SHARDS_ROWS);

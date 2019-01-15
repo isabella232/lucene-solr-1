@@ -16,6 +16,7 @@
  */
 package org.apache.solr.search.facet;
 
+import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -26,6 +27,8 @@ import java.util.Map;
 import java.util.Random;
 
 import com.carrotsearch.randomizedtesting.annotations.ParametersFactory;
+import org.apache.solr.common.SolrException;
+import org.apache.solr.util.hll.HLL;
 import org.apache.lucene.util.LuceneTestCase;
 import org.apache.solr.SolrTestCaseHS;
 import org.apache.solr.client.solrj.SolrServer;
@@ -67,15 +70,38 @@ public class TestJsonFacets extends SolrTestCaseHS {
     initCore("solrconfig-jf.xml","schema_latest.xml");
   }
 
+  /**
+   * Start all servers for cluster, initialize shards whitelist and then restart
+   */
   public static void initServers() throws Exception {
     if (servers == null) {
       servers = new SolrInstances(3, "solrconfig-jf.xml", "schema_latest.xml");
+      // Set the shards whitelist to all shards plus the fake one used for tolerant test
+      System.setProperty(SOLR_TESTS_SHARDS_WHITELIST, servers.getWhitelistString() + ",http://[ff01::114]:33332");
+      systemSetPropertySolrDisableShardsWhitelist("false");
+      restartServers();
+    }
+  }
+
+  /**
+   * Restart all configured servers, i.e. configuration will be re-read
+   */
+  public static void restartServers() {
+    for(SolrInstance s : servers.slist) {
+      try {
+        s.stop();
+        s.start();
+      } catch (Exception e) {
+        fail("Exception during server restart: " + e.getMessage());
+      }
     }
   }
 
   @AfterClass
   public static void afterTests() throws Exception {
     // BP JSONTestUtil.failRepeatedKeys = false;
+    System.clearProperty(SOLR_TESTS_SHARDS_WHITELIST);
+    systemClearPropertySolrDisableShardsWhitelist();
     FacetFieldProcessorByHashDV.MAXIMUM_STARTING_TABLE_SIZE=origTableSize;
     FacetField.FacetMethod.DEFAULT_METHOD = origDefaultFacetMethod;
     if (servers != null) {
@@ -1703,7 +1729,7 @@ public class TestJsonFacets extends SolrTestCaseHS {
   public void testTolerant() throws Exception {
     initServers();
     Client client = servers.getClient(random().nextInt());
-    client.queryDefaults().set("shards", servers.getShards() + ",[ff01::114]:33332:/ignore_exception");
+    client.queryDefaults().set("shards", servers.getShards() + ",[ff01::114]:33332/ignore_exception");
     indexSimple(client);
 
     try {

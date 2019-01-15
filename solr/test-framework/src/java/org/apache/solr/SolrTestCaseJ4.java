@@ -164,6 +164,9 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
   public static final String DEFAULT_TEST_COLLECTION_NAME = "collection1";
   public static final String DEFAULT_TEST_CORENAME = DEFAULT_TEST_COLLECTION_NAME;
 
+  @Deprecated // For backwards compatibility only. Please do not use in new tests.
+  public static final String SYSTEM_PROPERTY_SOLR_DISABLE_SHARDS_WHITELIST = "solr.disable.shardsWhitelist";
+
   private static String coreName = ConfigSolrXmlOld.DEFAULT_DEFAULT_CORE_NAME;
   public static int DEFAULT_CONNECTION_TIMEOUT = 60000;  // default socket connection timeout in ms
 
@@ -2134,6 +2137,16 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
                     "use the following vm option instead if you hit this assert: " +
                     "-Djava.security.egd=file:/dev/./urandom",
             new SecureRandom().getAlgorithm().equals("NativePRNG"));
+  }
+
+  @Deprecated // For backwards compatibility only. Please do not use in new tests.
+  protected static void systemSetPropertySolrDisableShardsWhitelist(String value) {
+    System.setProperty(SYSTEM_PROPERTY_SOLR_DISABLE_SHARDS_WHITELIST, value);
+  }
+
+  @Deprecated // For backwards compatibility only. Please do not use in new tests.
+  protected static void systemClearPropertySolrDisableShardsWhitelist() {
+    System.clearProperty(SYSTEM_PROPERTY_SOLR_DISABLE_SHARDS_WHITELIST);
   }
 
 }

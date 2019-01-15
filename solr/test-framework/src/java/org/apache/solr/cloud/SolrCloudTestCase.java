@@ -69,7 +69,7 @@ public class SolrCloudTestCase extends SolrTestCaseJ4 {
   /**
    * Builder class for a MiniSolrCloudCluster
    */
-  protected static class Builder {
+  public static class Builder {
 
     private final int nodeCount;
     private final Path baseDir;
@@ -141,7 +141,7 @@ public class SolrCloudTestCase extends SolrTestCaseJ4 {
   }
 
   /** The cluster */
-  protected static MiniSolrCloudCluster cluster;
+  public static MiniSolrCloudCluster cluster;
 
   /**
    * Call this to configure a cluster of n nodes.
