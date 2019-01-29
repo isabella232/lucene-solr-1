@@ -64,7 +64,7 @@ public class UpgradeToolUtil {
       int res = new ConfigUpgradeTool().runTool(params);
       validateReturnCodes(schemaPath, res);
     } catch (Exception e) {
-      throw new UpgradeConfigException("Unable to upgrade file");
+      throw new UpgradeConfigException("Unable to upgrade file", e);
     }
   }
 

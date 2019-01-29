@@ -23,8 +23,10 @@ import javax.xml.xpath.XPathFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.After;
@@ -71,6 +73,25 @@ public class UpgradeTransformerTest extends UpgradeTestBase {
     solr.start();
     createCollectionBasedOnConfig(COLLECTION_NAME, CONF_DIR, upgradedDir);
 
+  }
+
+  @Test
+  public void testDoubleConfigTransform() throws Exception {
+    Path goodConfigPath = getFile("good_config/solrconfig.xml").toPath();
+    Path tmp = createTempDir("double-tmp").toRealPath();
+    UpgradeToolUtil.doUpgradeConfig(goodConfigPath, tmp);
+
+    Path transformedConfigPath = tmp.resolve("solrconfig.xml");
+    List<String> transformedConfigContent = Files.readAllLines(transformedConfigPath);
+    assertTrue("luceneMatchVersion haven't been updated to 7.4! File contents:\n" + transformedConfigContent.toString(),
+            transformedConfigContent.stream().anyMatch(s -> s.contains("<luceneMatchVersion>7.4")));
+
+    Path tmp2 = createTempDir("double-tmp2").toRealPath();
+    UpgradeToolUtil.doUpgradeConfig(transformedConfigPath, tmp2);
+
+    List<String> doubleTransformedConfigContent = Files.readAllLines(tmp2.resolve("solrconfig.xml"));
+    assertTrue("luceneMatchVersion was removed on second conversion! File contents:\n" + doubleTransformedConfigContent.toString(),
+            doubleTransformedConfigContent.stream().anyMatch(s -> s.contains("<luceneMatchVersion>7.4")));
   }
 
   private Set<String> schema() throws XPathExpressionException, FileNotFoundException {

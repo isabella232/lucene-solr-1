@@ -72,8 +72,8 @@
 <xsl:template match="luceneMatchVersion">
   <xsl:if test=".!='7.4.0'">
     <xsl:message>* Changed "luceneMatchVersion" to 7.4.0</xsl:message>
-    <luceneMatchVersion>7.4.0</luceneMatchVersion>
   </xsl:if>
+  <luceneMatchVersion>7.4.0</luceneMatchVersion>
 </xsl:template>
 
 <xsl:template match="requestHandler[@class='solr.admin.AdminHandlers']">
