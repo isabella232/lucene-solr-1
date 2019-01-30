@@ -138,7 +138,31 @@ local_coreconfig() {
 }
 
 solr_webapi() {
-  # If SOLR_ADMIN_URI wasn't given explicitly via --solr we need to guess it
+  URI=`guess_solr_uri`$1
+  shift
+  local WEB_OUT=`$SOLR_ADMIN_CURL "$URI" "$@" | sed -e 's#>#>\n#g'`
+
+  if [ $? -eq 0 ] && (echo "$WEB_OUT" | grep -q 'HTTP/.*200.*OK') ; then
+    echo "$WEB_OUT" | egrep -q '"(failure|exception|error|status)":{' || return 0
+  fi
+
+  die "Error: A call to SolrCloud WEB APIs failed: $WEB_OUT"
+}
+
+solr_webapi_return_response() {
+  URI=`guess_solr_uri`$1
+  shift
+  local WEB_OUT=`$SOLR_ADMIN_CURL "$URI" "$@"`
+
+  if [ $? -eq 0 ] && (echo "$WEB_OUT" | grep -q 'HTTP/.*200.*OK') ; then
+    echo "$WEB_OUT"
+  else
+    die "Error: The call to SolrCloud WEB API '$URI' failed: $WEB_OUT"
+  fi
+}
+
+guess_solr_uri() {
+# If SOLR_ADMIN_URI wasn't given explicitly via --solr we need to guess it
   if [ -z "$SOLR_ADMIN_URI" ] ; then
     local SOLR_PROTOCOL=`get_solr_protocol`
     for node in `get_solr_metadata /live_nodes | sed -ne 's#/live_nodes/\(.*:[0-9][0-9]*\).*$#\1#p'` localhost:$SOLR_PORT ; do
@@ -147,18 +171,11 @@ solr_webapi() {
         break
       fi
     done
-    [ -n "$SOLR_ADMIN_URI" ] || die "Error: can't discover Solr URI. Please specify it explicitly via --solr." 
+    [ -n "$SOLR_ADMIN_URI" ] || die "Error: can't discover Solr URI. Please specify it explicitly via --solr."
   fi
 
-  URI="$SOLR_ADMIN_URI$1"
-  shift
-  local WEB_OUT=`$SOLR_ADMIN_CURL $URI "$@" | sed -e 's#>#>\n#g'`
-
-  if [ $? -eq 0 ] && (echo "$WEB_OUT" | grep -q 'HTTP/.*200.*OK') ; then
-    echo "$WEB_OUT" | egrep -q '"(failure|exception|error|status)":{' || return 0
-  fi
-
-  die "Error: A call to SolrCloud WEB APIs failed: $WEB_OUT"
+  URI="$SOLR_ADMIN_URI"
+  echo "$URI"
 }
 
 get_solr_protocol() {
@@ -214,6 +231,7 @@ fi
 SOLR_ADMIN_CURL='curl -i --retry 5 -s -L -k --negotiate -u :'
 SOLR_ADMIN_CHAT=echo
 SOLR_ADMIN_API_CMD='solr_webapi'
+SOLR_ADMIN_API_CMD_RETURN_RESPONSE='solr_webapi_return_response'
 
 HADOOP_HOME=${HADOOP_HOME:-/usr/lib/hadoop/}
 SOLR_HOME=${SOLR_HOME:-/usr/lib/solr/}
@@ -868,7 +886,7 @@ while test $# != 0 ; do
           [ $# -eq 3 ] || usage "Error: incorrect specification of arguments for $2"
           [ ! -e "$3" ] || die "$3 already exists"
           > "$3" || die "unable to create file $3"
-          eval $SOLR_ADMIN_ZK_CMD -cmd getfile /clusterstate.json $3  || die "Error: can't get clusterstate.json from ZK or clusterstate.json is empty"
+          eval $SOLR_ADMIN_API_CMD_RETURN_RESPONSE "/admin/collections?action=CLUSTERSTATUS" > $3  || die "Error: can't get clusterstate.json from admin API or clusterstate.json is empty"
           shift 3
           ;;
         --get-securityconf)
