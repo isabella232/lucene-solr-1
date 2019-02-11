@@ -21,12 +21,12 @@
     <parent>
         <groupId>com.cloudera.cdh</groupId>
         <artifactId>cdh-root</artifactId>
-        <version>6.x-SNAPSHOT</version>
+        <version>6.2.x-SNAPSHOT</version>
     </parent>
 
     <groupId>com.cloudera.cdh</groupId>
     <artifactId>solr-props</artifactId>
-    <version>6x-cdh6.x-SNAPSHOT</version>
+    <version>6x-cdh6.2.x-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <description>Solr build properties setter</description>
