@@ -613,7 +613,10 @@ public class OverseerTest extends SolrTestCaseJ4 {
       Thread.sleep(1000);
       mockController.publishState(collection, "core1", "core_node1",
           ZkStateReader.RECOVERING, 1);
-      
+
+      mockController.publishState(collection, "core1", "core_node1",
+          ZkStateReader.RECOVERING, 1);
+
       waitForCollections(reader, collection);
 
       verifyReplicaStatus(reader, collection, "shard1", "core_node1", ZkStateReader.RECOVERING);

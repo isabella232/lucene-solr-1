@@ -69,7 +69,7 @@ public class TestHttpShardHandlerFactory extends SolrTestCaseJ4 {
     CoreContainer cc = null;
     ShardHandlerFactory factory = null;
     try {
-      cc = CoreContainer.createAndLoad(TEST_HOME(), getFile("solr/collection1"));
+      cc = CoreContainer.createAndLoad(TEST_HOME(), getFile("solr/solr.xml"));
       factory = cc.getShardHandlerFactory();
       assertTrue(factory instanceof HttpShardHandlerFactory);
       final HttpShardHandlerFactory httpShardHandlerFactory = ((HttpShardHandlerFactory)factory);

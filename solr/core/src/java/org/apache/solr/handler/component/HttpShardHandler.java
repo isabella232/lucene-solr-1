@@ -281,6 +281,7 @@ public class HttpShardHandler extends ShardHandler {
         rb.slices = new String[rb.shards.length];
         if (clusterState == null && zkController != null) {
           clusterState =  zkController.getClusterState();
+          slices = clusterState.getSlicesMap(cloudDescriptor.getCollectionName());
         }
         hostChecker.checkWhitelist(clusterState, shards, lst);
         if (zkController != null) {
@@ -345,6 +346,7 @@ public class HttpShardHandler extends ShardHandler {
 
       if (clusterState == null && zkController != null) {
         clusterState =  zkController.getClusterState();
+        slices = clusterState.getSlicesMap(cloudDescriptor.getCollectionName());
       }
 
       //
