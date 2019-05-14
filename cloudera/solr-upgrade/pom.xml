@@ -3,12 +3,12 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.cloudera.cdh</groupId>
   <artifactId>solr-upgrade</artifactId>
-  <version>1.0.0-cdh6.x-SNAPSHOT</version>
+  <version>1.0.0-cdh6.3.x-SNAPSHOT</version>
 
   <parent>
     <groupId>com.cloudera.cdh</groupId>
     <artifactId>cdh-root</artifactId>
-    <version>6.x-SNAPSHOT</version>
+    <version>6.3.x-SNAPSHOT</version>
     <relativePath/> <!-- no parent resolution -->
   </parent>
 
@@ -26,7 +26,7 @@
 
     <commons-cli.version>1.3</commons-cli.version>
     <jackson.version>2.8.9</jackson.version>
-    <solr.version>7.4.0-cdh6.x-SNAPSHOT</solr.version>
+    <solr.version>7.4.0-cdh6.3.x-SNAPSHOT</solr.version>
     <jsoup.version>1.11.3</jsoup.version>
   </properties>
 
