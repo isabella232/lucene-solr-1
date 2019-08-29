@@ -35,7 +35,7 @@ import org.w3c.dom.Node;
 import org.xml.sax.InputSource;
 
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.internal.matchers.IsCollectionContaining.hasItems;
+import static org.hamcrest.CoreMatchers.hasItems;
 
 public class UpgradeTransformerTest extends UpgradeTestBase {
   @After
