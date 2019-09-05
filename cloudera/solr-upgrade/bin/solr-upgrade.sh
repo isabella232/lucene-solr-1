@@ -345,7 +345,7 @@ hdfs_cmd(){
 }
 
 random_string(){
-  head -c 64 /dev/urandom|shasum|head -c 8
+   LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 8
 }
 
 jaas_zkcli_flags(){
