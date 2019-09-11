@@ -259,7 +259,7 @@ public class TestCloudPivotFacet extends AbstractFullDistribZkTestBase {
       pivots = initResponse.getFacetPivot();
       assertNotNull(initParams + " has null pivots?", pivots);
       assertEquals(initParams + " num pivots", 
-                   initParams.getParams("facet.pivot").length, pivots.size());
+              (new HashSet(Arrays.asList(initParams.getParams("facet.pivot")))).size(), pivots.size());
     } catch (Exception e) {
       throw new RuntimeException("init query failed: " + initParams + ": " + 
                                  e.getMessage(), e);
