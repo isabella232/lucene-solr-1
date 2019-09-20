@@ -279,7 +279,11 @@ __EOT__
   echo "---------- Uploading backup directories to ${HDFS_WORKDIR} ----------"
 
   hdfs_cmd -mkdir -p "${HDFS_WORKDIR}/"
-  hdfs_cmd -put -f $WORKDIR/* "${HDFS_WORKDIR}/"
+  if [ -d $WORKDIR -a -n "$(ls -A $WORKDIR)" ]; then
+    hdfs_cmd -put -f $WORKDIR/* "${HDFS_WORKDIR}/"
+  else
+    echo "---------- No collections found to restore. Skipping restore ----------"
+  fi
 
   SUFFIX=$(random_string)
 
