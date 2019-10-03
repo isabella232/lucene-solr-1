@@ -314,12 +314,14 @@ public class SolrXmlConfig {
     Object dst = nl.remove("distribUpdateSoTimeout");
     if (dst != null) {
       distributedSocketTimeout = parseInt("distribUpdateSoTimeout", dst.toString());
+      log.debug("------- distributed socket timeout is being set: {} ms", distributedSocketTimeout);
       defined = true;
     }
 
     Object dct = nl.remove("distribUpdateConnTimeout");
     if (dct != null) {
       distributedConnectionTimeout = parseInt("distribUpdateConnTimeout", dct.toString());
+      log.debug("------- distributed connection timeout is being set: {} ms", distributedConnectionTimeout);
       defined = true;
     }
 
