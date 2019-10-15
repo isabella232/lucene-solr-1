@@ -139,7 +139,9 @@ import static org.apache.solr.servlet.SolrDispatchFilter.Action.RETURN;
 public class HttpSolrCall {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-  static final Random random;
+  public static final String INTERNAL_REQUEST_COUNT = "_forwardedCount";
+
+  public static final Random random;
   static {
     // We try to make things reproducible in the context of our tests by initializing the random instance
     // based on the current seed
@@ -432,7 +434,7 @@ public class HttpSolrCall {
     }
   }
 
-  protected void extractRemotePath(String collectionName, String origCorename) throws UnsupportedEncodingException, KeeperException, InterruptedException {
+  protected void extractRemotePath(String collectionName, String origCorename) throws UnsupportedEncodingException, KeeperException, InterruptedException, SolrException {
     assert core == null;
     coreUrl = getRemotCoreUrl(collectionName, origCorename);
     // don't proxy for internal update requests
@@ -580,6 +582,14 @@ public class HttpSolrCall {
     }
   }
 
+  private String getQuerySting() {
+    int internalRequestCount = queryParams.getInt(INTERNAL_REQUEST_COUNT, 0);
+    ModifiableSolrParams updatedQueryParams = new ModifiableSolrParams(queryParams);
+    updatedQueryParams.set(INTERNAL_REQUEST_COUNT, internalRequestCount + 1);
+    return updatedQueryParams.toQueryString();
+  }
+
+  //TODO using Http2Client
   private boolean isAuthCookieAvailable(HttpServletRequest req) {
     Cookie[] cookies = req.getCookies();
     if (cookies != null) {
@@ -597,7 +607,7 @@ public class HttpSolrCall {
     HttpEntity httpEntity = null;
     try {
       String urlstr = coreUrl;
-      String queryString = queryParams.toQueryString();
+      String queryString = getQuerySting();
 
       /**
        * CDH-69204 When Solr is configured in secure mode (with Sentry), the request
@@ -932,12 +942,14 @@ public class HttpSolrCall {
     }
   }
 
-  private String getRemotCoreUrl(String collectionName, String origCorename) {
+  private String getRemotCoreUrl(String collectionName, String origCorename) throws SolrException {
     ClusterState clusterState = cores.getZkController().getClusterState();
     final DocCollection docCollection = clusterState.getCollectionOrNull(collectionName);
     Slice[] slices = (docCollection != null) ? docCollection.getActiveSlicesArr() : null;
     List<Slice> activeSlices = new ArrayList<>();
     boolean byCoreName = false;
+
+    int totalReplicas = 0;
 
     if (slices == null) {
       activeSlices = new ArrayList<>();
@@ -953,6 +965,9 @@ public class HttpSolrCall {
       }
     }
 
+    for (Slice s: activeSlices) {
+      totalReplicas += s.getReplicas().size();
+    }
     if (activeSlices.isEmpty()) {
       return null;
     }
@@ -961,7 +976,13 @@ public class HttpSolrCall {
     String coreUrl = getCoreUrl(collectionName, origCorename, clusterState,
         activeSlices, byCoreName, true);
 
+    // Avoid getting into a recursive loop of requests being forwarded by
+    // stopping forwarding and erroring out after (totalReplicas) forwards
     if (coreUrl == null) {
+      if (queryParams.getInt(INTERNAL_REQUEST_COUNT, 0) > totalReplicas){
+        throw new SolrException(SolrException.ErrorCode.INVALID_STATE,
+            "No active replicas found for collection: " + collectionName);
+      }
       coreUrl = getCoreUrl(collectionName, origCorename, clusterState,
           activeSlices, byCoreName, false);
     }
@@ -1067,7 +1088,7 @@ public class HttpSolrCall {
       public String getHttpHeader(String s) {
         return getReq().getHeader(s);
       }
-      
+
       @Override
       public Enumeration getHeaderNames() {
         return getReq().getHeaderNames();
@@ -1082,7 +1103,7 @@ public class HttpSolrCall {
       public RequestType getRequestType() {
         return requestType;
       }
-      
+
       public String getResource() {
         return path;
       }
@@ -1108,7 +1129,7 @@ public class HttpSolrCall {
         }
         if(collectionRequests.size() > 0)
           response.delete(response.length() - 1, response.length());
-        
+
         response.append("], Path: [").append(resource).append("]");
         response.append(" path : ").append(path).append(" params :").append(getParams());
         return response.toString();
